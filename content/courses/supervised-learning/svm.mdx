@@ -1,0 +1,153 @@
+# 支持向量机
+
+支持向量机(Support Vector Machine, SVM)是 1990 年代最火的分类算法。它有个非常漂亮的几何直觉:**找一条最"宽"的马路,把两类数据分开**。
+
+## 核心直觉:最大间隔
+
+假设我们要在二维平面上分两类点。**很多条直线都能分开**它们,但哪条最好?
+
+```
+       ○ ○                ● ●
+     ○ ○ ○              ● ● ●
+    ○ ○                  ● ●
+   ────────────────────────────  ← 候选分界线 1
+       ○ ○                ● ●
+        ○               ●
+        ──────────────  ← 候选分界线 2 (更靠中间)
+       ○ ○                ● ●
+        ○               ●
+        ──────────────  ← 候选分界线 3 (SVM 选的)
+```
+
+SVM 选的不是"任意分界线",而是**到两类最近点距离最大**的那条。这就是**最大间隔**(Maximum Margin)。
+
+那些离分界线**最近的样本点**叫做**支持向量**(Support Vector)——它们决定了分界线的位置。其它点爱去哪去哪,不影响结果。
+
+## 形式化:优化目标
+
+设分界线是 `w*x + b = 0`。最大间隔等价于最小化 ||w||:
+
+```
+min  (1/2) * ||w||^2
+subject to:  y_i * (w*x_i + b) >= 1,  对所有 i
+```
+
+这就是 SVM 的**原始优化问题**。用拉格朗日乘子法转化成对偶问题后,**只有支持向量的 alpha_i > 0**,其它点 alpha_i = 0。
+
+## 核函数:把低维不可分变高维可分
+
+很多真实数据**线性不可分**——比如经典的"异或"问题:
+
+```
+●  ○
+○  ●
+```
+
+2D 平面上一条直线分不开。怎么办?**映射到高维**!
+
+比如把 (x1, x2) 映射到 (x1, x2, x1^2 + x2^2)。在高维空间里,**可能就线性可分了**。
+
+但显式计算高维映射代价太大。**核函数**(Kernel Trick)的妙处是:你**不需要真的映射**,只需要在低维空间里算一个核函数 `K(x_i, x_j) = phi(x_i) * phi(x_j)`。
+
+常用核函数:
+
+| 核函数 | 公式 | 擅长 |
+|---|---|---|
+| **线性核** | `K(x_i, x_j) = x_i * x_j` | 线性可分,数据量大 |
+| **多项式核** | `K(x_i, x_j) = (x_i*x_j + c)^d` | 低维简单非线性 |
+| **RBF 核(高斯核)** | `K(x_i, x_j) = exp(-gamma * ||x_i - x_j||^2)` | **万能**,默认首选 |
+| **Sigmoid 核** | `K(x_i, x_j) = tanh(kappa * x_i*x_j + c)` | 类似神经网络 |
+
+<Callout type="tip">
+**经验法则**:
+- 特征数 >> 样本数(比如文本分类):用**线性核**,快且准
+- 样本数 >> 特征数(中等规模):用 **RBF 核**,威力大
+- 样本数和特征数都很大(>10k):线性核,或者直接换神经网络
+</Callout>
+
+## 软间隔:处理噪声和 outlier
+
+现实数据**没有完全线性可分**的。SVM 引入**软间隔**(Soft Margin),允许一些样本被分错:
+
+```
+y_i * (w*x_i + b) >= 1 - xi_i,   xi_i >= 0
+```
+
+并把 `sum(xi_i)` 加到目标函数里作为惩罚。`C` 参数控制惩罚力度:
+- `C` 大:对误分类惩罚重 → 间隔窄,过拟合风险高
+- `C` 小:容忍更多误分类 → 间隔宽,泛化更好
+
+## 实战 sklearn
+
+```python
+from sklearn.svm import SVC
+from sklearn.datasets import load_breast_cancer
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
+
+# 1. 数据
+X, y = load_breast_cancer(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# 2. SVM 对特征缩放敏感,必须先标准化
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# 3. RBF 核 SVM
+model = SVC(kernel='rbf', C=1.0, gamma='scale', random_state=42)
+model.fit(X_train, y_train)
+
+# 4. 评估
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred, target_names=['恶性', '良性']))
+```
+
+## 超参数调优
+
+SVM 有两个关键超参数,通常用 GridSearch 一起调:
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+param_grid = {
+    'C': [0.1, 1, 10, 100],
+    'gamma': [0.001, 0.01, 0.1, 1, 'scale'],
+    'kernel': ['rbf']
+}
+
+grid = GridSearchCV(SVC(), param_grid, cv=5, scoring='f1')
+grid.fit(X_train, y_train)
+print(f"最佳参数: {grid.best_params_}")
+print(f"最佳 F1: {grid.best_score_:.3f}")
+```
+
+## SVM 的优缺点
+
+**优点**:
+- 几何直觉漂亮,可解释性中等
+- **核函数**让它在中小数据集上威力很大
+- 对高维数据(文本)效果好
+- 泛化能力通常不错
+
+**缺点**:
+- **训练慢**:样本量 > 10万 时变得不实用
+- 对特征缩放敏感
+- 超参数(`C`, `gamma`)多,调起来费劲
+- 不直接输出概率(可以用 Platt scaling,但代价高)
+
+## 小结
+
+- SVM 找**最大间隔**分界,几何直觉强
+- **核函数**让它能处理非线性,是 SVM 最有魅力的设计
+- RBF 核 + 标准化是默认起点
+- 数据规模小到中、特征维度高时,SVM 是首选
+
+## 练习思考
+
+1. 为什么 SVM 对**特征缩放**很敏感?想想距离计算。
+2. 用 `sklearn.datasets.make_circles` 生成一个**同心圆**数据,线性核和 RBF 核分别能分开吗?
+3. `C` 和 `gamma` 各自控制什么?尝试用 `make_classification` 跑一个网格搜索,看参数对边界形状的影响。

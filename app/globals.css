@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* KaTeX 数学公式样式 */
+@import "katex/dist/katex.min.css";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --primary: 263 70% 60%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --border: 240 5.9% 90%;
+    --ring: 263 70% 60%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-white text-neutral-800 font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* 暗色模式 (使用 class 策略) */
+  .dark body {
+    @apply bg-neutral-950 text-neutral-100;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-neutral-900;
+  }
+  .dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+    @apply text-neutral-50;
+  }
+}
+
+@layer components {
+  /* 渐变文字 */
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 via-primary-500 to-accent-500;
+  }
+
+  /* 卡片悬浮效果 */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-card hover:-translate-y-0.5;
+  }
+
+  /* 玻璃态效果 */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/40;
+  }
+  .dark .glass {
+    @apply bg-neutral-900/80 border-neutral-800/40;
+  }
+
+  /* 链接样式 */
+  .link-primary {
+    @apply text-primary-700 hover:text-primary-800 underline-offset-4 hover:underline transition-colors;
+  }
+  .dark .link-primary {
+    @apply text-primary-300 hover:text-primary-200;
+  }
+
+  /* 章节正文 Prose 风格 (不依赖 @tailwindcss/typography 插件) */
+  .prose-chinese {
+    @apply text-neutral-800 leading-relaxed;
+  }
+  .dark .prose-chinese {
+    @apply text-neutral-200;
+  }
+  .prose-chinese h1 {
+    @apply text-3xl font-bold mt-10 mb-6 text-neutral-900;
+  }
+  .dark .prose-chinese h1 {
+    @apply text-neutral-50;
+  }
+  .prose-chinese h2 {
+    @apply text-2xl font-semibold mt-10 mb-4 text-neutral-900 scroll-mt-24;
+  }
+  .dark .prose-chinese h2 {
+    @apply text-neutral-50;
+  }
+  .prose-chinese h3 {
+    @apply text-xl font-semibold mt-8 mb-3 text-neutral-900 scroll-mt-24;
+  }
+  .dark .prose-chinese h3 {
+    @apply text-neutral-50;
+  }
+  .prose-chinese h4 {
+    @apply text-lg font-semibold mt-6 mb-2 text-neutral-900;
+  }
+  .dark .prose-chinese h4 {
+    @apply text-neutral-50;
+  }
+  .prose-chinese p {
+    @apply my-4 leading-7;
+  }
+  .prose-chinese ul {
+    @apply list-disc pl-6 my-4 space-y-1;
+  }
+  .prose-chinese ol {
+    @apply list-decimal pl-6 my-4 space-y-1;
+  }
+  .prose-chinese li {
+    @apply leading-7;
+  }
+  .prose-chinese a {
+    @apply text-primary-700 underline underline-offset-2 hover:text-primary-800;
+  }
+  .dark .prose-chinese a {
+    @apply text-primary-300 hover:text-primary-200;
+  }
+  .prose-chinese strong {
+    @apply font-semibold text-neutral-900;
+  }
+  .dark .prose-chinese strong {
+    @apply text-neutral-50;
+  }
+  .prose-chinese em {
+    @apply italic;
+  }
+  .prose-chinese blockquote {
+    @apply border-l-4 border-primary-300 bg-primary-50/60 pl-4 pr-4 py-2 my-4 italic text-neutral-700 rounded-r-md;
+  }
+  .dark .prose-chinese blockquote {
+    @apply border-primary-700 bg-primary-950/30 text-neutral-300;
+  }
+  .prose-chinese code:not(pre code) {
+    @apply font-mono text-[0.9em] bg-neutral-100 text-neutral-900 px-1.5 py-0.5 rounded;
+  }
+  .dark .prose-chinese code:not(pre code) {
+    @apply bg-neutral-800 text-neutral-100;
+  }
+  .prose-chinese pre {
+    @apply my-6 rounded-lg overflow-hidden;
+  }
+  .prose-chinese table {
+    @apply w-full my-6 border-collapse text-sm;
+  }
+  .prose-chinese th {
+    @apply text-left font-semibold bg-neutral-50 px-4 py-2 border border-neutral-200;
+  }
+  .dark .prose-chinese th {
+    @apply bg-neutral-800/60 border-neutral-700 text-neutral-100;
+  }
+  .prose-chinese td {
+    @apply px-4 py-2 border border-neutral-200;
+  }
+  .dark .prose-chinese td {
+    @apply border-neutral-700;
+  }
+  .prose-chinese hr {
+    @apply my-8 border-neutral-200;
+  }
+  .dark .prose-chinese hr {
+    @apply border-neutral-800;
+  }
+}
+
+/* Hero 渐变背景 — 暗色模式下使用深色调 (覆盖 tailwind 生成的 bg-gradient-hero) */
+.bg-gradient-hero {
+  background-image: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 40%, #ecfeff 100%);
+}
+.dark .bg-gradient-hero {
+  background-image: linear-gradient(135deg, #1a1330 0%, #1e1b3a 40%, #0f1a2e 100%);
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 8px;
+  border: 2px solid white;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a3a3a3;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #404040;
+  border: 2px solid #0a0a0a;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}

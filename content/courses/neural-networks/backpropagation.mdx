@@ -1,0 +1,202 @@
+# 反向传播算法
+
+反向传播(Backpropagation)是深度学习的**引擎**——没有它,神经网络根本无法训练。这一章手推一遍,把直觉和数学都讲透。
+
+## 核心问题
+
+神经网络有几百几千个参数(w 和 b),我们要找一组参数让损失函数 L 最小。
+
+**梯度下降**告诉我们:**沿梯度的反方向更新参数**:
+
+```
+w := w - eta * (dL/dw)
+```
+
+问题来了:对于一个百万参数的网络,`dL/dw` 怎么算?
+
+**反向传播**就是用**链式法则**高效计算每个参数的梯度。
+
+## 计算图:把神经网络画成图
+
+我们用**计算图**(computation graph)来跟踪运算:
+
+```
+        x ──→ [*w1] ──→ z1 ──→ [+b] ──→ z2 ──→ [sigmoid] ──→ y_hat ──→ [Loss] ──→ L
+              ↑ w1                              ↑ b
+```
+
+每个节点是一个运算,边是数据流。**前向传播**就是从左到右算出 L。
+
+## 链式法则:核心数学
+
+假设 `L = f(g(h(x)))`,那:
+
+```
+dL/dx = (dL/df) * (df/dg) * (dg/dh) * (dh/dx)
+```
+
+每个 `d` 都是局部的、容易算的。**反向传播就是从右往左乘这些局部梯度**。
+
+## 完整例子:两层网络
+
+假设网络是:
+- z1 = w1*x + b1
+- a1 = sigmoid(z1)
+- z2 = w2*a1 + b2
+- y_hat = sigmoid(z2)
+- L = (1/2) * (y_hat - y)^2
+
+我们要算 dL/dw1, dL/dw2, dL/db1, dL/db2。
+
+### 步骤 1:前向传播
+
+依次算出 z1, a1, z2, y_hat, L。
+
+### 步骤 2:反向传播
+
+从 L 开始,往左推:
+
+**最后一步**(y_hat → L):
+
+```
+dL/dy_hat = y_hat - y
+```
+
+**sigmoid 处**(y_hat → z2):
+
+```
+dL/dz2 = (dL/dy_hat) * sigmoid'(z2) = (y_hat - y) * y_hat * (1 - y_hat)
+```
+
+**w2 处的梯度**:
+
+```
+dL/dw2 = (dL/dz2) * a1
+```
+
+**a1 处的梯度**(要继续往左传):
+
+```
+dL/da1 = (dL/dz2) * w2
+```
+
+**z1 处的梯度**:
+
+```
+dL/dz1 = (dL/da1) * sigmoid'(z1)
+```
+
+**w1 处的梯度**:
+
+```
+dL/dw1 = (dL/dz1) * x
+```
+
+<Callout type="tip">
+记住一个规律:**每过一个节点,把当前梯度乘上这个节点的局部导数**。所以反向传播本质就是"**链式法则的系统化应用**"。
+</Callout>
+
+## 为什么高效?
+
+关键洞察:每个节点的局部梯度**只算一次**,然后**复用**给所有需要它的上游节点。
+
+如果用数值微分(每个参数微扰一下),复杂度 O(N) —— 百万参数要算百万次。
+反向传播一次正向 + 一次反向,复杂度 O(N) —— 但**只跑一次**!这是深度学习能 scale 的根本原因。
+
+## 自动微分:现代框架帮你做
+
+手推一遍理解原理就好。实际训练用 PyTorch / TensorFlow 的**自动微分**(autograd):
+
+```python
+import torch
+
+# 1. 定义参数(requires_grad=True 表示要算梯度)
+w1 = torch.tensor(0.5, requires_grad=True)
+b1 = torch.tensor(0.1, requires_grad=True)
+w2 = torch.tensor(0.3, requires_grad=True)
+b2 = torch.tensor(0.2, requires_grad=True)
+
+# 2. 前向传播
+x = torch.tensor(1.0)
+y = torch.tensor(0.8)
+z1 = w1 * x + b1
+a1 = torch.sigmoid(z1)
+z2 = w2 * a1 + b2
+y_pred = torch.sigmoid(z2)
+loss = 0.5 * (y_pred - y) ** 2
+
+# 3. 反向传播(一行搞定!)
+loss.backward()
+
+# 4. 查看梯度
+print(f"dL/dw1 = {w1.grad.item():.4f}")
+print(f"dL/dw2 = {w2.grad.item():.4f}")
+print(f"dL/db1 = {b1.grad.item():.4f}")
+print(f"dL/db2 = {b2.grad.item():.4f}")
+```
+
+PyTorch 内部构建了**动态计算图**(`requires_grad=True` 的张量构成图节点),`loss.backward()` 自动沿图反向传播计算所有梯度。
+
+## 常见坑:梯度消失与爆炸
+
+当网络很深时,反向传播要连乘很多局部导数。如果每个局部导数都小于 1,乘起来**指数级趋向 0**——这就是**梯度消失**,前面层的参数根本更新不了。
+
+**解决方案**:
+- 用 **ReLU** 激活(导数是 1 或 0,不会指数衰减)
+- **Batch Normalization**(归一化每层输入)
+- **残差连接**(ResNet 的核心思想)
+- 合理的**权重初始化**(He 初始化、Xavier 初始化)
+
+反过来如果每个导数都大于 1,梯度会**指数级爆炸**——参数更新飞出去,数值溢出。**梯度裁剪**(`torch.nn.utils.clip_grad_norm_`)能缓解。
+
+## 小结
+
+- 反向传播 = 链式法则的高效实现
+- 一次正向 + 一次反向 = 算所有参数梯度
+- 现代框架(PyTorch)用 autograd 自动搞定
+- 深层网络会梯度消失/爆炸,需要 ReLU + BN + 残差连接
+
+## 练习思考
+
+1. 用纸笔把上面那个两层网络的反向传播**完整推一遍**,确认你能从 dL/dy_hat 一路推到 dL/dw1。
+2. 在 PyTorch 里,如果一个张量 `requires_grad=False`,反向传播到它会怎样?
+3. 为什么 sigmoid 网络深度超过 8 层就基本训不动了?用梯度消失的角度解释。
+
+## 📐 补充: 数学形式化
+
+如果你喜欢数学,这一节用公式再走一遍。
+
+### 梯度下降更新规则
+
+<MBlock>{"w := w - \\eta \\frac{\\partial L}{\\partial w}"}</MBlock>
+
+其中 <M>{"\\eta"}</M> 是学习率, <M>{"\\frac{\\partial L}{\\partial w}"}</M> 是损失 <M>{"L"}</M> 对参数 <M>{"w"}</M> 的偏导。
+
+### 链式法则
+
+对复合函数 <M>{"L = f(g(h(x)))"}</M>:
+
+<MBlock>{"\\frac{\\partial L}{\\partial x} = \\frac{\\partial L}{\\partial f} \\cdot \\frac{\\partial f}{\\partial g} \\cdot \\frac{\\partial g}{\\partial h} \\cdot \\frac{\\partial h}{\\partial x}"}</MBlock>
+
+### Sigmoid 函数的导数
+
+<MBlock>{"\\sigma'(z) = \\sigma(z) (1 - \\sigma(z))"}</MBlock>
+
+这是为什么反向传播中 <M>{"\\sigma'"}</M> 这么方便——直接用前向算出的 <M>{"\\sigma(z)"}</M> 就行,不用重算。
+
+### 损失函数 (MSE)
+
+<MBlock>{"L = \\frac{1}{2}(\\hat{y} - y)^2 = \\frac{1}{2}(y_{hat} - y)^2"}</MBlock>
+
+对 <M>{"y_{hat}"}</M> 的梯度:
+
+<MBlock>{"\\frac{\\partial L}{\\partial \\hat{y}} = \\hat{y} - y"}</MBlock>
+
+### 梯度消失的定量理解
+
+如果每一层的局部导数都是 <M>{"\\sigma'(z) \\approx 0.25"}</M>(sigmoid 在饱和区),反向传播 <M>{"n"}</M> 层后:
+
+<MBlock>{"\\frac{\\partial L}{\\partial w_1} \\approx \\frac{\\partial L}{\\partial w_n} \\cdot (0.25)^{n-1}"}</MBlock>
+
+<M>{"n = 10"}</M> 时, <M>{"0.25^{10} \\approx 10^{-6}"}</M>,几乎为 0——这就是梯度消失。
+

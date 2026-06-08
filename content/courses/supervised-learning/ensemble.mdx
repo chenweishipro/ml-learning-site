@@ -1,0 +1,141 @@
+# 集成学习
+
+**三个臭皮匠,顶个诸葛亮**——集成学习(Ensemble Learning)就是这个朴素思想的算法化。
+
+## 核心思想
+
+单个模型(无论决策树、神经网络还是 SVM)都有**局限性**:有偏、方差大、或者容易过拟合。集成学习把**多个弱模型**组合起来,得到一个**强模型**。
+
+集成要有效的两个关键条件:
+1. **基模型之间要有差异**(多样性)— 5 个一模一样的模型,投票也没用
+2. **基模型都要比随机猜好** — 拉一群乱猜的模型投票,结果还是乱猜
+
+## 三大流派
+
+### Bagging:并行训练,投票决定
+
+**Bootstrap AGGregatING**。核心流程:
+1. 从训练集**有放回采样** N 次,得到 N 个子集
+2. 在每个子集上**独立训练**一个基模型
+3. 预测时**投票**(分类)或**平均**(回归)
+
+**代表:随机森林(Random Forest)**
+
+在决策树基础上,加两个随机:
+- **样本随机**:每棵树用 bootstrap 采样子集
+- **特征随机**:每次切分时只考虑随机子集的特征
+
+```python
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import load_breast_cancer
+
+X, y = load_breast_cancer(return_X_y=True)
+model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+model.fit(X_train, y_train)
+print(f"测试准确率: {model.score(X_test, y_test):.3f}")
+```
+
+**Bagging 擅长降低方差**——单棵决策树容易过拟合,100 棵树投票就稳了。
+
+<Callout type="info">
+**OOB(Out-of-Bag)评估**:bagging 时每个子集大约 63% 的样本,剩下 37% 没被某棵树见过。这些样本天然就是"验证集",可以免费评估。`RandomForestClassifier(oob_score=True)` 即可。
+</Callout>
+
+### Boosting:串行训练,纠正前人错误
+
+**核心思想**:后面的模型**专门学前面模型分错的样本**。
+
+**代表:AdaBoost、Gradient Boosting、XGBoost**
+
+**Gradient Boosting** 的精髓是用**梯度下降**的思想在函数空间里优化:
+- 第 1 个模型 f1 拟合数据
+- 第 2 个模型 f2 拟合 f1 的**残差**(就是 f1 错的部分)
+- 第 3 个模型 f3 拟合 f1+f2 的残差
+- ...
+- 最终预测 = f1 + f2 + f3 + ... + fN
+
+**XGBoost / LightGBM**:工业界事实标准,比传统 GBDT 优化了:
+- 二阶导数信息
+- 树的剪枝
+- 并行化
+- 缺失值处理
+- 正则化
+
+```python
+import xgboost as xgb
+
+model = xgb.XGBClassifier(
+    n_estimators=200,
+    max_depth=5,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=42,
+    eval_metric='logloss'
+)
+model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+```
+
+**Boosting 擅长降低偏差**——通过不断学习残差,把弱模型变强。
+
+### Stacking:层层堆叠
+
+**最复杂**也**最强大**的集成方法:把多个**不同类型**的基模型的输出,**再喂给一个元模型**(meta-learner)做最终预测。
+
+```
+随机森林  →  预测1  ─┐
+XGBoost   →  预测2  ─┼→  元模型(LR)  →  最终预测
+SVM       →  预测3  ─┘
+```
+
+```python
+from sklearn.ensemble import StackingClassifier
+from sklearn.linear_model import LogisticRegression
+
+estimators = [
+    ('rf', RandomForestClassifier(n_estimators=100)),
+    ('xgb', xgb.XGBClassifier(n_estimators=100)),
+    ('svm', SVC(probability=True))
+]
+
+stacking = StackingClassifier(
+    estimators=estimators,
+    final_estimator=LogisticRegression(),
+    cv=5
+)
+stacking.fit(X_train, y_train)
+```
+
+## Bagging vs Boosting 一图对比
+
+| 维度 | Bagging | Boosting |
+|---|---|---|
+| 训练方式 | 并行 | 串行 |
+| 降低什么 | 方差 | 偏差 |
+| 容易过拟合 | 不太会 | 容易,需要早停 |
+| 训练速度 | 快(可并行) | 慢 |
+| 典型代表 | Random Forest | XGBoost, LightGBM |
+| 适合数据 | 大数据 | 中小数据 |
+
+## 实战经验
+
+<Callout type="tip">
+**业界默认套路**:
+- **表格数据**(结构化、特征明确):**XGBoost / LightGBM 一把梭**,十有八九能拿个 baseline
+- **图像/文本/语音**:**深度学习 + 预训练模型**
+- **想白盒可解释**:**单棵决策树 + 特征重要性**
+</Callout>
+
+## 小结
+
+- 集成学习 = 多个弱模型组合 = 强模型
+- **Bagging**(并行,降方差):随机森林
+- **Boosting**(串行,降偏差):XGBoost、LightGBM
+- **Stacking**(堆叠):效果最好但最复杂,容易过拟合
+- 表格数据首选 XGBoost 系
+
+## 练习思考
+
+1. 随机森林的"特征随机"和"样本随机"分别起了什么作用?如果只用其中一个会怎样?
+2. XGBoost 的 `learning_rate`(学习率)调大或调小,模型会怎么变化?为什么通常需要配合 `n_estimators` 一起调?
+3. 用 kaggle 上的 Titanic 数据集,分别用随机森林和 XGBoost 跑一遍,看谁准确率高。

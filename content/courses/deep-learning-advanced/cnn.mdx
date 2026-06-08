@@ -1,0 +1,178 @@
+# 卷积神经网络 CNN
+
+CNN(Convolutional Neural Network)是深度学习在**图像**领域取得突破的核心架构。从 2012 年 AlexNet 在 ImageNet 比赛以巨大优势夺冠开始,CNN 主导了所有图像任务。
+
+## 为什么不用全连接网络?
+
+一张 224×224 的彩色图片有 `224*224*3 = 150,528` 个像素。如果第一层隐藏层有 1024 个神经元,那光这一层就有 **1.5 亿**参数——根本训不动。
+
+更要命的是:全连接层**不知道像素的空间关系**。把猫耳朵的像素和猫身体的像素打乱顺序,FC 网络会看成完全不同的图片——它没有"局部"概念。
+
+## CNN 的核心思想
+
+CNN 用三个关键操作解决这个问题:
+
+1. **卷积层(Convolution)**:用小窗口在图片上滑动,提取局部特征
+2. **池化层(Pooling)**:降采样,减少计算量,增强平移不变性
+3. **全连接层**:最后做分类
+
+## 卷积操作:一图胜千言
+
+假设有一个 5×5 的输入图像,用一个 3×3 的"滤波器"(filter/kernel)做卷积:
+
+```
+输入图像(5×5)              滤波器(3×3)         输出(3×3)
+┌─┬─┬─┬─┬─┐              ┌─┬─┬─┐
+│1│0│1│0│1│              │1│0│1│
+├─┼─┼─┼─┼─┤              ├─┼─┼─┤
+│0│1│0│1│0│              │0│1│0│
+├─┼─┼─┼─┼─┤   卷积 →    ├─┼─┼─┤        ┌─┬─┬─┐
+│1│0│1│0│1│              │1│0│1│        │?│?│?│
+├─┼─┼─┼─┼─┤              └─┴─┴─┘        ├─┼─┼─┤
+│0│1│0│1│0│                              │?│?│?│
+├─┼─┼─┼─┼─┤                              ├─┼─┼─┤
+│1│0│1│0│1│                              │?│?│?│
+└─┴─┴─┴─┴─┘                              └─┴─┴─┘
+```
+
+输出矩阵的每个元素 = 滤波器与输入对应区域的**逐元素相乘再求和**。
+
+直觉:滤波器就像一个"模式探测器"。某个滤波器专门检测水平边缘,另一个检测垂直边缘,另一个检测某个特定颜色组合——**这些模式是网络自己学出来的**,不需要人设计。
+
+## 关键概念
+
+### 感受野(Receptive Field)
+
+输出图上一个像素对应输入图的区域大小,叫感受野。深层神经元的感受野更大,所以能"看到"更大范围。
+
+```
+第 1 层(3×3 卷积): 感受野 3
+第 2 层(3×3 卷积): 感受野 5
+第 3 层(3×3 卷积): 感受野 7
+...
+堆得越深,感受野越大 → 能"看到"整张图
+```
+
+### 步幅(Stride)和填充(Padding)
+
+- **Stride**:滤波器每次滑动的步长。stride=2 等于把图片缩小一半
+- **Padding**:在图片边缘补 0(常用 "same" 填充保持尺寸)
+
+输出尺寸公式:
+
+```
+output = (input - kernel + 2*padding) / stride + 1
+```
+
+### 池化(Pooling)
+
+最常见是**最大池化**(max pooling):取 2×2 区域里的最大值。
+
+```
+┌─┬─┐                ┌─┐
+│1│3│                │ │
+├─┼─┤   max pool →  │ │
+│2│4│                └─┘
+└─┴─┘
+```
+
+输出 = 4
+
+池化的作用:**降维 + 平移不变性**。猫的耳朵偏左 1 像素,池化后不影响。
+
+## 经典架构:LeNet → AlexNet → VGG → ResNet
+
+### LeNet-5(1998)
+
+最简单的 CNN,LeCun 用于手写数字识别。
+
+### AlexNet(2012)
+
+深度学习的"开山大作":
+- 8 层(5 卷积 + 3 全连接)
+- ReLU 激活(首次大规模使用)
+- Dropout 防止过拟合
+- GPU 训练
+- Top-5 错误率从 26% 降到 15%
+
+### VGG(2014)
+
+- 全部用 3×3 小卷积核
+- 16-19 层
+- 简单、规整、易理解
+
+### ResNet(2015)——**最重要的里程碑**
+
+核心创新:**残差连接**(skip connection)
+
+```
+普通网络:    x → Conv → ReLU → Conv → 输出
+残差网络:    x → Conv → ReLU → Conv → + x → 输出
+                            ↑          ↑
+                            └─ 残差 ───┘
+```
+
+直觉:与其让网络学完整的映射 H(x),不如让它学**残差** F(x) = H(x) - x。这样:
+- 加深网络时,至少能学"什么都不做"(F(x)=0 时 H(x)=x)
+- 梯度可以直接走捷径,**彻底解决深度网络的梯度消失**
+
+ResNet 让训练 100+ 层甚至 1000 层网络成为可能,作者何恺明因此拿了 CVPR 2016 Best Paper。
+
+## PyTorch 实战 CIFAR-10
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision
+import torchvision.transforms as transforms
+
+# 1. 数据加载
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+    download=True, transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+
+# 2. 定义一个简易 CNN
+class SimpleCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 32, 3, padding=1)   # 32x32x32
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)  # 16x16x64
+        self.conv3 = nn.Conv2d(64, 128, 3, padding=1) # 8x8x128
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(128 * 4 * 4, 256)
+        self.fc2 = nn.Linear(256, 10)
+        self.dropout = nn.Dropout(0.5)
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))  # 32x32x32 -> 16x16x32
+        x = self.pool(F.relu(self.conv2(x)))  # 16x16x64 -> 8x8x64
+        x = self.pool(F.relu(self.conv3(x)))  # 8x8x128 -> 4x4x128
+        x = x.view(-1, 128 * 4 * 4)
+        x = self.dropout(F.relu(self.fc1(x)))
+        x = self.fc2(x)
+        return x
+
+model = SimpleCNN()
+```
+
+<Callout type="tip">
+**实战建议**:不要从零训大模型。从 `torchvision.models` 里下载预训练的 ResNet-50,**微调 10 行代码**就能达到 95% 以上的图像分类准确率。迁移学习是工业界默认姿势(见后续章节)。
+</Callout>
+
+## 小结
+
+- CNN 用**卷积 + 池化**处理图像,大幅减少参数
+- 关键思想:局部连接、权值共享、空间金字塔
+- 残差连接(ResNet)让训练超深网络成为可能
+- 实战首选 **迁移学习 + 预训练模型**,不要从零训
+
+## 练习思考
+
+1. 为什么 CNN 比全连接网络更适合图像?从参数数量和空间结构两个角度。
+2. 1×1 卷积有什么作用?它不是在检测"什么都没有"吗?
+3. 用 PyTorch 写一个能跑通的 CNN(数据用 CIFAR-10),争取测试准确率 75% 以上。

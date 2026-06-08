@@ -1,0 +1,192 @@
+# 迁移学习与预训练模型
+
+**迁移学习**(Transfer Learning)是现代深度学习的"工业默认姿势":不从头训练,拿别人训好的大模型,在你的数据上**微调**。
+
+## 为什么需要迁移学习?
+
+从头训练一个深度学习模型需要:
+
+- 大量数据(几百万到几十亿样本)
+- 大量算力(几万到几百万 GPU 小时)
+- 大量调参经验(几个博士的时间)
+
+99% 的场景你**都没有**这三样。迁移学习让你站在巨人肩膀上:
+
+> 用 ImageNet 训过的 ResNet,**2 行代码 + 100 张图**,就能在自定义图像分类任务上达到 95%+ 准确率。
+
+## 核心思想:知识的迁移
+
+**预训练**模型已经学到了**通用特征**(边缘、纹理、形状、语义)。这些特征对**大多数视觉/语言任务都有用**。
+
+迁移到下游任务时,只需要:
+
+1. 保留预训练模型的**前 N 层**(通用特征提取器)
+2. 替换**最后 1-2 层**(适配你的具体任务)
+3. 用小数据**微调**(Fine-tune)几轮
+
+直觉:就像学外语——母语的发音、语法习惯可以迁移到第二语言,不用从零学起。
+
+## 两种主流策略
+
+### 1. 特征提取(Feature Extraction)
+
+**冻结**预训练模型的所有参数,只训练新加的分类头。
+
+```python
+import torchvision.models as models
+import torch.nn as nn
+
+# 加载预训练 ResNet-50
+resnet = models.resnet50(pretrained=True)
+
+# 冻结所有参数
+for param in resnet.parameters():
+    param.requires_grad = False
+
+# 替换最后的全连接层(1000 类 ImageNet -> 10 类你的数据)
+resnet.fc = nn.Linear(2048, 10)
+
+# 训练:只有 fc 层的参数会更新
+optimizer = torch.optim.Adam(resnet.fc.parameters(), lr=1e-3)
+```
+
+**适用场景**:
+- 数据量很少(< 1000 张图)
+- 任务和预训练相似(都是自然图像)
+- 训练预算紧
+
+### 2. 微调(Fine-tuning)
+
+**不冻结**(或部分冻结)预训练模型,用小学习率继续训练整个网络。
+
+```python
+resnet = models.resnet50(pretrained=True)
+resnet.fc = nn.Linear(2048, 10)  # 替换最后层
+
+# 用**很小的学习率**(避免破坏预训练权重)
+optimizer = torch.optim.Adam([
+    {'params': resnet.fc.parameters(), 'lr': 1e-3},       # 新层:大 lr
+    {'params': resnet.layer4.parameters(), 'lr': 1e-4},   # 预训练层:小 lr
+    {'params': resnet.layer3.parameters(), 'lr': 1e-4},
+], lr=1e-4)
+```
+
+**分层学习率**:浅层用小 lr(已经学好了别动),深层和新层用大 lr(要适配新任务)。
+
+**适用场景**:
+- 数据量中等(1000-10万)
+- 任务和预训练有差异(比如医学图像)
+- 想榨取最后几个点的精度
+
+## 实战:5 行代码做自定义图像分类
+
+```python
+from torchvision import datasets, transforms, models
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+# 1. 数据
+transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+train_data = datasets.ImageFolder('./my_data/train', transform=transform)
+train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
+
+# 2. 预训练模型
+model = models.resnet18(pretrained=True)
+model.fc = nn.Linear(512, len(train_data.classes))  # 适配你的类别数
+
+# 3. 训练
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model.to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+criterion = nn.CrossEntropyLoss()
+
+for epoch in range(5):
+    for x, y in train_loader:
+        x, y = x.to(device), y.to(device)
+        optimizer.zero_grad()
+        loss = criterion(model(x), y)
+        loss.backward()
+        optimizer.step()
+    print(f"Epoch {epoch}, loss={loss.item():.4f}")
+```
+
+**就这样**。比从零训一个 CNN 少写 200 行代码,准确率还高 20%。
+
+## NLP 时代的迁移学习
+
+NLP 经历了类似的革命:
+
+### 词向量(2013-2014)
+
+- Word2Vec、GloVe:用一个向量表示一个词
+- 预训练词向量,下游任务直接用
+- 局限:一词一向量,不能区分多义词
+
+### ELMo(2018)
+
+- 根据上下文生成**动态**词向量
+- 同一个词在不同句子里有不同表示
+- 但还是 RNN 结构,不能并行
+
+### BERT(2018)——**NLP 的 ResNet 时刻**
+
+- Transformer Encoder + 预训练任务(MLM + NSP)
+- 用大规模文本训出来的"语言理解基座"
+- 下游任务:加 1-2 层,微调一下
+
+### GPT 系列(2018-)
+
+- Transformer Decoder + 预训练(下一词预测)
+- 规模越大能力越强:GPT-2 (1.5B) → GPT-3 (175B) → GPT-4
+- "涌现能力":超大规模才出现的能力(推理、代码、规划)
+
+## Hugging Face 一行加载
+
+```python
+from transformers import AutoTokenizer, AutoModel
+
+# 加载预训练 BERT
+tokenizer = AutoTokenizer.from_pretrained("bert-base-chinese")
+model = AutoModel.from_pretrained("bert-base-chinese")
+
+# 用它
+inputs = tokenizer("机器学习很有趣", return_tensors="pt")
+outputs = model(**inputs)
+# outputs.last_hidden_state: (1, seq_len, 768) - 每个 token 的向量
+```
+
+Hugging Face 模型中心有 10万+ 预训练模型,涵盖:
+- 文本:BERT、GPT、T5、Llama
+- 图像:ResNet、ViT、CLIP
+- 音频:Wav2Vec2、Whisper
+- 多模态:LLaVA、GPT-4V
+
+## 何时用迁移学习 vs 从头训?
+
+| 场景 | 建议 |
+|---|---|
+| 图像分类,数据 < 10万 | **必须**用预训练模型 |
+| 图像分类,数据 > 100万 | 视情况,可以试试从头训 |
+| NLP 任务,任何数据量 | **永远**用预训练模型(除非是 GPT-4 那种规模的) |
+| 数据和预训练分布差异大 | 微调 + 数据增强 + 大 lr |
+| 全新模态(基因序列、蛋白质) | 从头训,但参考其他领域的经验 |
+
+## 小结
+
+- 迁移学习 = **站在巨人肩膀上**,99% 的场景首选
+- 两种策略:**特征提取**(冻结)和**微调**(小 lr)
+- 视觉:用 `torchvision.models` 的 ResNet / ViT
+- NLP:用 `transformers` 库的 BERT / GPT / Llama
+- 分层学习率:浅层小 lr,深层大 lr,新层更大
+
+## 练习思考
+
+1. 为什么微调时要用比预训练时**更小**的学习率?
+2. 预训练模型和数据分布差异巨大(比如用 ImageNet 训的模型做医学 X 光片)怎么办?
+3. 下载一个预训练的中文 BERT,用自己的文本数据微调,做一个情感分类器。

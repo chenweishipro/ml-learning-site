@@ -1,0 +1,129 @@
+# 逻辑回归
+
+虽然名字里带"回归",但**逻辑回归(Logistic Regression)是分类算法**,不是回归算法。它是工业界最常用的二分类 baseline。
+
+## 为什么需要逻辑回归?
+
+线性回归的输出是任意实数,没法直接用来做"是/否"的判断。我们需要一个**把任意实数映射到 0~1 概率**的函数——这就是 **Sigmoid 函数**:
+
+```
+sigma(z) = 1 / (1 + e^(-z))
+```
+
+图像是一条 S 形曲线:
+- z=0 时,sigma=0.5
+- z 很大时,sigma 趋近 1
+- z 很小时,sigma 趋近 0
+
+把线性回归的输出喂给 sigmoid,就得到了概率:
+
+```
+P(y=1|x) = sigma(w*x + b) = 1 / (1 + e^(-(w*x + b)))
+```
+
+## 损失函数:交叉熵
+
+不能用 MSE(原因略复杂,直观上是因为概率问题的非凸性)。逻辑回归用**交叉熵**(Cross Entropy):
+
+```
+L = -(1/n) * sum[ y*log(y_hat) + (1-y)*log(1-y_hat) ]
+```
+
+直觉:
+- 真实是 1,你预测 0.99 → 损失很小(log 0.99 约 0.01)
+- 真实是 1,你预测 0.01 → 损失巨大(log 0.01 约 -4.6)
+
+## 决策边界
+
+逻辑回归学到的 `w*x + b = 0` 就是**决策边界**。
+
+- 2D 数据:决策边界是**一条直线**
+- 3D 数据:决策边界是**一个平面**
+- 更高维:超平面
+
+<Callout type="tip">
+逻辑回归**只能学到线性决策边界**。数据线性不可分时,需要:
+1. 加多项式特征(`sklearn.preprocessing.PolynomialFeatures`)
+2. 或者换用 SVM / 神经网络等更强大的模型
+</Callout>
+
+## 代码实战
+
+```python
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from sklearn.datasets import load_breast_cancer
+import numpy as np
+
+# 1. 加载数据(乳腺癌二分类)
+data = load_breast_cancer()
+X, y = data.data, data.target
+
+# 2. 划分
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+# 3. 训练
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
+
+# 4. 评估
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred, target_names=['恶性', '良性']))
+```
+
+输出类似:
+
+```
+              precision    recall  f1-score   support
+         恶性       0.95      0.93      0.94        42
+         良性       0.96      0.97      0.96        72
+    accuracy                          0.95       114
+```
+
+## 正则化:防止过拟合
+
+sklearn 的 `LogisticRegression` 默认带 L2 正则化,通过 `C` 参数控制:
+
+```python
+# C 越小,正则化越强
+model = LogisticRegression(C=0.1, penalty='l2')
+model_l1 = LogisticRegression(C=0.1, penalty='l1', solver='liblinear')
+```
+
+## 多分类怎么办?
+
+逻辑回归天然是二分类。多分类用**One-vs-Rest (OvR)**:对每个类别训练一个"是它 vs 不是它"的二分类器,预测时选概率最大的那个。
+
+```python
+model = LogisticRegression(multi_class='ovr')  # sklearn 默认就是 OvR
+```
+
+或者用**Softmax 回归**(多分类逻辑回归的"原生版"),`multi_class='multinomial'`。
+
+## 逻辑回归的优缺点
+
+**优点**:
+- 训练快、可解释性强(权重直接反映特征重要性)
+- 概率输出自然,适合需要置信度的场景
+- 工业 baseline 之王
+
+**缺点**:
+- 只能学线性决策边界
+- 对特征工程依赖大(非线性需要手动加特征)
+- 类别严重不平衡时表现下降
+
+## 小结
+
+- 逻辑回归是**二分类算法**,不是回归
+- 核心是 **sigmoid** + **交叉熵** + **梯度下降**
+- sklearn 一行调用,带 L2 正则化
+- 工业 baseline,简单场景的默认选择
+
+## 练习思考
+
+1. 为什么 MSE 不适合做分类的损失函数?可以从概率角度想想。
+2. 用 `PolynomialFeatures` 把二分类数据加上二次项,再跑逻辑回归,看决策边界有什么变化。
+3. 调大/调小 `C` 参数,观察训练集和测试集准确率的变化,理解正则化的作用。

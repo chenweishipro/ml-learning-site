@@ -1,0 +1,65 @@
+import type { Metadata } from "next";
+import "./globals.css";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ProgressProvider } from "@/components/progress-provider";
+import { getAllCourses } from "@/lib/content";
+
+export const metadata: Metadata = {
+  title: {
+    default: "ML 学习站 · 中文机器学习教程",
+    template: "%s · ML 学习站",
+  },
+  description:
+    "面向中文读者的机器学习学习平台: 从 NumPy、Pandas 到线性回归与深度学习, 系统化、可运行、渐进式。",
+  keywords: ["机器学习", "深度学习", "Python", "NumPy", "Pandas", "中文教程"],
+  authors: [{ name: "ML 学习站" }],
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    title: "ML 学习站 · 中文机器学习教程",
+    description: "系统化、可运行、渐进式的中文机器学习教程。",
+  },
+};
+
+// 避免首屏闪烁: 在 <head> 注入同步脚本, 提前设置 dark class
+const themeInitScript = `
+(function() {
+  try {
+    var t = localStorage.getItem('ml-site-theme');
+    if (!t) {
+      t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    if (t === 'dark') document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-screen flex flex-col antialiased">
+        <ThemeProvider>
+          <ProgressProvider
+            courses={getAllCourses().map((c) => ({
+              slug: c.slug,
+              chapterSlugs: c.chapters.map((ch) => ch.slug),
+            }))}
+          >
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </ProgressProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}

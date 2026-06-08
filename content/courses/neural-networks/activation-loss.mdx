@@ -1,0 +1,148 @@
+# 激活函数与损失函数
+
+激活函数决定网络能不能学到非线性,损失函数决定网络"学得对不对"。这一章讲清楚怎么搭配。
+
+## 激活函数全景
+
+| 名称 | 公式 | 输出范围 | 适用场景 |
+|---|---|---|---|
+| **Sigmoid** | `1 / (1 + e^(-x))` | (0, 1) | 二分类输出层 |
+| **Tanh** | `tanh(x)` | (-1, 1) | 老的隐藏层,0 中心 |
+| **ReLU** | `max(0, x)` | [0, ∞) | **隐藏层默认** |
+| **Leaky ReLU** | `max(0.01*x, x)` | (-∞, ∞) | 防神经元死亡 |
+| **PReLU** | `max(alpha*x, x)`,alpha 可学 | (-∞, ∞) | 进一步提升 |
+| **ELU** | `x if x>0 else alpha*(e^x - 1)` | (-α, ∞) | 平滑,均值接近 0 |
+| **Softmax** | `e^(x_i) / sum(e^(x_j))` | (0, 1) 和为 1 | **多分类输出** |
+
+### 选哪个?
+
+<Callout type="tip">
+**万能搭配**(99% 情况):
+- **隐藏层**:ReLU
+- **二分类输出**:Sigmoid + 二元交叉熵
+- **多分类输出**:Softmax + 分类交叉熵
+- **回归输出**:无激活(线性) + MSE
+</Callout>
+
+### 神经元死亡问题(Dead ReLU)
+
+ReLU 在 x < 0 时梯度为 0。如果某个神经元的输入**永远**是负的,它就**永远**不更新,变成"死神经元"。
+
+**缓解方法**:
+- Leaky ReLU: x < 0 时也有一个小的梯度(0.01)
+- 合理的学习率(太大容易让神经元"被冲过零")
+- Batch Normalization(让输入分布稳定)
+
+## 损失函数全景
+
+### 回归任务
+
+| 损失 | 公式 | 特点 |
+|---|---|---|
+| **MSE** | `(1/n) * sum((y - y_hat)^2)` | 对大误差惩罚重,最常用 |
+| **MAE** | `(1/n) * sum(|y - y_hat|)` | 对异常值稳健 |
+| **Huber** | `(1/n) * sum(L_delta(y - y_hat))` | MSE 和 MAE 的混合 |
+
+```python
+# PyTorch
+loss = torch.nn.MSELoss()
+loss = torch.nn.L1Loss()  # MAE
+loss = torch.nn.SmoothL1Loss()  # Huber
+```
+
+### 分类任务
+
+**二分类**(Binary Cross Entropy):
+
+```
+L = -(1/n) * sum[ y*log(y_hat) + (1-y)*log(1-y_hat) ]
+```
+
+要求输出层是 **sigmoid**(把 logits 压到 0~1)。
+
+```python
+loss = torch.nn.BCELoss()  # 输入已经是 sigmoid 后的概率
+# 或者更稳的:
+loss = torch.nn.BCEWithLogitsLoss()  # 输入是 logits,内部加 sigmoid
+```
+
+**多分类**(Categorical Cross Entropy):
+
+```
+L = -(1/n) * sum_c (y_c * log(y_hat_c))
+```
+
+要求输出层是 **softmax**(输出概率分布,各类和为 1)。
+
+```python
+loss = torch.nn.CrossEntropyLoss()  # 内部包含 softmax + NLLLoss
+# 输入:logits (N, C), 目标:类别索引 (N,)
+```
+
+<Callout type="warning">
+**常见错误**:`CrossEntropyLoss` 已经包含 Softmax 了!不要再在输出层手动加 `Softmax` 层,否则 softmax 会被算两次,梯度会出问题。
+</Callout>
+
+## 为什么这个搭配最稳?
+
+直觉上,激活函数 + 损失函数要"匹配":
+
+**Sigmoid + Binary Cross Entropy**:
+- BCE 的梯度形式非常简洁
+- 避免了 sigmoid 输出接近 0/1 时**梯度饱和**的问题(因为 BCE 的 log 项会自动放大错误信号的梯度)
+
+**Softmax + Categorical Cross Entropy**:
+- Softmax 输出的概率分布 → 交叉熵天然衡量两个分布的距离
+- 数学上:softmax + cross_entropy 的反向传播**梯度就是 y_hat - y**,简洁到不能再简洁
+
+**线性 + MSE**:
+- 输出没有范围限制(实数)
+- MSE 直接衡量"差多少"
+
+## 不匹配的灾难
+
+```
+                sigmoid → MSE      softmax → MSE       linear → BCE
+                (不推荐)           (不推荐)              (不推荐)
+                
+为什么?         梯度饱和          梯度饱和              类别不平衡时差
+                收敛慢            几乎学不到东西
+```
+
+**经验**:选错了损失函数,网络可能"装死"(loss 不下降)或"发疯"(loss 飞出去)。**激活函数 + 损失函数 + 输出范围**三者必须自洽。
+
+## 实战建议
+
+```python
+# 一个典型的多分类网络
+class Classifier(nn.Module):
+    def __init__(self, input_dim, num_classes):
+        super().__init__()
+        self.features = nn.Sequential(
+            nn.Linear(input_dim, 256),
+            nn.ReLU(),              # 隐藏层用 ReLU
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, num_classes)  # 输出层不加激活!CrossEntropyLoss 会加 softmax
+        )
+
+    def forward(self, x):
+        return self.features(x)
+
+model = Classifier(784, 10)
+criterion = nn.CrossEntropyLoss()  # 内部 softmax
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+```
+
+## 小结
+
+- **隐藏层默认 ReLU**,**输出层**由任务决定:sigmoid(二分类)/ softmax(多分类)/ 线性(回归)
+- **损失函数**跟任务匹配:二分类 BCE、多分类 CCE、回归 MSE/MAE
+- **`CrossEntropyLoss` 内部含 Softmax,不要再加**
+- 选错搭配梯度会消失或爆炸,网络根本训不动
+
+## 练习思考
+
+1. 为什么 `BCELoss` 经常出 nan?改用 `BCEWithLogitsLoss` 会有什么改善?
+2. 多分类任务里有 1000 个类别,最后一层线性层的输出维度应该是多少?
+3. 用 MSE 做多分类有什么具体问题?可以从梯度大小的角度定量分析。
