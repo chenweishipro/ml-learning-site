@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, BookOpen, CheckCircle2, Clock, GraduationCap, User } from "lucide-react";
-import { getAllCourses, getCourse } from "@/lib/content";
+import { getAllCoursesSync } from "@/lib/content-overrides";
+import { getCourseWithOverrides } from "@/lib/content-overrides";
 import { LEVEL_META, cn } from "@/lib/utils";
 import { Card, CardDescription, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -11,12 +12,14 @@ interface Params {
   params: { slug: string };
 }
 
+export const dynamic = "force-dynamic";
+
 export async function generateStaticParams() {
-  return getAllCourses().map((c) => ({ slug: c.slug }));
+  return getAllCoursesSync().map((c) => ({ slug: c.slug }));
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const course = getCourse(params.slug);
+  const course = await getCourseWithOverrides(params.slug);
   if (!course) return { title: "课程未找到" };
   return {
     title: course.title,
@@ -24,8 +27,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-export default function CourseDetailPage({ params }: Params) {
-  const course = getCourse(params.slug);
+export default async function CourseDetailPage({ params }: Params) {
+  const course = await getCourseWithOverrides(params.slug);
   if (!course) notFound();
 
   const firstChapter = course.chapters[0];

@@ -11,6 +11,7 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  isAdmin: boolean;
   ready: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -40,10 +42,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/me", { credentials: "include" });
       const data = await res.json();
-      if (data.ok) setUser(data.data.user);
-      else setUser(null);
+      if (data.ok && data.data.user) {
+        setUser(data.data.user);
+        setIsAdmin(Boolean(data.data.isAdmin));
+      } else {
+        setUser(null);
+        setIsAdmin(false);
+      }
     } catch {
       setUser(null);
+      setIsAdmin(false);
     } finally {
       setReady(true);
     }
@@ -119,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ignore
     } finally {
       setUser(null);
+      setIsAdmin(false);
       try { localStorage.setItem("ml-site-auth-ping", String(Date.now())); } catch {}
       setLoading(false);
     }
@@ -178,6 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     user,
+    isAdmin,
     ready,
     loading,
     login,

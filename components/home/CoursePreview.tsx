@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Clock, GraduationCap } from "lucide-react";
-import { courses, type CourseMeta } from "@/content/courses/_index";
+import type { CourseMeta } from "@/content/courses/_index";
 import { LEVEL_META, cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardDescription, CardTitle } from "@/components/ui/Card";
 import { CourseCardWithProgress } from "@/components/course-card-with-progress";
 
-export function CoursePreview() {
+export function CoursePreview({ courses }: { courses: CourseMeta[] }) {
   // 课程为空时, 展示明确的"待补充"占位
   if (courses.length === 0) {
     return <CoursePreviewEmpty />;

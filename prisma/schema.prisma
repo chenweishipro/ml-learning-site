@@ -20,6 +20,7 @@ model User {
 
   resetTokens  PasswordResetToken[]
   progress     ChapterProgress[]
+  contentEdits ContentEditLog[]
 }
 
 model PasswordResetToken {
@@ -49,4 +50,62 @@ model ChapterProgress {
 
   @@unique([userId, courseSlug, chapterSlug])
   @@index([userId])
+}
+
+// 课程级覆盖 (管理员编辑的课程元数据)
+model CourseOverride {
+  id          String   @id @default(cuid())
+  courseSlug  String   @unique
+  // 以下字段都可空: null = 跟仓库文件一致, 字符串 = 覆盖
+  title       String?
+  description String?
+  level       String?  // "beginner" | "intermediate" | "advanced"
+  duration    String?
+  tags        String?  // JSON 数组字符串
+  // 完整 MDX body 章节列表(整本 course.md 的内容, 整段替换)
+  body        String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  edits       ContentEditLog[]
+}
+
+// 章节级覆盖 (管理员编辑的章节 MDX body)
+model ChapterOverride {
+  id           String   @id @default(cuid())
+  courseSlug   String
+  chapterSlug  String
+  // 完整章节 MDX 内容(整段替换 chapter.mdx)
+  body         String
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  edits        ContentEditLog[]
+
+  @@unique([courseSlug, chapterSlug])
+  @@index([courseSlug])
+}
+
+// 编辑日志(审计)
+model ContentEditLog {
+  id            String   @id @default(cuid())
+  scope         String   // "course" | "chapter"
+  courseSlug    String
+  chapterSlug   String?  // null when scope=course
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 关联的 override id(可选)
+  courseRefId   String?
+  chapterRefId  String?
+  action        String   // "save" | "delete"
+  // 摘要(前 200 字符,便于审计时快速浏览)
+  summary       String?
+  createdAt     DateTime @default(now())
+
+  courseRef     CourseOverride?  @relation(fields: [courseRefId], references: [id], onDelete: SetNull)
+  chapterRef    ChapterOverride? @relation(fields: [chapterRefId], references: [id], onDelete: SetNull)
+
+  @@index([scope, courseSlug, chapterSlug])
+  @@index([userId])
+  @@index([createdAt])
 }

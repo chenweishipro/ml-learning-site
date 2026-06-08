@@ -10,7 +10,7 @@ import { UserMenu } from "@/components/user-menu";
 
 export function Header() {
   const [open, setOpen] = useState(false);
-  const { user, ready, openAuthModal } = useAuth();
+  const { user, isAdmin, ready, openAuthModal } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-white dark:bg-neutral-900/85 backdrop-blur supports-[backdrop-filter]:bg-white dark:bg-neutral-900/65 dark:border-neutral-800/80 dark:bg-neutral-950/85 dark:supports-[backdrop-filter]:bg-neutral-950/65">
@@ -39,6 +39,14 @@ export function Header() {
             🔍 搜索
           </Link>
           <ThemeToggle />
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            >
+              🛠 管理
+            </Link>
+          )}
           {ready && user ? (
             <UserMenu />
           ) : (
@@ -126,12 +134,21 @@ export function Header() {
 }
 
 function MobileUserBlock({ onClose }: { onClose: () => void }) {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   if (!user) return null;
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
         已登录为 <strong>{user.displayName ?? user.email}</strong>
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className="mt-2 block w-full rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-center text-xs font-medium text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
+          >
+            🛠 管理后台
+          </Link>
+        )}
       </div>
       <button
         onClick={async () => {

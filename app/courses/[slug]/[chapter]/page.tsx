@@ -3,11 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BookOpen, Clock } from "lucide-react";
 import {
-  getAllCourses,
-  getChapter,
-  getChapterNeighbors,
-  getCourse,
-} from "@/lib/content";
+  getAllCoursesSync,
+  getChapterWithOverrides,
+  getCourseWithOverrides,
+} from "@/lib/content-overrides";
+import { getChapterNeighbors } from "@/lib/content";
 import { getQuiz } from "@/lib/quizzes";
 import { ChapterSidebar } from "./ChapterSidebar";
 import { MDXContent } from "./MDXContent";
@@ -18,10 +18,12 @@ interface Params {
   params: { slug: string; chapter: string };
 }
 
+export const dynamic = "force-dynamic";
+
 /** 静态生成所有合法 (course, chapter) 组合 */
 export async function generateStaticParams() {
   const params: { slug: string; chapter: string }[] = [];
-  for (const c of getAllCourses()) {
+  for (const c of getAllCoursesSync()) {
     for (const ch of c.chapters) {
       params.push({ slug: c.slug, chapter: ch.slug });
     }
@@ -30,7 +32,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const data = await getChapter(params.slug, params.chapter);
+  const data = await getChapterWithOverrides(params.slug, params.chapter);
   if (!data) return { title: "章节未找到" };
   return {
     title: data.meta.title,
@@ -39,10 +41,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function ChapterPage({ params }: Params) {
-  const course = getCourse(params.slug);
+  const course = await getCourseWithOverrides(params.slug);
   if (!course) notFound();
 
-  const data = await getChapter(params.slug, params.chapter);
+  const data = await getChapterWithOverrides(params.slug, params.chapter);
   if (!data) notFound();
 
   const { prev, next, index, total } = getChapterNeighbors(

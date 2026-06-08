@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BookOpen, GraduationCap, Search, SlidersHorizontal } from "lucide-react";
-import { getAllCourses } from "@/lib/content";
+import { getAllCoursesWithOverrides } from "@/lib/content-overrides";
 import { CourseExplorer } from "./CourseExplorer";
 
 export const metadata: Metadata = {
@@ -8,8 +8,10 @@ export const metadata: Metadata = {
   description: "浏览全部机器学习课程, 按难度与主题筛选你的学习路径。",
 };
 
-export default function CoursesPage() {
-  const courses = getAllCourses();
+export const dynamic = "force-dynamic";
+
+export default async function CoursesPage() {
+  const courses = await getAllCoursesWithOverrides();
   // 从课程中提取全部标签, 用于筛选器
   const tagSet = new Set<string>();
   courses.forEach((c) => c.tags?.forEach((t) => tagSet.add(t)));
