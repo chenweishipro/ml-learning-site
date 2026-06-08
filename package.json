@@ -9,12 +9,17 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "gray-matter": "^4.0.3",
+    "jose": "^6.2.3",
     "katex": "^0.17.0",
     "lucide-react": "^0.460.0",
     "next": "14.2.18",
     "next-mdx-remote": "^5.0.0",
+    "nodemailer": "^8.0.10",
+    "prisma": "^6.19.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rehype-autolink-headings": "^7.1.0",
@@ -23,7 +28,9 @@
     "shiki": "^1.22.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.16.10",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.20",

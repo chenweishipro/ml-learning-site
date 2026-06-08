@@ -5,9 +5,12 @@ import { useState } from "react";
 import { Menu, X, GraduationCap } from "lucide-react";
 import { Nav } from "./Nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/components/auth-provider";
+import { UserMenu } from "@/components/user-menu";
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const { user, ready, openAuthModal } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 border-b border-neutral-200/80 bg-white dark:bg-neutral-900/85 backdrop-blur supports-[backdrop-filter]:bg-white dark:bg-neutral-900/65 dark:border-neutral-800/80 dark:bg-neutral-950/85 dark:supports-[backdrop-filter]:bg-neutral-950/65">
@@ -36,12 +39,24 @@ export function Header() {
             🔍 搜索
           </Link>
           <ThemeToggle />
-          <Link
-            href="/courses"
-            className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
-          >
-            开始学习
-          </Link>
+          {ready && user ? (
+            <UserMenu />
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openAuthModal("login")}
+                className="rounded-md px-3 py-2 text-sm font-medium text-neutral-700 transition hover:text-primary-600 dark:text-neutral-300 dark:hover:text-primary-400"
+              >
+                登录
+              </button>
+              <Link
+                href="/courses"
+                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
+              >
+                开始学习
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* 移动端汉堡菜单 */}
@@ -60,17 +75,41 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="md:hidden border-t border-neutral-200/80 bg-white dark:bg-neutral-900 dark:border-neutral-800/80 dark:bg-neutral-950">
+        <div className="md:hidden border-t border-neutral-200/80 bg-white dark:border-neutral-800/80 dark:bg-neutral-950">
           <div className="container py-3">
             <Nav vertical onNavigate={() => setOpen(false)} />
             <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
               <Link
                 href="/search"
                 onClick={() => setOpen(false)}
-                className="block w-full rounded-md border border-neutral-200 bg-white dark:bg-neutral-900 px-4 py-2.5 text-center text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                className="block w-full rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
               >
                 🔍 搜索
               </Link>
+              {ready && user ? (
+                <MobileUserBlock onClose={() => setOpen(false)} />
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      openAuthModal("login");
+                    }}
+                    className="rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                  >
+                    登录
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      openAuthModal("register");
+                    }}
+                    className="rounded-md border border-primary-200 bg-primary-50 px-4 py-2.5 text-sm font-medium text-primary-700 dark:border-primary-800 dark:bg-primary-950/30 dark:text-primary-300"
+                  >
+                    注册
+                  </button>
+                </div>
+              )}
               <Link
                 href="/courses"
                 onClick={() => setOpen(false)}
@@ -83,5 +122,26 @@ export function Header() {
         </div>
       )}
     </header>
+  );
+}
+
+function MobileUserBlock({ onClose }: { onClose: () => void }) {
+  const { user, logout } = useAuth();
+  if (!user) return null;
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-sm text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+        已登录为 <strong>{user.displayName ?? user.email}</strong>
+      </div>
+      <button
+        onClick={async () => {
+          onClose();
+          await logout();
+        }}
+        className="block w-full rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+      >
+        退出登录
+      </button>
+    </div>
   );
 }

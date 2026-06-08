@@ -4,6 +4,8 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ProgressProvider } from "@/components/progress-provider";
+import { AuthProvider } from "@/components/auth-provider";
+import { AuthModal } from "@/components/auth-modal";
 import { getAllCourses } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -48,16 +50,19 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col antialiased">
         <ThemeProvider>
-          <ProgressProvider
-            courses={getAllCourses().map((c) => ({
-              slug: c.slug,
-              chapterSlugs: c.chapters.map((ch) => ch.slug),
-            }))}
-          >
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </ProgressProvider>
+          <AuthProvider>
+            <ProgressProvider
+              courses={getAllCourses().map((c) => ({
+                slug: c.slug,
+                chapterSlugs: c.chapters.map((ch) => ch.slug),
+              }))}
+            >
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+              <AuthModal />
+            </ProgressProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
