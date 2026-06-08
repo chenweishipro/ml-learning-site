@@ -89,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (data.ok) {
-        setUser(data.data.user);
+        // 登录后重新 fetch /api/auth/me, 拿到 role / isAdmin / isSuperAdmin
+        // (login 响应里没有 role, 手动刷新获取)
+        await refresh();
         try { localStorage.setItem("ml-site-auth-ping", String(Date.now())); } catch {}
         return { ok: true };
       }
@@ -99,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refresh]);
 
   const register: AuthContextValue["register"] = useCallback(
     async (email, password, displayName) => {
@@ -113,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         const data = await res.json();
         if (data.ok) {
-          setUser(data.data.user);
+          // 注册后重新 fetch /api/auth/me 拿 role
+          await refresh();
           try { localStorage.setItem("ml-site-auth-ping", String(Date.now())); } catch {}
           return { ok: true };
         }
@@ -124,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     },
-    []
+    [refresh]
   );
 
   const logout: AuthContextValue["logout"] = useCallback(async () => {

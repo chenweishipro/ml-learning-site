@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isValidEmail, signSession, setSessionCookie, verifyPassword } from "@/lib/auth";
+import { isAdmin, isSuperAdmin, getSuperAdminEmails } from "@/lib/admin";
 import { fail, ok, readJson } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -15,17 +16,35 @@ export async function POST(req: Request) {
   if (!isValidEmail(email)) return fail("邮箱格式不正确", 400);
 
   const user = await prisma.user.findUnique({ where: { email } });
-  // 统一返回相同错误,避免泄露"邮箱是否存在"
   const invalidMsg = "邮箱或密码不正确";
   if (!user) return fail(invalidMsg, 401, "INVALID_CREDENTIALS");
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) return fail(invalidMsg, 401, "INVALID_CREDENTIALS");
 
+  // 自动同步: env 里列出的邮箱一律设为 superadmin
+  const superEmails = getSuperAdminEmails();
+  if (superEmails.includes(user.email.toLowerCase()) && user.role !== "superadmin") {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: "superadmin" },
+    });
+    user.role = "superadmin";
+  }
+
   const token = await signSession({ sub: user.id, email: user.email });
   await setSessionCookie(token);
 
   return ok({
-    user: { id: user.id, email: user.email, displayName: user.displayName, createdAt: user.createdAt },
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      role: user.role,
+      createdAt: user.createdAt,
+    },
+    role: user.role,
+    isAdmin: isAdmin(user.role),
+    isSuperAdmin: isSuperAdmin(user.role),
   });
 }
