@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock, Loader2, Edit3, History } from "lucide-react";
+import { ArrowRight, BookOpen, Clock, Loader2, Edit3, History, Users } from "lucide-react";
 import { LEVEL_META, cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth-provider";
 
 interface CourseListItem {
   slug: string;
@@ -18,6 +19,7 @@ interface CourseListItem {
 }
 
 export default function AdminHome() {
+  const { isSuperAdmin } = useAuth();
   const [items, setItems] = useState<CourseListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,16 +59,30 @@ export default function AdminHome() {
 
   return (
     <div className="container py-10 sm:py-12">
-      <div className="mb-8">
-        <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-800/50">
-          🛠 管理后台
-        </span>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">课程内容管理</h1>
-        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          编辑课程元数据 (标题、简介、标签), 或进入课程编辑章节正文。
-          <br />
-          改动会保存到数据库, 立即在公开页面生效。原始 MDX 文件不动, 可随时"重置"回到仓库版本。
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-800/50">
+            🛠 管理后台
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">课程内容管理</h1>
+          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+            编辑课程元数据 (标题、简介、标签), 或进入课程编辑章节正文。
+            <br />
+            改动会保存到数据库, 立即在公开页面生效。原始 MDX 文件不动, 可随时"重置"回到仓库版本。
+          </p>
+        </div>
+        {isSuperAdmin && (
+          <Link
+            href="/admin/users"
+            className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-800/50 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
+          >
+            <Users className="h-4 w-4" />
+            用户管理
+            <span className="ml-1 inline-flex items-center rounded-full bg-rose-200/60 px-1.5 py-0.5 text-[10px] font-medium dark:bg-rose-800/60">
+              超级
+            </span>
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

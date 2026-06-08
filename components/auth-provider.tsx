@@ -2,16 +2,20 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
+export type Role = "user" | "admin" | "superadmin";
+
 export interface AuthUser {
   id: string;
   email: string;
   displayName: string | null;
+  role: Role;
   createdAt: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   ready: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
@@ -33,6 +37,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -45,13 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.ok && data.data.user) {
         setUser(data.data.user);
         setIsAdmin(Boolean(data.data.isAdmin));
+        setIsSuperAdmin(Boolean(data.data.isSuperAdmin));
       } else {
         setUser(null);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
     } catch {
       setUser(null);
       setIsAdmin(false);
+      setIsSuperAdmin(false);
     } finally {
       setReady(true);
     }
@@ -128,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setIsAdmin(false);
+      setIsSuperAdmin(false);
       try { localStorage.setItem("ml-site-auth-ping", String(Date.now())); } catch {}
       setLoading(false);
     }
@@ -188,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAdmin,
+    isSuperAdmin,
     ready,
     loading,
     login,

@@ -71,9 +71,12 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
 }
 
 export async function setSessionCookie(token: string) {
+  // 仅在显式启用 HTTPS 时才设置 secure 标志 (环境变量 SESSION_SECURE=1)
+  // 这样既支持 HTTPS 部署, 也支持 HTTP 内网/测试环境
+  const useSecure = process.env.SESSION_SECURE === "1";
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: useSecure,
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL,
@@ -81,9 +84,10 @@ export async function setSessionCookie(token: string) {
 }
 
 export async function clearSessionCookie() {
+  const useSecure = process.env.SESSION_SECURE === "1";
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: useSecure,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
@@ -97,7 +101,7 @@ export async function getCurrentUser() {
   if (!session) return null;
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
-    select: { id: true, email: true, displayName: true, createdAt: true },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
   });
   return user;
 }

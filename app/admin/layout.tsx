@@ -7,7 +7,7 @@ import { ShieldAlert, Loader2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, ready } = useAuth();
+  const { user, isAdmin, isSuperAdmin, ready } = useAuth();
   const router = useRouter();
   const [showCheck, setShowCheck] = useState(false);
 
