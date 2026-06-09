@@ -2,8 +2,8 @@ import { WifiOff } from "lucide-react";
 import { OfflineActions } from "./offline-actions";
 
 export const metadata = {
-  title: "离线",
-  description: "网络连接失败",
+  title: "离线 / Offline",
+  description: "网络连接失败 / No network connection",
 };
 
 export default function OfflinePage() {

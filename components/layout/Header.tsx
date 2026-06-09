@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useState } from "react";
 import { Menu, X, GraduationCap } from "lucide-react";
 import { Nav } from "./Nav";
@@ -45,6 +46,7 @@ export function Header() {
           >
             🤖 问 AI
           </Link>
+          <LocaleSwitcher />
           <ThemeToggle />
           <NotificationCenter mode="bell" />
           {isAdmin && (
@@ -78,6 +80,7 @@ export function Header() {
         {/* 移动端汉堡菜单 */}
         <div className="flex items-center gap-1 md:hidden">
             <NotificationCenter mode="bell" />
+          <LocaleSwitcher />
           <ThemeToggle />
           <button
             type="button"

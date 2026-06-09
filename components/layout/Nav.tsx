@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 export interface NavItem {
   label: string;
   href: string;
 }
 
-const items: NavItem[] = [
-  { label: "首页", href: "/" },
-  { label: "课程", href: "/courses" },
-  { label: "问答", href: "/qa" },
-  { label: "AI", href: "/chat" },
-  { label: "关于", href: "/about" },
-];
+function useNavItems(): NavItem[] {
+  const { t } = useI18n();
+  return [
+    { label: t("nav.home"), href: "/" },
+    { label: t("nav.courses"), href: "/courses" },
+    { label: t("nav.qa"), href: "/qa" },
+    { label: t("nav.ai"), href: "/chat" },
+    { label: t("nav.about"), href: "/about" },
+  ];
+}
 
 export interface NavProps {
   /** 是否为移动端折叠菜单样式 */
@@ -26,6 +30,7 @@ export interface NavProps {
 
 export function Nav({ vertical = false, onNavigate, className }: NavProps) {
   const pathname = usePathname();
+  const items = useNavItems();
 
   return (
     <nav

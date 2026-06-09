@@ -7,6 +7,7 @@ import { ProgressProvider } from "@/components/progress-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { PWARegister } from "@/components/pwa-register";
+import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -71,6 +72,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen flex flex-col antialiased">
+        <I18nProvider>
         <ThemeProvider>
           <AuthProvider>
             <ProgressProvider
@@ -86,6 +88,7 @@ export default function RootLayout({
             </ProgressProvider>
           </AuthProvider>
         </ThemeProvider>
+        </I18nProvider>
       </body>
     </html>
   );
