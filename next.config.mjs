@@ -8,6 +8,7 @@ const nextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
+  staticPageGenerationTimeout: 30,
   // Workaround for Next.js 14 500.html rename race on CSI/NFS file systems:
   // exclude the .next cache from file tracing and let the build finish cleanly.
   experimental: {
