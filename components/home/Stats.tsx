@@ -32,7 +32,7 @@ export function Stats() {
           {stats.map(({ icon: Icon, value, label }) => (
             <div key={label} className="flex items-center gap-4">
               <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-lg bg-white dark:bg-neutral-900/15 ring-1 ring-white/20 backdrop-blur">
-                <Icon className="h-6 w-6" />
+                <Icon className="h-6 w-6 text-primary-600 dark:text-white" />
               </div>
               <div>
                 <div className="text-2xl font-bold tabular-nums sm:text-3xl">

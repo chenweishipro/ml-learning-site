@@ -15,6 +15,7 @@ import { extractToc } from "@/lib/toc";
 import { ChapterSidebar } from "./ChapterSidebar";
 import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
+import { ChapterPDFExport } from "@/components/chapter-pdf-export";
 import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
 import { NotesPanel } from "@/components/notes/NotesPanel";
@@ -128,6 +129,12 @@ export default async function ChapterPage({ params }: Params) {
               提议修改
             </Link>
           )}
+          <ChapterPDFExport
+            courseSlug={params.slug}
+            courseTitle={course.title}
+            chapterSlug={params.chapter}
+            chapterTitle={data.meta.title}
+          />
           {canEdit && (
             <Link
               href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
