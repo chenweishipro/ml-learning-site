@@ -7,6 +7,7 @@ import { Nav } from "./Nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/components/auth-provider";
 import { UserMenu } from "@/components/user-menu";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -39,6 +40,7 @@ export function Header() {
             🔍 搜索
           </Link>
           <ThemeToggle />
+          <NotificationCenter mode="bell" />
           {isAdmin && (
             <Link
               href="/admin"
@@ -69,6 +71,7 @@ export function Header() {
 
         {/* 移动端汉堡菜单 */}
         <div className="flex items-center gap-1 md:hidden">
+            <NotificationCenter mode="bell" />
           <ThemeToggle />
           <button
             type="button"

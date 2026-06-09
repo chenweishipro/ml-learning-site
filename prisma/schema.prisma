@@ -24,6 +24,9 @@ model User {
   progress     ChapterProgress[]
   contentEdits ContentEditLog[]
   revisions    ContentRevision[]
+  proposals    ContentProposal[] @relation("ProposalAuthor")
+  reviews      ContentProposal[] @relation("ProposalReviewer")
+  notifications Notification[]
 }
 
 model PasswordResetToken {
@@ -135,5 +138,69 @@ model ContentRevision {
 
   @@index([scope, courseSlug, chapterSlug, createdAt])
   @@index([userId])
+  @@index([createdAt])
+}
+
+
+// 内容修改提案 (PR 模式)
+// 任何登录用户都可以提交, 管理员在 /admin/proposals 审核
+model ContentProposal {
+  id            String   @id @default(cuid())
+  scope         String   // "course" | "chapter"
+  courseSlug    String
+  chapterSlug   String?  // null when scope=course
+
+  // 作者
+  authorId      String
+  author        User     @relation("ProposalAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // 提案信息
+  title         String   // 用户填的简短标题
+  description   String   // 用户填的修改说明
+
+  // 内容
+  proposedBody  String   // 新内容 (course: JSON 化的元信息; chapter: MDX 字符串)
+  baseSnapshot  String   // 提案基于的"基准"内容, 用于冲突检测
+
+  // 状态: "pending" | "approved" | "merged" | "rejected" | "withdrawn"
+  status        String   @default("pending")
+
+  // 审核
+  reviewerId    String?
+  reviewer      User?    @relation("ProposalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewNote    String?
+  reviewedAt    DateTime?
+
+  // 合并结果
+  mergedAt      DateTime?
+  mergedRevisionId String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([authorId])
+  @@index([scope, courseSlug, chapterSlug])
+}
+
+// 站内信 (用户通知)
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  recipient   User     @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  // 类型: "proposal_merged" | "proposal_rejected" | "proposal_approved" | "system"
+  type        String
+  title       String
+  body        String
+  // 站内跳转链接
+  link        String?
+  // 附加元信息 (JSON), 例如 { proposalId, courseSlug, chapterSlug }
+  meta        String?
+
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, readAt, createdAt])
   @@index([createdAt])
 }

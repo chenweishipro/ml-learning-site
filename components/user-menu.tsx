@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { LogOut, User as UserIcon, ChevronDown, GitPullRequestArrow, ShieldCheck, Bell } from "lucide-react";
 import { useAuth } from "./auth-provider";
+import { isAdmin } from "@/lib/roles";
 
 export function UserMenu() {
   const { user, logout, loading } = useAuth();
@@ -53,13 +55,41 @@ export function UserMenu() {
               <p className="truncate text-xs text-neutral-500 dark:text-neutral-400">{user.email}</p>
             )}
           </div>
+          <div className="border-t border-neutral-100 py-1 dark:border-neutral-800">
+            <Link
+              href="/proposals/"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              <GitPullRequestArrow className="h-3.5 w-3.5" />
+              我的提案
+            </Link>
+            <Link
+              href="/notifications/"
+              onClick={() => setOpen(false)}
+              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-neutral-700 transition hover:bg-neutral-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              通知中心
+            </Link>
+            {isAdmin(user.role) && (
+              <Link
+                href="/admin/proposals/"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-rose-700 transition hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                提案审核中心
+              </Link>
+            )}
+          </div>
           <button
             onClick={async () => {
               setOpen(false);
               await logout();
             }}
             disabled={loading}
-            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-2.5 text-left text-sm text-neutral-700 transition hover:bg-neutral-50 disabled:opacity-50 dark:border-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-800"
           >
             <LogOut className="h-4 w-4" />
             退出登录

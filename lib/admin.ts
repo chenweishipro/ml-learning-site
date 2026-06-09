@@ -1,21 +1,14 @@
-// 角色权限模型
-//   user        — 默认角色, 仅可浏览
-//   admin       — 可编辑课程/章节 (CourseOverride / ChapterOverride)
-//   superadmin  — 全部 admin 权限 + 可改其他用户角色
-//
-// 角色字符串直接存 User.role (String 字段, 默认 "user")。
-// 第一次启动时, 由 SUPER_ADMIN_EMAILS 环境变量指定的邮箱会被自动提升为 superadmin。
+// 角色权限 — Server 端
+// 纯函数 (isAdmin / isSuperAdmin / isValidRole) 都在 lib/roles.ts 里, client-safe
+// 这个文件保留 server-only 的部分: 启动时同步, logEdit, 鉴权守卫
 
 import { prisma } from "./db";
 import { getCurrentUser } from "./auth";
 
-export type Role = "user" | "admin" | "superadmin";
-
-export const ROLES: Role[] = ["user", "admin", "superadmin"];
-
-export function isValidRole(r: string): r is Role {
-  return ROLES.includes(r as Role);
-}
+// 重新导出, 兼容旧 import
+import { isAdmin, isSuperAdmin, type Role } from "./roles";
+export { ROLES, isValidRole, isAdmin, isSuperAdmin } from "./roles";
+export type { Role } from "./roles";
 
 /** 从 env 读 superadmin 邮箱白名单, 用于首次部署时初始化 */
 export function getSuperAdminEmails(): string[] {
@@ -38,14 +31,6 @@ export async function syncSuperAdminsFromEnv(): Promise<{ promoted: number }> {
     data: { role: "superadmin" },
   });
   return { promoted: result.count };
-}
-
-export function isAdmin(role: string | null | undefined): boolean {
-  return role === "admin" || role === "superadmin";
-}
-
-export function isSuperAdmin(role: string | null | undefined): boolean {
-  return role === "superadmin";
 }
 
 /** 同步页面用的鉴权: 从 cookies 拿 user, 检查 role */

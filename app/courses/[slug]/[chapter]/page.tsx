@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, BookOpen, Clock, Edit3 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Edit3, GitPullRequestArrow } from "lucide-react";
 import {
   getAllCoursesSync,
   getChapterWithOverrides,
@@ -65,6 +65,8 @@ export default async function ChapterPage({ params }: Params) {
   // 是否显示"编辑此页"按钮
   const currentUser = await getCurrentUser();
   const canEdit = currentUser ? isAdmin(currentUser.role) : false;
+  // 任何登录用户都可以"提议修改" (含 admin — admin 也可以走 PR 流程)
+  const canPropose = !!currentUser;
 
   // 字数统计
   const wordCount = data.content.replace(/```[\s\S]*?```/g, "").length;
@@ -113,16 +115,28 @@ export default async function ChapterPage({ params }: Params) {
             <ChapterProgressButton courseSlug={params.slug} chapterSlug={params.chapter} />
           </div>
         </div>
-        {canEdit && (
-          <Link
-            href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
-            className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
-            title="在管理后台编辑此章节"
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-            编辑此页
-          </Link>
-        )}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {canPropose && (
+            <Link
+              href={`/proposals/new/${params.slug}/${params.chapter}/`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary-200 bg-primary-50 px-3 py-1.5 text-sm font-medium text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 dark:border-primary-800/50 dark:bg-primary-950/30 dark:text-primary-300 dark:hover:bg-primary-950/50"
+              title="提出修改建议, 由管理员审核后合并"
+            >
+              <GitPullRequestArrow className="h-3.5 w-3.5" />
+              提议修改
+            </Link>
+          )}
+          {canEdit && (
+            <Link
+              href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
+              title="在管理后台编辑此章节"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              编辑此页
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[280px_1fr_220px]">
