@@ -11,6 +11,7 @@ import {
   Eye,
   Code,
   Save,
+  Sparkles,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -47,6 +48,42 @@ export default function NewProposalPage({
   const [proposedBody, setProposedBody] = useState<string>("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [polishing, setPolishing] = useState<"title" | "description" | "body" | null>(null);
+  const [polishHint, setPolishHint] = useState<string | null>(null);
+
+  async function polishText(target: "title" | "description" | "body") {
+    const text = target === "title" ? title : target === "description" ? description : proposedBody;
+    if (!text.trim()) {
+      setPolishHint("内容为空, 无需润色");
+      setTimeout(() => setPolishHint(null), 2000);
+      return;
+    }
+    setPolishing(target);
+    setPolishHint(null);
+    try {
+      const res = await fetch("/api/ai/polish/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          context: { courseTitle, chapterTitle: chapter?.meta?.title },
+          mode: target === "body" ? "proofread" : "proofread",
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error ?? "润色失败");
+      if (target === "title") setTitle(data.data.polished);
+      else if (target === "description") setDescription(data.data.polished);
+      else setProposedBody(data.data.polished);
+      setPolishHint(`已润色 (${data.data.changes} 处改动, ${data.data.provider})`);
+      setTimeout(() => setPolishHint(null), 3000);
+    } catch (e) {
+      setPolishHint(`❌ ${e instanceof Error ? e.message : "润色失败"}`);
+      setTimeout(() => setPolishHint(null), 3000);
+    } finally {
+      setPolishing(null);
+    }
+  }
   const [mode, setMode] = useState<"split" | "edit" | "preview" | "diff">("diff");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -231,6 +268,12 @@ export default function NewProposalPage({
         </div>
       </div>
 
+      {polishHint && (
+        <div className="mb-3 rounded-md border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs text-purple-700 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-300">
+          {polishHint}
+        </div>
+      )}
+
       {/* 视图切换 */}
       <div className="mb-3 inline-flex rounded-md border border-neutral-200 bg-white p-1 text-xs dark:border-neutral-800 dark:bg-neutral-900">
         {(
@@ -279,8 +322,29 @@ export default function NewProposalPage({
         )}
         {mode !== "diff" && mode !== "preview" && (
           <div className="min-w-0">
-            <div className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
-              MDX 源 ({proposedBody.length.toLocaleString()} 字符)
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                MDX 源 ({proposedBody.length.toLocaleString()} 字符)
+              </div>
+              <button
+                type="button"
+                onClick={() => polishText("body")}
+                disabled={polishing === "body"}
+                className="inline-flex items-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700 transition hover:bg-purple-100 disabled:opacity-50 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-300"
+                title="使用 AI 帮你修正错别字、改善表述"
+              >
+                {polishing === "body" ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    润色中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    AI 润色全文
+                  </>
+                )}
+              </button>
             </div>
             <MDXEditor
               value={proposedBody}
