@@ -32,6 +32,7 @@ model User {
   certificates Certificate[]
   comments     Comment[]
   commentLikes CommentLike[]
+  notes        Note[]
 }
 
 model PasswordResetToken {
@@ -173,6 +174,29 @@ model Certificate {
 
   @@unique([userId, courseSlug])
   @@index([serialNo])
+}
+
+// 学习笔记 (用户对某段文本的笔记 + 高亮)
+model Note {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 关联章节 (笔记依附于章节)
+  courseSlug  String
+  chapterSlug String
+  // 高亮的文本 (从 MDX 抓出来的一段)
+  highlightedText String
+  // 笔记内容 (用户自己写的备注)
+  content     String
+  // 可选的颜色标签 (yellow/red/green/blue)
+  color       String   @default("yellow")
+  // 状态: "active" | "deleted"
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, courseSlug, chapterSlug])
+  @@index([userId, createdAt])
 }
 
 // 章节内评论 (社区互动)

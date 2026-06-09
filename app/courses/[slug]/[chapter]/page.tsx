@@ -17,6 +17,7 @@ import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
 import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
+import { NotesPanel } from "@/components/notes/NotesPanel";
 import { CommentSection } from "@/components/comments/CommentSection";
 
 interface Params {
@@ -232,8 +233,11 @@ export default async function ChapterPage({ params }: Params) {
           />
         </article>
 
-        {/* 右侧: 本页目录 (VitePress 风格) */}
-        <ChapterToc items={toc} />
+        {/* 右侧: 本页目录 + 笔记 */}
+        <div className="space-y-4">
+          <ChapterToc items={toc} />
+          <NotesPanel courseSlug={params.slug} chapterSlug={params.chapter} />
+        </div>
       </div>
     </div>
   );
