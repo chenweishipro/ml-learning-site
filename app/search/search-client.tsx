@@ -46,24 +46,41 @@ export function SearchClient() {
   const [hits, setHits] = useState<FullHit[]>([]);
   const [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [mode, setMode] = useState<"fulltext" | "semantic">("fulltext");
+  const [semanticResults, setSemanticResults] = useState<FullHit[]>([]);
+  const [semanticTotal, setSemanticTotal] = useState(0);
+  const [providerName, setProviderName] = useState("");
 
   useEffect(() => {
     if (!debounced.trim()) {
       setHits([]);
       setTotal(0);
+      setSemanticResults([]);
+      setSemanticTotal(0);
       return;
     }
     let cancelled = false;
     setSearching(true);
-    fetch(`/api/search/?q=${encodeURIComponent(debounced)}&limit=30&level=${level}`, {
+    const endpoint = mode === "semantic" ? "/api/semantic/" : "/api/search/";
+    fetch(`${endpoint}?q=${encodeURIComponent(debounced)}&limit=30&level=${level}`, {
       cache: "no-store",
     })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
         if (data.ok) {
-          setHits(data.data.hits);
-          setTotal(data.data.total);
+          if (mode === "semantic") {
+            setSemanticResults(data.data.hits);
+            setSemanticTotal(data.data.total);
+            setProviderName(data.data.provider ?? "");
+            setHits([]);
+            setTotal(0);
+          } else {
+            setHits(data.data.hits);
+            setTotal(data.data.total);
+            setSemanticResults([]);
+            setSemanticTotal(0);
+          }
         }
       })
       .catch(() => {})
@@ -73,9 +90,9 @@ export function SearchClient() {
     return () => {
       cancelled = true;
     };
-  }, [debounced, level]);
+  }, [debounced, level, mode]);
 
-  const results = hits;
+  const results = mode === "semantic" ? semanticResults : hits;
 
   const popular = useMemo(() => {
     // 显示前 6 个作为"热门推荐"
@@ -89,11 +106,43 @@ export function SearchClient() {
           🔍 搜索课程
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          {debounced ? <>找到 {total} 个章节, 显示 {hits.length} 个</> : <>在 {SEARCH_INDEX.length} 个章节中搜索</>}
+          {debounced
+            ? mode === "semantic"
+              ? <>🧠 语义搜索: {semanticTotal} 个相关章节, 显示 {semanticResults.length} 个</>
+              : <>找到 {total} 个章节, 显示 {hits.length} 个</>
+            : <>在 {SEARCH_INDEX.length} 个章节中搜索</>}
         </p>
       </header>
 
       {/* 搜索框 */}
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-neutral-500">搜索方式:</span>
+        <div className="inline-flex rounded-md border border-neutral-200 p-0.5 dark:border-neutral-700">
+          {([
+            { v: "fulltext", label: "🔍 关键词" },
+            { v: "semantic", label: "🧠 AI 语义" },
+          ] as const).map((tab) => (
+            <button
+              key={tab.v}
+              onClick={() => setMode(tab.v)}
+              className={cn(
+                "rounded px-2.5 py-1 text-xs font-medium transition",
+                mode === tab.v
+                  ? "bg-primary-600 text-white"
+                  : "text-neutral-600 hover:text-primary-700 dark:text-neutral-400"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {mode === "semantic" && providerName && (
+          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:ring-purple-800/50">
+            provider: {providerName}
+          </span>
+        )}
+      </div>
+
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
         <input
@@ -222,9 +271,15 @@ function SearchResultCard({ hit, query }: { hit: FullHit; query?: string }) {
           <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400">
             {hit.courseTitle}
           </span>
-          <span className="text-[10px] text-neutral-400">
-            {hit.count} 处命中
-          </span>
+          {hit.count > 0 ? (
+            <span className="text-[10px] text-neutral-400">
+              {hit.count} 处命中
+            </span>
+          ) : hit.score > 0 ? (
+            <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:bg-purple-950/30 dark:text-purple-300">
+              {(hit.score * 100).toFixed(0)}% 相似
+            </span>
+          ) : null}
         </div>
         <p
           className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400"
