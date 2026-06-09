@@ -39,6 +39,12 @@ export function Header() {
           >
             🔍 搜索
           </Link>
+          <Link
+            href="/chat"
+            className="rounded-md border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm text-purple-700 transition hover:border-purple-300 hover:bg-purple-100 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-300 dark:hover:bg-purple-950/50"
+          >
+            🤖 问 AI
+          </Link>
           <ThemeToggle />
           <NotificationCenter mode="bell" />
           {isAdmin && (

@@ -12,6 +12,8 @@ export interface NavItem {
 const items: NavItem[] = [
   { label: "首页", href: "/" },
   { label: "课程", href: "/courses" },
+  { label: "问答", href: "/qa" },
+  { label: "AI", href: "/chat" },
   { label: "关于", href: "/about" },
 ];
 
