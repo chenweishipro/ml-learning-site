@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ProgressProvider } from "@/components/progress-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
+import { PWARegister } from "@/components/pwa-register";
 import { getAllCourses } from "@/lib/content";
 
 export const metadata: Metadata = {
@@ -17,12 +18,33 @@ export const metadata: Metadata = {
     "面向中文读者的机器学习学习平台: 从 NumPy、Pandas 到线性回归与深度学习, 系统化、可运行、渐进式。",
   keywords: ["机器学习", "深度学习", "Python", "NumPy", "Pandas", "中文教程"],
   authors: [{ name: "ML 学习站" }],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "ML 学习",
+    statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+  },
   openGraph: {
     type: "website",
     locale: "zh_CN",
     title: "ML 学习站 · 中文机器学习教程",
     description: "系统化、可运行、渐进式的中文机器学习教程。",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0ea5e9",
+  width: "device-width",
+  initialScale: 1,
 };
 
 // 避免首屏闪烁: 在 <head> 注入同步脚本, 提前设置 dark class

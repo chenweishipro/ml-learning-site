@@ -1,0 +1,54 @@
+{
+  "name": "ML 学习站",
+  "short_name": "ML 学习",
+  "description": "互动式机器学习教程 · 5 门课 23 章",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0ea5e9",
+  "lang": "zh-CN",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "books", "productivity"],
+  "shortcuts": [
+    {
+      "name": "搜索",
+      "url": "/search",
+      "description": "搜索课程内容"
+    },
+    {
+      "name": "问答",
+      "url": "/qa",
+      "description": "提问和回答"
+    },
+    {
+      "name": "我的学习",
+      "url": "/me",
+      "description": "个人仪表盘"
+    },
+    {
+      "name": "问 AI",
+      "url": "/chat",
+      "description": "AI 答疑"
+    }
+  ]
+}
