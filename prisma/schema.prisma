@@ -30,6 +30,8 @@ model User {
   studySessions StudySession[]
   studyPlans   StudyPlan[]
   certificates Certificate[]
+  comments     Comment[]
+  commentLikes CommentLike[]
 }
 
 model PasswordResetToken {
@@ -171,6 +173,49 @@ model Certificate {
 
   @@unique([userId, courseSlug])
   @@index([serialNo])
+}
+
+// 章节内评论 (社区互动)
+model Comment {
+  id          String   @id @default(cuid())
+  scope       String   // "course" | "chapter"
+  courseSlug  String
+  chapterSlug String?  // null when scope=course
+  // 回复关系: 顶级评论 parentId=null, 回复 parentId=父评论id
+  parentId    String?
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Comment[] @relation("CommentReplies")
+
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  body        String   // 评论内容 (markdown 友好, 但不做复杂渲染, 保留纯文本)
+  // 状态: "published" | "hidden" | "deleted"
+  status      String   @default("published")
+  // 点赞数 (冗余字段, 加速排序)
+  likeCount   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 点赞记录 (谁给哪条评论点过赞, 防止重复)
+  likes       CommentLike[]
+
+  @@index([scope, courseSlug, chapterSlug, createdAt])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
 }
 
 // 内容修订快照(可回滚)

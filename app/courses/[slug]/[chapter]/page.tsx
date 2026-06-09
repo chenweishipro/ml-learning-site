@@ -17,6 +17,7 @@ import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
 import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
+import { CommentSection } from "@/components/comments/CommentSection";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -221,6 +222,14 @@ export default async function ChapterPage({ params }: Params) {
               </Link>
             )}
           </nav>
+
+          {/* 评论区 */}
+          <CommentSection
+            scope="chapter"
+            courseSlug={params.slug}
+            chapterSlug={params.chapter}
+            title="讨论区"
+          />
         </article>
 
         {/* 右侧: 本页目录 (VitePress 风格) */}
