@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { RevisionsPanel } from "@/components/admin/RevisionsPanel";
 import { LEVEL_META, cn } from "@/lib/utils";
 
 interface ChapterMeta {
@@ -63,6 +64,7 @@ export default function CourseEditPage({ params }: { params: { slug: string } })
   const [tagsRaw, setTagsRaw] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [revisionsRefreshKey, setRevisionsRefreshKey] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -124,6 +126,7 @@ export default function CourseEditPage({ params }: { params: { slug: string } })
         return;
       }
       setSavedAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }));
+      setRevisionsRefreshKey((k) => k + 1);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "网络错误");
@@ -147,6 +150,7 @@ export default function CourseEditPage({ params }: { params: { slug: string } })
         return;
       }
       await load();
+      setRevisionsRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "网络错误");
     } finally {
@@ -311,8 +315,18 @@ export default function CourseEditPage({ params }: { params: { slug: string } })
           </div>
         </div>
 
-        {/* 右侧: 章节列表 (跳到章节编辑) */}
-        <div>
+        {/* 右侧: 修订历史 + 章节列表 */}
+        <div className="space-y-4">
+          <RevisionsPanel
+            scope="course"
+            courseSlug={params.slug}
+            refreshKey={revisionsRefreshKey}
+            onRollbackSuccess={async () => {
+              await load();
+              setRevisionsRefreshKey((k) => k + 1);
+              setSavedAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }) + " (回滚)");
+            }}
+          />
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary-600" />

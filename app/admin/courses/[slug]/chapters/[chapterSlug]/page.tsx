@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, Loader2, RotateCcw, Save, Eye, Edit3 } from "l
 import { Button } from "@/components/ui/Button";
 import { MDXEditor } from "@/components/admin/MDXEditor";
 import { MDXPreview } from "@/components/admin/MDXPreview";
+import { RevisionsPanel } from "@/components/admin/RevisionsPanel";
 
 interface ChapterMeta {
   slug: string;
@@ -28,6 +29,7 @@ export default function ChapterEditPage({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [mode, setMode] = useState<"split" | "edit" | "preview">("split");
+  const [revisionsRefreshKey, setRevisionsRefreshKey] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -79,6 +81,7 @@ export default function ChapterEditPage({
       setHasOverride(true);
       setOriginalBody(body);
       setSavedAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }));
+      setRevisionsRefreshKey((k) => k + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "网络错误");
     } finally {
@@ -226,7 +229,18 @@ export default function ChapterEditPage({
         }`}
       >
         {mode !== "preview" && (
-          <div className="min-w-0">
+          <div className="min-w-0 space-y-3">
+            <RevisionsPanel
+              scope="chapter"
+              courseSlug={params.slug}
+              chapterSlug={params.chapterSlug}
+              refreshKey={revisionsRefreshKey}
+              onRollbackSuccess={async () => {
+                await load();
+                setRevisionsRefreshKey((k) => k + 1);
+                setSavedAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }) + " (回滚)");
+              }}
+            />
             <div className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
               MDX 源 ({body.length.toLocaleString()} 字符)
             </div>

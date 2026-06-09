@@ -3,6 +3,7 @@ import { requireAdmin, logEdit } from "@/lib/admin";
 import { getChapterWithOverrides } from "@/lib/content-overrides";
 import { prisma } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api";
+import { snapshotChapterOverride } from "@/lib/revisions";
 
 export const runtime = "nodejs";
 
@@ -35,6 +36,14 @@ export async function PUT(req: Request, { params }: { params: { courseSlug: stri
   if (body.body.length > 500_000) {
     return fail("章节内容超过 500KB 上限", 413);
   }
+
+  // 在写入新值前先给当前 override 打一份快照 (用于后续回滚)
+  await snapshotChapterOverride({
+    courseSlug: params.courseSlug,
+    chapterSlug: params.chapterSlug,
+    userId: auth.user.id,
+    source: "save",
+  });
 
   const upserted = await prisma.chapterOverride.upsert({
     where: {

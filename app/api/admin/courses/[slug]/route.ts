@@ -3,6 +3,7 @@ import { requireAdmin, logEdit } from "@/lib/admin";
 import { getCourseWithOverrides } from "@/lib/content-overrides";
 import { prisma } from "@/lib/db";
 import { fail, ok, readJson } from "@/lib/api";
+import { snapshotCourseOverride } from "@/lib/revisions";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,13 @@ export async function PUT(req: Request, { params }: { params: { slug: string } }
   }
 
   const tagsJson = body.tags === null ? null : body.tags ? JSON.stringify(body.tags) : undefined;
+
+  // 在写入新值前先给当前 override 打一份快照 (用于后续回滚)
+  await snapshotCourseOverride({
+    courseSlug: params.slug,
+    userId: auth.user.id,
+    source: "save",
+  });
 
   const upserted = await prisma.courseOverride.upsert({
     where: { courseSlug: params.slug },

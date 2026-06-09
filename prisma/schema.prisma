@@ -23,6 +23,7 @@ model User {
   resetTokens  PasswordResetToken[]
   progress     ChapterProgress[]
   contentEdits ContentEditLog[]
+  revisions    ContentRevision[]
 }
 
 model PasswordResetToken {
@@ -108,6 +109,31 @@ model ContentEditLog {
   chapterRef    ChapterOverride? @relation(fields: [chapterRefId], references: [id], onDelete: SetNull)
 
   @@index([scope, courseSlug, chapterSlug])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// 内容修订快照(可回滚)
+// 每次保存前先在 override 表的当前值生成一份快照
+// body 存储完整内容 (课程: JSON 化的元信息+body, 章节: MDX 字符串)
+model ContentRevision {
+  id          String   @id @default(cuid())
+  scope       String   // "course" | "chapter"
+  courseSlug  String
+  chapterSlug String?  // null when scope=course
+  // 完整快照内容 (课程: JSON.stringify({title,description,level,duration,tags,body}), 章节: MDX 字符串)
+  body        String
+  // 可选: 保存原因/备注,例如 "初始保存" / "回滚到 revision:abc"
+  summary     String?
+  // 快照来源: "save" (保存前自动生成) | "rollback" (手动回滚写入) | "initial" (首次创建 override)
+  source      String   @default("save")
+  // 如果是回滚产生的快照, 这里记录被回滚的目标版本
+  restoredFrom String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([scope, courseSlug, chapterSlug, createdAt])
   @@index([userId])
   @@index([createdAt])
 }
