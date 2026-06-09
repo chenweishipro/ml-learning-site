@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, BookOpen, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Clock, Edit3 } from "lucide-react";
 import {
   getAllCoursesSync,
   getChapterWithOverrides,
@@ -9,10 +9,14 @@ import {
 } from "@/lib/content-overrides";
 import { getChapterNeighbors } from "@/lib/content";
 import { getQuiz } from "@/lib/quizzes";
+import { getCurrentUser } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
+import { extractToc } from "@/lib/toc";
 import { ChapterSidebar } from "./ChapterSidebar";
 import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
 import { Quiz } from "@/components/quiz";
+import { ChapterToc } from "@/components/chapter-toc";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -55,6 +59,16 @@ export default async function ChapterPage({ params }: Params) {
   // 进度 = 已完成章节数 / 总章节数 (1-based 索引 -> 进度百分比)
   const progress = total > 0 ? Math.round(((index + 1) / total) * 100) : 0;
 
+  // 提取目录 (VitePress 风格)
+  const toc = await extractToc(data.content);
+
+  // 是否显示"编辑此页"按钮
+  const currentUser = await getCurrentUser();
+  const canEdit = currentUser ? isAdmin(currentUser.role) : false;
+
+  // 字数统计
+  const wordCount = data.content.replace(/```[\s\S]*?```/g, "").length;
+
   return (
     <div className="container py-8 lg:py-10">
       {/* 面包屑 */}
@@ -75,8 +89,44 @@ export default async function ChapterPage({ params }: Params) {
         </span>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-        {/* 左侧侧边栏 */}
+      {/* 顶部元数据条 + "编辑此页" 按钮 (VitePress 风格) */}
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            {data.meta.title}
+          </h1>
+          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            {data.meta.description}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
+              {data.meta.duration}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <BookOpen className="h-3.5 w-3.5" />
+              第 {index + 1} / {total} 章
+            </span>
+            <span className="inline-flex items-center gap-1 tabular-nums">
+              {wordCount.toLocaleString()} 字
+            </span>
+            <ChapterProgressButton courseSlug={params.slug} chapterSlug={params.chapter} />
+          </div>
+        </div>
+        {canEdit && (
+          <Link
+            href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
+            className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            title="在管理后台编辑此章节"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            编辑此页
+          </Link>
+        )}
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[280px_1fr_220px]">
+        {/* 左侧侧边栏: 课程章节列表 */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <ChapterSidebar
             courseSlug={course.slug}
@@ -87,28 +137,8 @@ export default async function ChapterPage({ params }: Params) {
           />
         </aside>
 
-        {/* 右侧内容 */}
+        {/* 中间内容 (VitePress 风格: 较窄的 max-width) */}
         <article className="min-w-0">
-          <header className="mb-6">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              {data.meta.title}
-            </h1>
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              {data.meta.description}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {data.meta.duration}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <BookOpen className="h-3.5 w-3.5" />
-                第 {index + 1} / {total} 章
-              </span>
-              <ChapterProgressButton courseSlug={params.slug} chapterSlug={params.chapter} />
-            </div>
-          </header>
-
           <MDXContent source={data.content} />
 
           {/* 章末小测验 (如果该章有题) */}
@@ -125,20 +155,22 @@ export default async function ChapterPage({ params }: Params) {
             );
           })()}
 
-          {/* 上下章导航 */}
-          <nav className="mt-12 grid gap-3 border-t border-neutral-200 dark:border-neutral-800 pt-8 sm:grid-cols-2">
+          {/* 上下章导航 (VitePress 风格) */}
+          <nav className="mt-12 grid gap-3 border-t border-neutral-200 pt-8 sm:grid-cols-2 dark:border-neutral-800">
             {prev ? (
               <Link
                 href={`/courses/${course.slug}/${prev.slug}`}
-                className="group rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 dark:bg-neutral-900 p-4 transition hover:border-primary-300 dark:hover:border-primary-700 dark:hover:border-primary-300 hover:shadow-soft"
+                className="group flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-primary-700"
               >
-                <span className="inline-flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  上一章
-                </span>
-                <p className="mt-1 text-sm font-medium text-neutral-900 dark:text-neutral-50 group-hover:text-primary-700 dark:text-primary-300">
-                  {prev.title}
-                </p>
+                <ArrowLeft className="mt-0.5 h-4 w-4 flex-shrink-0 text-neutral-400 transition group-hover:-translate-x-0.5 group-hover:text-primary-600" />
+                <div className="min-w-0">
+                  <span className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                    上一章
+                  </span>
+                  <p className="mt-1 truncate text-sm font-medium text-neutral-900 group-hover:text-primary-700 dark:text-neutral-50 dark:group-hover:text-primary-300">
+                    {prev.title}
+                  </p>
+                </div>
               </Link>
             ) : (
               <div className="hidden sm:block" />
@@ -146,32 +178,39 @@ export default async function ChapterPage({ params }: Params) {
             {next ? (
               <Link
                 href={`/courses/${course.slug}/${next.slug}`}
-                className="group rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 dark:bg-neutral-900 p-4 text-right transition hover:border-primary-300 dark:hover:border-primary-700 dark:hover:border-primary-300 hover:shadow-soft"
+                className="group flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 text-right transition hover:border-primary-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-primary-700"
               >
-                <span className="inline-flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  下一章
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-                <p className="mt-1 text-sm font-medium text-neutral-900 dark:text-neutral-50 group-hover:text-primary-700 dark:text-primary-300">
-                  {next.title}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                    下一章
+                  </span>
+                  <p className="mt-1 truncate text-sm font-medium text-neutral-900 group-hover:text-primary-700 dark:text-neutral-50 dark:group-hover:text-primary-300">
+                    {next.title}
+                  </p>
+                </div>
+                <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
               </Link>
             ) : (
               <Link
                 href={`/courses/${course.slug}`}
-                className="group rounded-lg border border-primary-200 bg-primary-50/60 p-4 text-right transition hover:border-primary-300 dark:hover:border-primary-700 dark:hover:border-primary-300 hover:bg-primary-50 dark:bg-primary-950/30"
+                className="group flex items-start gap-3 rounded-lg border border-primary-200 bg-primary-50/60 p-4 text-right transition hover:border-primary-300 hover:bg-primary-50 dark:border-primary-800/50 dark:bg-primary-950/30 dark:hover:border-primary-700 dark:hover:bg-primary-950/50"
               >
-                <span className="inline-flex items-center gap-1 text-xs text-primary-600">
-                  课程完成 · 回到
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-                <p className="mt-1 text-sm font-medium text-primary-800">
-                  课程首页
-                </p>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs uppercase tracking-wide text-primary-600">
+                    课程完成
+                  </span>
+                  <p className="mt-1 truncate text-sm font-medium text-primary-800 dark:text-primary-300">
+                    回到课程首页
+                  </p>
+                </div>
+                <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-500 transition group-hover:translate-x-0.5" />
               </Link>
             )}
           </nav>
         </article>
+
+        {/* 右侧: 本页目录 (VitePress 风格) */}
+        <ChapterToc items={toc} />
       </div>
     </div>
   );

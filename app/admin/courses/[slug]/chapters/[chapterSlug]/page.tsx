@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Loader2, RotateCcw, Save, Eye, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { MDXEditor } from "@/components/admin/MDXEditor";
 import { MDXPreview } from "@/components/admin/MDXPreview";
 
 interface ChapterMeta {
@@ -225,22 +226,22 @@ export default function ChapterEditPage({
         }`}
       >
         {mode !== "preview" && (
-          <div>
+          <div className="min-w-0">
             <div className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
               MDX 源 ({body.length.toLocaleString()} 字符)
             </div>
-            <textarea
+            <MDXEditor
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              spellCheck={false}
-              className="h-[calc(100vh-280px)] min-h-[500px] w-full resize-none rounded-md border border-neutral-200 bg-white p-4 font-mono text-sm leading-relaxed focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-neutral-700 dark:bg-neutral-900 dark:focus:ring-primary-900"
+              onChange={setBody}
+              draftKey={`chapter-${params.slug}-${params.chapterSlug}`}
+              minHeight="calc(100vh - 320px)"
             />
           </div>
         )}
         {mode !== "edit" && (
           <div>
             <div className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">实时预览</div>
-            <div className="h-[calc(100vh-280px)] min-h-[500px] overflow-y-auto rounded-md">
+            <div className="max-h-[calc(100vh-320px)] min-h-[500px] overflow-y-auto rounded-md">
               <MDXPreview source={body} />
             </div>
           </div>
