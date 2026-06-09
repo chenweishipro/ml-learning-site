@@ -21,7 +21,11 @@ export function ChapterProgressButton({
   const progress = getChapter(courseSlug, chapterSlug);
 
   useEffect(() => {
-    if (ready) markVisited(courseSlug, chapterSlug);
+    if (ready) {
+      markVisited(courseSlug, chapterSlug);
+      // 记录章节进入时间
+      (window as any).__chapterStartTime = Date.now();
+    }
   }, [ready, courseSlug, chapterSlug, markVisited]);
 
   if (!ready) {
@@ -33,9 +37,29 @@ export function ChapterProgressButton({
     );
   }
 
+  async function handleToggle() {
+    toggleCompleted(courseSlug, chapterSlug);
+    // 记录学习 session 到服务器 (静默, 不阻塞 UI)
+    try {
+      const startTime = (window as any).__chapterStartTime ?? Date.now();
+      const duration = Math.min(3600, Math.max(1, Math.floor((Date.now() - startTime) / 1000)));
+      await fetch("/api/study/session/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          courseSlug,
+          chapterSlug,
+          durationSec: duration,
+          completed: !progress.completed,
+        }),
+      });
+    } catch {}
+  }
+
   return (
     <Button
-      onClick={() => toggleCompleted(courseSlug, chapterSlug)}
+      onClick={handleToggle}
       variant={progress.completed ? "primary" : "outline"}
       size="sm"
       className="gap-1.5"
