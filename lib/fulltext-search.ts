@@ -71,7 +71,9 @@ export async function ensureFtsIndex(force = false): Promise<void> {
         inserted++;
       }
     }
-    console.log(`[FTS] indexed ${inserted} chapters (v${FTS_VERSION})`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[FTS] indexed ${inserted} chapters (v${FTS_VERSION})`);
+    }
   });
   tx();
 }
