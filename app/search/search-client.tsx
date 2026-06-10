@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Clock, Search as SearchIcon, Sparkles, X } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { searchIndex, SEARCH_INDEX, type SearchEntry } from "@/lib/search";
-import { highlightSnippet } from "@/lib/fulltext-search";
+import { SEARCH_INDEX, type SearchEntry } from "@/lib/search";
 import { LEVEL_META, cn } from "@/lib/utils";
 
 interface FullHit {
@@ -18,7 +16,7 @@ interface FullHit {
   duration: string;
   count: number;
   score: number;
-  snippet: string; // 含 <mark>
+  snippet: string; // 已经含 <mark> 标签
 }
 
 const SUGGESTIONS = [
@@ -36,13 +34,6 @@ export function SearchClient() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<"all" | "beginner" | "intermediate" | "advanced">("all");
   const [debounced, setDebounced] = useState("");
-
-  // 防抖, 减少不必要的过滤
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(query), 120);
-    return () => clearTimeout(t);
-  }, [query]);
-
   const [hits, setHits] = useState<FullHit[]>([]);
   const [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false);
@@ -50,6 +41,12 @@ export function SearchClient() {
   const [semanticResults, setSemanticResults] = useState<FullHit[]>([]);
   const [semanticTotal, setSemanticTotal] = useState(0);
   const [providerName, setProviderName] = useState("");
+
+  // 防抖
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 120);
+    return () => clearTimeout(t);
+  }, [query]);
 
   useEffect(() => {
     if (!debounced.trim()) {
@@ -80,6 +77,7 @@ export function SearchClient() {
             setTotal(data.data.total);
             setSemanticResults([]);
             setSemanticTotal(0);
+            setProviderName("");
           }
         }
       })
@@ -94,10 +92,7 @@ export function SearchClient() {
 
   const results = mode === "semantic" ? semanticResults : hits;
 
-  const popular = useMemo(() => {
-    // 显示前 6 个作为"热门推荐"
-    return SEARCH_INDEX.slice(0, 6);
-  }, []);
+  const popular = useMemo(() => SEARCH_INDEX.slice(0, 6), []);
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
@@ -114,7 +109,7 @@ export function SearchClient() {
         </p>
       </header>
 
-      {/* 搜索框 */}
+      {/* 搜索框 + 模式切换 */}
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <span className="text-xs text-neutral-500">搜索方式:</span>
         <div className="inline-flex rounded-md border border-neutral-200 p-0.5 dark:border-neutral-700">
@@ -204,8 +199,7 @@ export function SearchClient() {
           <div className="mt-10">
             <h2 className="mb-4 text-lg font-semibold">所有章节</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              {popular.map((entry) => {
-                // 把 SearchEntry 适配到 FullHit
+              {popular.map((entry: SearchEntry) => {
                 const hit: FullHit = {
                   courseSlug: entry.courseSlug,
                   courseTitle: entry.courseTitle,
@@ -228,7 +222,7 @@ export function SearchClient() {
       {debounced.trim() && (
         <div className="mt-8">
           {results.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-neutral-300 bg-white dark:bg-neutral-900 p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
+            <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
               <p className="text-sm text-neutral-500 dark:text-neutral-400">
                 没有找到 “<span className="font-mono">{debounced}</span>” 相关的内容。
               </p>
@@ -240,7 +234,7 @@ export function SearchClient() {
                 找到 <strong className="text-neutral-900 dark:text-neutral-100">{results.length}</strong> 个结果
               </div>
               <ul className="space-y-3">
-                {hits.map((h) => (
+                {results.map((h) => (
                   <li key={`${h.courseSlug}/${h.chapterSlug}`}>
                     <SearchResultCard
                       hit={h}
@@ -281,30 +275,18 @@ function SearchResultCard({ hit, query }: { hit: FullHit; query?: string }) {
             </span>
           ) : null}
         </div>
+        {hit.duration && (
+          <div className="mt-1 flex items-center gap-1 text-[11px] text-neutral-500">
+            <Clock className="h-3 w-3" />
+            {hit.duration}
+          </div>
+        )}
         <p
-          className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400"
+          className="mt-1 line-clamp-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-400 [&_mark]:rounded [&_mark]:bg-yellow-100 [&_mark]:px-0.5 [&_mark]:text-neutral-900 dark:[&_mark]:bg-yellow-900/40 dark:[&_mark]:text-yellow-200"
           dangerouslySetInnerHTML={{ __html: hit.snippet }}
         />
       </div>
       <ArrowRight className="mt-3 h-3.5 w-3.5 flex-shrink-0 text-neutral-400 transition group-hover:translate-x-0.5 group-hover:text-primary-500" />
     </Link>
-  );
-}
-
-/** 简单高亮命中关键字 */
-function highlight(text: string, query?: string) {
-  if (!query) return text;
-  const q = query.trim();
-  if (!q) return text;
-  const idx = text.toLowerCase().indexOf(q.toLowerCase());
-  if (idx < 0) return text;
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="rounded bg-yellow-100 px-0.5 text-neutral-900 dark:bg-yellow-900/40 dark:text-yellow-200">
-        {text.slice(idx, idx + q.length)}
-      </mark>
-      {text.slice(idx + q.length)}
-    </>
   );
 }

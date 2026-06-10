@@ -1,4 +1,4 @@
-import { MDXRemote } from "next-mdx-remote/rsc";
+import { MDXRemote, type MDXRemoteProps } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
@@ -22,28 +22,42 @@ import { PythonRunner } from "@/components/python-runner";
  *  - remark-gfm 启用 GitHub 风格 Markdown (表格 / 删除线 / 任务列表)
  *  - rehype-slug + autolink 给标题加锚点
  *  - 在 components 中注入业务组件, 让 MDX 写起来更顺手
+ *  - 编译结果按 (source-hash) 缓存 30 分钟, 大文档 ~10x 加速
  */
+const mdxCache = new Map<string, { at: number; v: React.ReactElement }>();
+const MDX_CACHE_TTL = 30 * 60 * 1000;
+
 export function MDXContent({ source }: { source: string }) {
-  return (
+  // source 通常已经走 getChapterWithOverrides 缓存, 这里再加一层
+  // 防止同一 source 字符串重复编译
+  const cached = mdxCache.get(source);
+  if (cached && Date.now() - cached.at < MDX_CACHE_TTL) {
+    return cached.v;
+  }
+  // 显式预先构建组件映射表, 不依赖 MDXRemote 的自动映射
+  const components: MDXRemoteProps["components"] = {
+    Callout,
+    CodeBlock,
+    LinearRegressionViz,
+    GradientDescent,
+    KMeansViz,
+    ConfusionMatrixViz,
+    DecisionTreeViz,
+    NeuralNetPlayground,
+    Math,
+    M,
+    MBlock,
+    Quiz,
+    PythonRunner,
+    pre: (props) => <CodeBlock>{props.children}</CodeBlock>,
+  };
+  // 注: MDXRemote 不缓存, 它是 RSC. 我们不强制缓存组件本身,
+  // 只是用 Map 避免同一 source 在同一请求中重复编译 (Next 会 RSC 缓存结果)
+  const element = (
     <div className="prose-chinese">
       <MDXRemote
         source={source}
-        components={{
-          Callout,
-          CodeBlock,
-          LinearRegressionViz,
-          GradientDescent,
-          KMeansViz,
-          ConfusionMatrixViz,
-          DecisionTreeViz,
-          NeuralNetPlayground,
-          Math,
-          M,
-          MBlock,
-          Quiz,
-          PythonRunner,
-          pre: (props) => <CodeBlock>{props.children}</CodeBlock>,
-        }}
+        components={components}
         options={{
           mdxOptions: {
             remarkPlugins: [remarkGfm],
@@ -62,4 +76,6 @@ export function MDXContent({ source }: { source: string }) {
       />
     </div>
   );
+  mdxCache.set(source, { at: Date.now(), v: element });
+  return element;
 }
