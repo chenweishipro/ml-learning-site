@@ -41,3 +41,5 @@ next-env.d.ts
 test-results/
 prisma/.nfs*
 .cache/
+prisma/*.db-shm
+prisma/*.db-wal

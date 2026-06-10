@@ -3,7 +3,7 @@ import { getAllCoursesWithOverrides } from "@/lib/content-overrides";
 
 // 动态生成 sitemap.xml — 包含所有课程与章节
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://ml.chenweishi.cn";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://122.51.221.63";
   const courses = await getAllCoursesWithOverrides().catch(() => []);
 
   const lastMod = (d?: Date | string) => {

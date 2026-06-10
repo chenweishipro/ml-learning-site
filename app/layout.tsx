@@ -11,7 +11,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://ml.chenweishi.cn"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://122.51.221.63"),
   title: {
     default: "ML 学习站 · 中文机器学习教程",
     template: "%s · ML 学习站",
