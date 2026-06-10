@@ -3,7 +3,7 @@
 // 高亮: 使用 SQLite 的 snippet() 函数自动包裹 <mark> 标签
 import path from "path";
 import Database from "better-sqlite3";
-import { getAllCoursesSync, getChapterWithOverridesSync } from "./content-overrides";
+import { getAllCoursesSync, getAllCoursesWithOverrides, getChapterWithOverridesSync } from "./content-overrides";
 
 const FTS_VERSION = 4;
 const CACHE_TTL = 5 * 60 * 1000; // 5 分钟
@@ -34,6 +34,8 @@ export async function ensureFtsIndex(force = false): Promise<void> {
       .get() as { version: number } | undefined;
     if (meta && meta.version === FTS_VERSION) return;
   }
+  // 先预热 override 缓存, 确保 getChapterWithOverridesSync 能读到 override 内容
+  await getAllCoursesWithOverrides();
   database.exec(`
     DROP TABLE IF EXISTS chapter_fts;
     DROP TABLE IF EXISTS chapter_fts_meta;
@@ -53,6 +55,7 @@ export async function ensureFtsIndex(force = false): Promise<void> {
     "INSERT INTO chapter_fts (courseSlug, courseTitle, chapterSlug, chapterTitle, body) VALUES (?, ?, ?, ?, ?)"
   );
   const tx = database.transaction(() => {
+    let inserted = 0;
     for (const c of allCourses) {
       for (const ch of c.chapters ?? []) {
         const data = getChapterWithOverridesSync(c.slug, ch.slug);
@@ -63,9 +66,12 @@ export async function ensureFtsIndex(force = false): Promise<void> {
           .replace(/[#*`>_\[\](){}|]/g, " ")
           .replace(/\s+/g, " ")
           .trim();
+        if (!body) continue;
         insert.run(c.slug, c.title, ch.slug, ch.title, body);
+        inserted++;
       }
     }
+    console.log(`[FTS] indexed ${inserted} chapters (v${FTS_VERSION})`);
   });
   tx();
 }
