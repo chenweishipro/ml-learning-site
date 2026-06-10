@@ -153,10 +153,12 @@ let _provider: LLMProvider | null = null;
 export function getLLMProvider(): LLMProvider {
   if (_provider) return _provider;
   const which = (process.env.LLM_PROVIDER ?? "mock").toLowerCase();
-  if (which === "MiniMax" || which === "MiniMax") {
-    _provider = new MiniMaxLLMProvider();
-  } else if (which === "openai" || which === "openai-compatible") {
-    _provider = new OpenAILLMProvider();
+  if (which === "MiniMax" || which === "openai" || which === "openai-compatible") {
+    if (which === "MiniMax") {
+      _provider = new MiniMaxLLMProvider();
+    } else {
+      _provider = new OpenAILLMProvider();
+    }
   } else {
     _provider = new MockLLMProvider();
   }
