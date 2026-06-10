@@ -62,7 +62,7 @@ export default async function NotFound() {
                     </h3>
                     {c.level && (
                       <span
-                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ${LEVEL_META[c.level]?.bg} ${LEVEL_META[c.level]?.text} ${LEVEL_META[c.level]?.ring}`}
+                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ${LEVEL_META[c.level]?.classes ?? ""}`}
                       >
                         {LEVEL_META[c.level]?.label ?? c.level}
                       </span>
