@@ -11,6 +11,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://ml.chenweishi.cn"),
   title: {
     default: "ML 学习站 · 中文机器学习教程",
     template: "%s · ML 学习站",
@@ -39,6 +40,21 @@ export const metadata: Metadata = {
     locale: "zh_CN",
     title: "ML 学习站 · 中文机器学习教程",
     description: "系统化、可运行、渐进式的中文机器学习教程。",
+    siteName: "ML 学习站",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "ML 学习站 — 中文机器学习教程",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ML 学习站 · 中文机器学习教程",
+    description: "系统化、可运行、渐进式的中文机器学习教程。",
+    images: ["/opengraph-image"],
   },
 };
 
@@ -82,7 +98,13 @@ export default function RootLayout({
               }))}
             >
               <Header />
-              <main className="flex-1">{children}</main>
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-sm focus:text-white focus:shadow-lg"
+              >
+                跳到正文
+              </a>
+              <main id="main-content" className="flex-1">{children}</main>
               <Footer />
               <AuthModal />
             </ProgressProvider>
