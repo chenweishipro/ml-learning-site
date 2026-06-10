@@ -236,6 +236,11 @@ model Question {
   @@index([courseSlug, chapterSlug])
   @@index([authorId])
   @@index([voteCount])
+  // ✨ 复合索引, 加快列表与详情查询
+  @@index([courseSlug, status, voteCount])
+  @@index([courseSlug, chapterSlug, status, createdAt])
+  @@index([tags])
+  @@index([status, answerCount])
 }
 
 // Q&A 答案
