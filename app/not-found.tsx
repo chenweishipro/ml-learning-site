@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { ArrowLeft, Search, BookOpen, Home, Sparkles, ChevronRight } from "lucide-react";
+import { Search, BookOpen, Home, Sparkles, ChevronRight } from "lucide-react";
 import { getAllCoursesWithOverrides } from "@/lib/content-overrides";
 import { LEVEL_META } from "@/lib/utils";
 
 export default async function NotFound() {
-  // 服务器端拉取热门课程做兜底推荐
   const allCourses = await getAllCoursesWithOverrides().catch(() => []);
   const featured = allCourses.slice(0, 4);
 
@@ -38,7 +37,6 @@ export default async function NotFound() {
         </div>
       </div>
 
-      {/* 推荐课程 */}
       {featured.length > 0 && (
         <div className="mt-12">
           <div className="mb-4 flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">

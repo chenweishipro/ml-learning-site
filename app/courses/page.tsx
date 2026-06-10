@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BookOpen, GraduationCap, Search, SlidersHorizontal } from "lucide-react";
 import { getAllCoursesWithOverrides } from "@/lib/content-overrides";
 import { CourseExplorer } from "./CourseExplorer";
+import { CoursesHero } from "./CoursesHero";
 
 export const metadata: Metadata = {
   title: "课程目录",
@@ -19,24 +20,7 @@ export default async function CoursesPage() {
 
   return (
     <div className="bg-gradient-hero/40 min-h-[60vh]">
-      <section className="border-b border-neutral-200 dark:border-neutral-800/60 bg-white/60 dark:bg-neutral-900/60 backdrop-blur">
-        <div className="container py-14 sm:py-16">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-800">
-              <BookOpen className="h-3.5 w-3.5" />
-              课程目录
-            </span>
-            <h1 className="text-display-sm font-bold tracking-tight sm:text-display-md">
-              挑一门课, 开始动手
-            </h1>
-            <p className="mt-3 text-neutral-600 dark:text-neutral-400">
-              {courses.length > 0
-                ? `共 ${courses.length} 门系统化课程, 覆盖数据处理到深度学习的关键能力。`
-                : "课程内容由后续 content 任务补充, 现在先体验页面骨架。" }
-            </p>
-          </div>
-        </div>
-      </section>
+      <CoursesHero count={courses.length} />
 
       <section className="container py-10">
         <CourseExplorer courses={courses} tags={tags} />

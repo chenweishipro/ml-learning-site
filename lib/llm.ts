@@ -77,7 +77,7 @@ class MockLLMProvider implements LLMProvider {
 }
 
 /* ===========================================================================
- * 2. OpenAI 兼容实现
+ * 2. OpenAI 兼容实现 (也用于 MiniMax / DeepSeek / 其他兼容协议)
  * =========================================================================== */
 
 class OpenAILLMProvider implements LLMProvider {
@@ -123,6 +123,28 @@ class OpenAILLMProvider implements LLMProvider {
 }
 
 /* ===========================================================================
+ * 3. MiniMax provider (alias for OpenAI-compatible, 默认 base URL 指向 MiniMax API)
+ * =========================================================================== */
+
+class MiniMaxLLMProvider extends OpenAILLMProvider {
+  constructor() {
+    // 设置 MiniMax 默认环境变量后, 交给父类
+    if (!process.env.OPENAI_LLM_BASE_URL) {
+      process.env.OPENAI_LLM_BASE_URL = process.env.MINIMAX_BASE_URL ?? "https://api.MiniMax.chat/v1";
+    }
+    if (!process.env.OPENAI_LLM_MODEL) {
+      process.env.OPENAI_LLM_MODEL = process.env.MINIMAX_MODEL ?? "MiniMax-Text-01";
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      process.env.OPENAI_API_KEY = process.env.MINIMAX_API_KEY ?? "";
+    }
+    super();
+    // 覆写 name 为 MiniMax 标识 (name 是 readonly, 只能在构造时覆盖)
+    (this as { name: string }).name = `MiniMax:${this.name}`;
+  }
+}
+
+/* ===========================================================================
  * 工厂方法
  * =========================================================================== */
 
@@ -131,7 +153,9 @@ let _provider: LLMProvider | null = null;
 export function getLLMProvider(): LLMProvider {
   if (_provider) return _provider;
   const which = (process.env.LLM_PROVIDER ?? "mock").toLowerCase();
-  if (which === "openai" || which === "openai-compatible") {
+  if (which === "MiniMax" || which === "MiniMax") {
+    _provider = new MiniMaxLLMProvider();
+  } else if (which === "openai" || which === "openai-compatible") {
     _provider = new OpenAILLMProvider();
   } else {
     _provider = new MockLLMProvider();

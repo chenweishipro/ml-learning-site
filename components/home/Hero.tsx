@@ -1,7 +1,12 @@
+"use client";
 import Link from "next/link";
 import { ArrowRight, Sparkles, BookOpen, Play } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { Translate } from "@/components/translate";
 
 export function Hero() {
+  const { t } = useI18n();
+
   return (
     <section className="relative overflow-hidden bg-gradient-hero">
       {/* 背景装饰 */}
@@ -18,18 +23,17 @@ export function Hero() {
         <div className="mx-auto flex max-w-3xl flex-col items-center py-20 text-center sm:py-28">
           <span className="mb-5 inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-neutral-900/70 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300 ring-1 ring-primary-200 dark:ring-primary-800 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" />
-            系统化机器学习教程 · 中文友好
+            {t("home.badge")}
           </span>
 
           <h1 className="text-balance text-display-sm font-bold tracking-tight sm:text-display-md">
-            从 <span className="text-gradient-primary">数据处理</span> 到{" "}
+            <Translate as="span" text="从" /> <span className="text-gradient-primary"><Translate text="数据处理" /></span> <Translate as="span" text="到" />
             <br className="hidden sm:block" />
-            深度学习, 一站到底
+            <Translate text="深度学习, 一站到底" />
           </h1>
 
           <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-neutral-600 dark:text-neutral-400 sm:text-lg">
-            我们用清晰的中文讲义、可运行的代码示例与循序渐进的学习路径,
-            帮你从零搭建机器学习的工程能力, 不再被英文文档劝退。
+            {t("home.subtitle")}
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
@@ -38,7 +42,7 @@ export function Hero() {
               className="group inline-flex h-12 items-center gap-2 rounded-md bg-primary-600 px-6 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
             >
               <Play className="h-4 w-4" />
-              开始学习
+              {t("home.heroCtaPrimary")}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
             <Link
@@ -46,15 +50,15 @@ export function Hero() {
               className="inline-flex h-12 items-center gap-2 rounded-md bg-white dark:bg-neutral-900/80 px-6 text-sm font-medium text-neutral-800 ring-1 ring-neutral-200 backdrop-blur transition hover:bg-white dark:bg-neutral-900 dark:bg-neutral-900"
             >
               <BookOpen className="h-4 w-4" />
-              浏览课程
+              {t("home.heroCtaSecondary")}
             </Link>
           </div>
 
           <dl className="mt-12 grid w-full max-w-xl grid-cols-3 gap-4 text-left">
             {[
-              { num: "4+", label: "系统化课程" },
-              { num: "10+", label: "实战章节" },
-              { num: "100%", label: "中文讲义" },
+              { num: "4+", label: t("home.statCourses") },
+              { num: "10+", label: t("home.statChapters") },
+              { num: "100%", label: t("home.statLocalized") },
             ].map((s) => (
               <div
                 key={s.label}
