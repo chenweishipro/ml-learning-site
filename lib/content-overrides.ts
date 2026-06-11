@@ -130,7 +130,9 @@ export async function getChapterWithOverrides(
   const filePath = path.join(process.cwd(), "content", "courses", courseSlug, `${chapterSlug}.mdx`);
   try {
     const content = await fs.readFile(filePath, "utf8");
-    const data = { meta: baseMeta, content, hasOverride: false };
+    // MDX 3+ 不会自动 strip YAML frontmatter; 手动剥掉
+    const stripped = content.replace(/^---[\s\S]*?---\n?/, "");
+    const data = { meta: baseMeta, content: stripped, hasOverride: false };
     chapterCache.set(cacheKey, { at: now, data });
     return data;
   } catch {

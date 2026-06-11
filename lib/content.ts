@@ -44,7 +44,9 @@ export async function getChapter(
   const filePath = path.join(CONTENT_ROOT, slug, `${chapterSlug}.mdx`);
   try {
     const content = await fs.readFile(filePath, "utf8");
-    return { meta, content };
+    // 手动 strip YAML frontmatter (MDX 3+ 不会自动剥)
+    const stripped = content.replace(/^---[\s\S]*?---\n?/, "");
+    return { meta, content: stripped };
   } catch {
     // 文件不存在 — 返回 null, 触发 notFound()
     return null;
