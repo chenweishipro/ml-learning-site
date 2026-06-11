@@ -14,7 +14,7 @@ export async function GET() {
   const overrides = await prisma.courseOverride.findMany({
     select: { courseSlug: true, title: true, description: true, level: true, duration: true, tags: true, updatedAt: true },
   });
-  const overrideMap = new Map(overrides.map((o) => [o.courseSlug, o]));
+  const overrideMap = new Map<string, { courseSlug: string; title: string | null; description: string | null; level: string | null; duration: string | null; tags: string | null; updatedAt: Date }>(overrides.map((o) => [o.courseSlug, o]));
 
   const items = bases.map((c) => {
     const ov = overrideMap.get(c.slug);

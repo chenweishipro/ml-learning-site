@@ -21,6 +21,7 @@ interface Message {
   sources?: Source[];
   provider?: string;
   pending?: boolean;
+  streaming?: boolean;  // SSE 流式传输中
   error?: string;
 }
 
@@ -52,7 +53,7 @@ export default function ChatPage() {
     setMessages((prev) => [
       ...prev,
       userMsg,
-      { id: aiId, role: "assistant", content: "", pending: true },
+      { id: aiId, role: "assistant", content: "", pending: true, streaming: true },
     ]);
     setInput("");
     setLoading(true);
@@ -65,21 +66,72 @@ export default function ChatPage() {
       const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, history, topK: 3 }),
+        body: JSON.stringify({ query: q, history, topK: 3, stream: true }),
       });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error ?? "请求失败");
+      if (!res.ok || !res.body) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      // SSE 流式解析
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let sources: any[] | undefined;
+      let acc = "";
+      let providerName = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (!data) continue;
+          try {
+            const obj = JSON.parse(data);
+            if (obj.type === "sources") {
+              sources = obj.data;
+              // 马上渲染参考资料, 不等答案
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiId ? { ...m, sources } : m
+                )
+              );
+            } else if (obj.type === "chunk") {
+              acc += obj.data;
+              // 流式累加, 每次 update 都刷新这一条消息
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiId
+                    ? {
+                        id: aiId,
+                        role: "assistant",
+                        content: acc,
+                        sources: sources ?? m.sources,
+                        streaming: true,
+                      }
+                    : m
+                )
+              );
+            } else if (obj.type === "done") {
+              providerName = obj.data?.provider ?? "";
+            } else if (obj.type === "error") {
+              throw new Error(obj.data);
+            }
+          } catch {
+            /* ignore malformed */
+          }
+        }
+      }
+
+      // 流结束: 补全 provider 信息
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === aiId
-            ? {
-                id: aiId,
-                role: "assistant",
-                content: data.data.answer,
-                sources: data.data.sources,
-                provider: data.data.provider,
-              }
-            : m
+          m.id === aiId ? { ...m, content: acc, provider: providerName, pending: false } : m
         )
       );
     } catch (e) {
@@ -213,7 +265,7 @@ function MessageBubble({ m }: { m: Message }) {
           AI 助教
           {m.provider && <span className="rounded bg-purple-50 px-1.5 py-0.5 dark:bg-purple-950/30">{m.provider}</span>}
         </div>
-        {m.pending ? (
+        {m.pending && !m.streaming ? (
           <div className="flex items-center gap-1.5 text-neutral-500">
             <Loader2 className="h-3 w-3 animate-spin" />
             <span>正在查资料 + 思考...</span>
@@ -222,7 +274,10 @@ function MessageBubble({ m }: { m: Message }) {
           <p className="text-rose-600 dark:text-rose-400">⚠️ {m.error}</p>
         ) : (
           <>
-            <p className="whitespace-pre-wrap">{m.content}</p>
+            <p className="whitespace-pre-wrap">{m.content}
+              {/* 打字光标 (仅在流式传输中显示) */}
+              {m.streaming && <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-purple-500 align-middle" />}
+            </p>
             {m.sources && m.sources.length > 0 && (
               <div className="mt-3 space-y-1.5 border-t border-neutral-200 pt-2 dark:border-neutral-700">
                 <p className="text-[10px] uppercase tracking-wide text-neutral-500">📚 参考来源</p>

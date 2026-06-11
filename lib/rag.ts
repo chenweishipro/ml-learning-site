@@ -51,23 +51,14 @@ function makeExcerpt(text: string, query: string, maxLen = 400): string {
 }
 
 export async function ragChat(opts: { query: string; history?: LLMMessage[]; topK?: number }): Promise<ChatResult> {
-  const q = opts.query.trim();
-  if (!q) {
-    return {
-      answer: "(空问题)",
-      sources: [],
-      provider: "",
-      model: "",
-      query: "",
-    };
-  }
+  return ragChatInternal(opts);
+}
 
-  // 1. 检索相关章节 (topK)
+/** 准备 RAG 上下文 (检索 + 拼 prompt)。返回 sources 和给 LLM 的 messages, 可复用。 */
+export async function prepareRag(opts: { query: string; topK?: number }) {
+  const q = opts.query.trim();
   const topK = opts.topK ?? 3;
   const searchResult = await semanticSearch({ query: q, limit: topK, level: "all" });
-  const provider = getLLMProvider();
-
-  // 2. 拿正文摘要
   const sources: ChatSource[] = [];
   const contextParts: string[] = [];
   for (const hit of searchResult.hits) {
@@ -82,12 +73,8 @@ export async function ragChat(opts: { query: string; history?: LLMMessage[]; top
       score: hit.score,
       excerpt,
     });
-    contextParts.push(
-      `[${hit.courseTitle} / ${hit.chapterTitle}]\n${excerpt}`
-    );
+    contextParts.push(`[${hit.courseTitle} / ${hit.chapterTitle}]\n${excerpt}`);
   }
-
-  // 3. 拼 prompt
   const systemPrompt = `你是 ML 学习站的 AI 助教。根据下面 [参考资料] 回答用户的问题。要求:
 1. 回答简洁, 用中文
 2. 必须基于参考资料, 不要编造内容
@@ -97,14 +84,28 @@ export async function ragChat(opts: { query: string; history?: LLMMessage[]; top
 [参考资料]
 ${contextParts.join("\n\n")}
 [/参考资料]`;
+  return { q, sources, systemPrompt };
+}
 
-  const messages: LLMMessage[] = [
-    { role: "system", content: systemPrompt },
-  ];
+/** RAG 实现 (内部使用) */
+async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; topK?: number }): Promise<ChatResult> {
+  const q = opts.query.trim();
+  if (!q) {
+    return {
+      answer: "(空问题)",
+      sources: [],
+      provider: "",
+      model: "",
+      query: "",
+    };
+  }
+
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3 });
+  const provider = getLLMProvider();
+  const messages: LLMMessage[] = [{ role: "system", content: systemPrompt }];
   if (opts.history) messages.push(...opts.history);
   messages.push({ role: "user", content: q });
 
-  // 4. 调 LLM
   const answer = await provider.chat(messages, { maxTokens: 800, temperature: 0.3 });
 
   return {
@@ -113,5 +114,41 @@ ${contextParts.join("\n\n")}
     provider: provider.name,
     model: provider.name,
     query: q,
+  };
+}
+
+/** 流式 RAG — yield 每个 token chunk + 最后 yield sources */
+export async function* ragChatStream(
+  opts: { query: string; history?: LLMMessage[]; topK?: number }
+): AsyncGenerator<{ type: "sources" | "chunk" | "done"; data: any }, void, void> {
+  const q = opts.query.trim();
+  if (!q) {
+    yield { type: "done", data: { answer: "(空问题)", sources: [], provider: "", model: "", query: "" } };
+    return;
+  }
+
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3 });
+  // 先送出 sources (客户端可以马上渲染参考资料)
+  yield { type: "sources", data: sources };
+
+  const provider = getLLMProvider();
+  const messages: LLMMessage[] = [{ role: "system", content: systemPrompt }];
+  if (opts.history) messages.push(...opts.history);
+  messages.push({ role: "user", content: q });
+
+  let fullText = "";
+  for await (const chunk of provider.streamChat(messages, { maxTokens: 800, temperature: 0.3 })) {
+    fullText += chunk;
+    yield { type: "chunk", data: chunk };
+  }
+
+  yield {
+    type: "done",
+    data: {
+      provider: provider.name,
+      model: provider.name,
+      query: q,
+      answer: fullText,
+    },
   };
 }
