@@ -1,0 +1,385 @@
+---
+slug: "correlation-regression"
+title: "相关与线性回归"
+description: "Pearson r、最小二乘、预测区间、残差分析。监督学习的统计学父亲。"
+duration: "40 分钟"
+---
+
+# 相关与线性回归
+
+> **本章问题**: 房价 80% 由面积决定, 但还有 20% 是什么? 怎么用"已知"预测"未知"? 答案: 线性回归, 几乎所有 ML 监督学习的祖父。
+
+## 1. 相关: 两个变量的"同向性"
+
+### 1.1 散点图先看
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(42)
+# 4 种典型关系
+x = np.linspace(0, 10, 50)
+fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+for ax, slope, noise, title in zip(
+    axes, [2, -1.5, 0, 0],
+    [1, 1, 0.5, 3],
+    ["正相关", "负相关", "无线性相关", "曲线关系"]):
+    y = slope * x + np.random.normal(0, noise, len(x))
+    ax.scatter(x, y, alpha=0.6)
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+plt.tight_layout(); plt.show()
+```
+
+### 1.2 Pearson 相关系数 r
+
+<MBlock tex="r = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum(x_i - \bar{x})^2 \cdot \sum(y_i - \bar{y})^2}} = \frac{s_{xy}}{s_x s_y}" />
+
+| r 范围 | 解释 |
+|---|---|
+| 0 | 无线性相关 (但可能有其他关系) |
+| 0.0 ~ 0.3 | 弱 |
+| 0.3 ~ 0.7 | 中 |
+| 0.7 ~ 1.0 | 强 |
+| 1 | 完美正线性 |
+| -1 | 完美负线性 |
+
+```python
+from scipy.stats import pearsonr
+np.random.seed(42)
+x = np.random.normal(0, 1, 100)
+y = 0.7 * x + np.random.normal(0, 0.5, 100)
+r, p = pearsonr(x, y)
+print(f"r = {r:.3f}, p = {p:.4f}")
+# r ≈ 0.81 (强), p ≈ 0 (极显著)
+```
+
+### 1.3 r 的 3 个常见误解
+1. **r = 0 不代表独立**: 可能 U 形、抛物线等非线性关系
+2. **r ≠ 因果**: 冰淇淋销量 vs 溺水率 r = 0.8, 但都因夏天
+3. **r 受异常值影响**: 1 个离群点能拉高/拉低 r 很多
+
+### 1.4 显著检验
+> H₀: ρ = 0 (无相关)
+> 检验统计量: t = r√(n-2) / √(1-r²) ~ t(n-2)
+
+```python
+# scipy 的 pearsonr 已经给出 p 值
+r, p = pearsonr(x, y)  # p 就是 ρ=0 的检验 p 值
+```
+
+## 2. 线性回归: 从"看"到"算"
+
+### 2.1 最小二乘法 (OLS)
+
+找最拟合的直线: <M tex="\hat{y} = b_0 + b_1 x" />
+
+**目标**: 最小化残差平方和 (RSS):
+
+<MBlock tex="RSS = \sum(y_i - \hat{y}_i)^2 = \sum(y_i - b_0 - b_1 x_i)^2" />
+
+**解** (对 b₀, b₁ 求偏导令为 0):
+
+<MBlock tex="b_1 = r \cdot \frac{s_y}{s_x}, \quad b_0 = \bar{y} - b_1 \bar{x}" />
+
+```python
+import numpy as np
+from sklearn.linear_model import LinearRegression
+
+# 数据
+np.random.seed(42)
+x = np.random.uniform(0, 10, 50)
+y = 3 + 2 * x + np.random.normal(0, 2, 50)
+
+# sklearn
+model = LinearRegression()
+model.fit(x.reshape(-1, 1), y)
+print(f"b0 = {model.intercept_:.3f}, b1 = {model.coef_[0]:.3f}")
+# b0 ≈ 3, b1 ≈ 2 (跟真实 3 + 2x 吻合!)
+```
+
+### 2.2 残差分析: 检验模型假设
+
+> **线性回归的 4 个假设** (教科书标准):
+> 1. **线性**: y 和 x 是线性关系
+> 2. **独立**: 残差互不相关 (Durbin-Watson)
+> 3. **正态**: 残差 ~ N(0, σ²)
+> 4. **等方差**: 残差方差恒定 (Homoscedasticity)
+
+```python
+import matplotlib.pyplot as plt
+
+y_pred = model.predict(x.reshape(-1, 1))
+residuals = y - y_pred
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+# 1. 残差 vs 拟合值 (应随机散布)
+axes[0].scatter(y_pred, residuals, alpha=0.6)
+axes[0].axhline(0, color="red", linestyle="--")
+axes[0].set_xlabel("拟合值"); axes[0].set_ylabel("残差")
+axes[0].set_title("残差 vs 拟合值")
+
+# 2. 残差 Q-Q 图 (应近似直线)
+from scipy.stats import probplot
+probplot(residuals, dist="norm", plot=axes[1])
+axes[1].set_title("Q-Q 图 (正态性)")
+
+# 3. 残差直方图
+axes[2].hist(residuals, bins=15, edgecolor="black")
+axes[2].set_title("残差分布")
+plt.tight_layout(); plt.show()
+
+# 数值检验
+from scipy.stats import shapiro, bartlett
+print(f"Shapiro 残差正态性: p = {shapiro(residuals).pvalue:.3f}")
+# p > 0.05 → 残差正态, 假设成立
+```
+
+## 3. R²: 拟合优度
+
+<MBlock tex="R^2 = \frac{SSR}{SST} = 1 - \frac{RSS}{SST}" />
+
+| R² | 解释 |
+|---|---|
+| 0 | 模型没解释任何方差 |
+| 0.5 | 解释一半 (凑合) |
+| 0.8 | 解释大部分 (好) |
+| 1 | 完美预测 (可疑, 可能过拟合) |
+
+```python
+print(f"R² = {model.score(x.reshape(-1, 1), y):.3f}")
+# 0.85 左右, 拟合好
+```
+
+> ⚠️ **R² 不是越多越好**: 加任意特征都会让 R² 增加 (甚至噪声)! 修正版:**调整 R²** = 1 - (1-R²)(n-1)/(n-k-1), 惩罚"无意义特征"。
+
+## 4. 预测区间 vs 置信区间
+
+> **经常混!**
+
+| 区间 | 估的是什么 | 用途 |
+|---|---|---|
+| **均值 CI** | E(y \| x) = β₀ + β₁x | "x = 5 时, y 的**平均**是?" |
+| **预测 PI** | 单个 y | "x = 5 时, **下一个 y** 是?" |
+
+<MBlock tex="PI: \hat{y} \pm t_{\alpha/2} \cdot s_e \sqrt{1 + \frac{1}{n} + \frac{(x^* - \bar{x})^2}{\sum(x_i - \bar{x})^2}}" />
+
+**PI 比 CI 宽** (因为多了一个"个体变异")。
+
+```python
+from scipy.stats import t
+
+# 计算预测区间
+n = len(x)
+x_mean = x.mean()
+sse = np.sum(residuals**2)
+s_e = np.sqrt(sse / (n - 2))  # 残差标准误
+t_crit = t.ppf(0.975, df=n-2)
+
+x_new = np.array([[5.0]])
+y_pred = model.predict(x_new)[0]
+# 预测区间
+pi_se = s_e * np.sqrt(1 + 1/n + (5 - x_mean)**2 / np.sum((x - x_mean)**2))
+pi = (y_pred - t_crit * pi_se, y_pred + t_crit * pi_se)
+print(f"x=5 时预测值 = {y_pred:.2f}, 95% PI = [{pi[0]:.2f}, {pi[1]:.2f}]")
+```
+
+## 5. 相关 vs 回归: 别混
+
+| 维度 | 相关 | 回归 |
+|---|---|---|
+| 对称 | r(x,y) = r(y,x) | y = f(x) 不等于 x = f(y) |
+| 目的 | 量化"关系强度" | 预测"未来值" |
+| 公式 | r | y = b₀ + b₁x + ... |
+| 受 y, x 单位影响 | 否 (标准化) | 是 (系数变) |
+
+## 6. 实战: 房价预测完整流程
+
+```python
+import numpy as np
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+
+# 模拟房价数据
+np.random.seed(42)
+n = 200
+size = np.random.uniform(50, 200, n)  # 面积 m²
+rooms = (size / 30 + np.random.normal(0, 0.5, n)).astype(int)  # 房间数
+age = np.random.uniform(0, 30, n)       # 房龄
+price = (size * 0.5 + rooms * 5 - age * 0.3 +
+         np.random.normal(0, 10, n))    # 万元
+
+df = pd.DataFrame({"size": size, "rooms": rooms, "age": age, "price": price})
+
+# 1. 探索性分析
+print("相关系数:")
+print(df.corr()["price"].round(3))
+
+# 2. 拟合简单回归
+X = df[["size"]]
+y = df["price"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = LinearRegression().fit(X_train, y_train)
+y_pred = model.predict(X_test)
+print(f"\n单变量: R² = {r2_score(y_test, y_pred):.3f}, RMSE = {np.sqrt(mean_squared_error(y_test, y_pred)):.2f}")
+
+# 3. 多元回归
+model2 = LinearRegression().fit(df[["size", "rooms", "age"]], y)
+y_pred2 = model2.predict(df[["size", "rooms", "age"]])
+print(f"多变量: R² = {r2_score(y, y_pred2):.3f}")
+
+# 4. 系数解释
+print("\n回归系数:")
+for name, coef in zip(["size", "rooms", "age"], model2.coef_):
+    print(f"  {name:6s}: {coef:+.3f}")
+# size: +0.50 (每 +1 m², 房价 +0.5 万)
+# rooms: +5.0 (每多 1 房间, +5 万)
+# age: -0.3 (每老 1 年, -0.3 万)
+```
+
+## 7. 回归在 ML 中的"血统"
+
+| 经典统计 | 等价 ML 概念 |
+|---|---|
+| 简单线性回归 | 1 层线性神经网络 |
+| 多元线性回归 | 多元线性回归 (sklearn) |
+| 残差 | loss 值 |
+| 最小二乘 | MSE loss |
+| R² | 1 - MSE/Var(y) |
+| 显著检验 | 特征重要性 |
+| 预测区间 | 不确定性估计 (贝叶斯回归) |
+| 岭回归 | L2 正则化 |
+| Lasso | L1 正则化 (特征选择) |
+
+> 💡 **学习路径**: 学完这章, 下一章学**多元**回归, 再下章学**正则化** (Lasso/Ridge), 你就已经在 ML 入门了。
+
+## 8. 简单 vs 多元回归: 何时用?
+
+| 场景 | 简单回归 | 多元回归 |
+|---|---|---|
+| 1 个自变量 | ✅ | - |
+| 多个自变量, 都相关 | - | ✅ |
+| 控制混杂 | - | ✅ (协变量) |
+| 预测未来 | ✅ (1 变量) | ✅ (多变量预测更准) |
+| 解释因果 | ⚠️ (难) | ⚠️ (更难) |
+
+## 9. Python 实战: 完整回归诊断
+
+```python
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+from scipy import stats
+
+def full_regression_diagnosis(X, y, feature_names=None):
+    """完整回归诊断: 拟合 + 残差 + 异常值 + 显著检验"""
+    if feature_names is None:
+        feature_names = [f"X{i}" for i in range(X.shape[1])]
+    
+    model = LinearRegression().fit(X, y)
+    y_pred = model.predict(X)
+    residuals = y - y_pred
+    
+    print("="*60)
+    print(f"R² = {r2_score(y, y_pred):.4f}, 调整 R² = {1 - (1-r2_score(y, y_pred))*(len(y)-1)/(len(y)-X.shape[1]-1):.4f}")
+    print(f"系数: {dict(zip(feature_names, model.coef_.round(4)))}")
+    print(f"截距: {model.intercept_:.4f}")
+    print("="*60)
+    
+    # 残差诊断
+    print(f"\n残差诊断:")
+    print(f"  均值 = {residuals.mean():.4f} (应≈0)")
+    print(f"  标准差 = {residuals.std(ddof=1):.4f}")
+    print(f"  Shapiro 正态性 p = {stats.shapiro(residuals).pvalue:.4f}")
+    
+    # 异常值检测
+    infl = model.predict(X)  # 占位
+    student_resid = residuals / residuals.std(ddof=1)
+    outliers = np.abs(student_resid) > 3
+    print(f"  异常值 (|z| > 3): {outliers.sum()} 个")
+    
+    # 系数显著检验 (近似 t 检验)
+    n, k = X.shape
+    mse = np.sum(residuals**2) / (n - k - 1)
+    X_with_intercept = np.column_stack([np.ones(n), X])
+    var_coef = mse * np.linalg.inv(X_with_intercept.T @ X_with_intercept).diagonal()
+    se = np.sqrt(var_coef)
+    t_stats = np.concatenate([[model.intercept_], model.coef_]) / se
+    p_vals = 2 * (1 - stats.t.cdf(np.abs(t_stats), df=n-k-1))
+    
+    print(f"\n系数显著检验:")
+    print(f"  {'变量':15s} {'系数':>10s} {'SE':>10s} {'t':>10s} {'p':>10s}")
+    for name, b, s, t_v, p_v in zip(
+        ["截距"] + list(feature_names),
+        np.concatenate([[model.intercept_], model.coef_]),
+        se, t_stats, p_vals):
+        sig = "***" if p_v &lt; 0.001 else ("**" if p_v &lt; 0.01 else ("*" if p_v &lt; 0.05 else ""))
+        print(f"  {name:15s} {b:10.4f} {s:10.4f} {t_v:10.3f} {p_v:10.4f} {sig}")
+    
+    return model
+
+# 测试
+np.random.seed(42)
+X = np.column_stack([
+    np.random.normal(0, 1, 100),
+    np.random.normal(0, 1, 100),
+    np.random.normal(0, 1, 100),
+])
+y = 1 + 0.5 * X[:, 0] + 0.3 * X[:, 1] + np.random.normal(0, 0.5, 100)
+
+full_regression_diagnosis(X, y, ["X1", "X2", "X3"])
+```
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| Pearson r | -1 到 1 量化线性关系, 但 ≠ 因果 |
+| 最小二乘 | 找最拟合直线, 闭式解 |
+| 4 个假设 | 线性、独立、正态、等方差 |
+| R² | 解释方差比例, 调整 R² 惩罚多余特征 |
+| 残差分析 | Q-Q 图 + Shapiro 检验 |
+| 预测区间 | 估单个值, 比 CI 宽 |
+| 跟 ML 关系 | 线性回归 → 神经网络 → 全 ML 监督学习 |
+
+## 11. 习题
+
+1. 10 个数据点 (x, y): (1,2), (2,4), (3,5), (4,4), (5,5), (6,7), (7,8), (8,8), (9,10), (10,9)
+   - 算 Pearson r
+   - OLS 拟合 y = b₀ + b₁x
+   - R²?
+   - x=11 时, y 的预测值 + 95% 预测区间
+
+2. 用 `np.random.seed(0); x = np.random.uniform(0, 10, 30); y = 0.5*x² + np.random.normal(0, 2, 30)` 生成数据
+   - 拟合线性回归, 报告 R²
+   - 拟合二次回归 (y = b₀ + b₁x + b₂x²), 报告 R²
+   - 哪个更好? 为什么?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - r ≈ 0.99 (强正相关)
+   - b₁ ≈ 0.83, b₀ ≈ 1.33
+   - R² ≈ 0.97
+   - 预测 x=11: ŷ ≈ 10.46; PI ≈ [9.0, 11.9]
+
+2. 线性 R² ≈ 0.85, 二次 R² ≈ 0.96。二次更好, 因为真实关系是二次。
+   **教训**: 画散点图! 线性关系不是唯一可能。
+
+</details>
+
+## 12. 下一章
+
+- [多元回归与虚拟变量](/courses/stats-regression/multiple-regression/): 多变量预测, 虚拟变量编码
+- [卡方检验: 拟合优度与列联表](/courses/stats-regression/chi-square/): 类别变量的统计
+- [机器学习入门 → 线性回归章节](/courses/ml-basics/first-model/): ML 视角的回归
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 10 章 10-1、10-2、10-3 节, 加入 ML 视角。

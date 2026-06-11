@@ -1,0 +1,278 @@
+---
+slug: "explore-with-charts"
+title: "用图表探索数据"
+description: "频数分布表、直方图、散点图、相关与回归。数据科学家的"第一眼"诊断工具。"
+duration: "35 分钟"
+---
+
+# 用图表探索数据
+
+> **本章问题**: 你拿到 1000 个顾客的消费数据, 第一件事做什么? 答: 不是算均值, 是**画图**。一个直方图能告诉你均值永远告诉不了的事。
+
+## 1. 频数分布表:把数据装进抽屉
+
+面对一堆原始数据 (比如 50 个学生成绩), 第一步是**归类**。把数据按区间划分, 统计每个区间有多少个 — 这就是**频数分布表**。
+
+### 例: 50 个学生成绩
+
+| 分数区间 | 频数 | 相对频率 | 累积相对频率 |
+|---|---|---|---|
+| 50-59 | 3 | 6% | 6% |
+| 60-69 | 8 | 16% | 22% |
+| 70-79 | 15 | 30% | 52% |
+| 80-89 | 18 | 36% | 88% |
+| 90-99 | 6 | 12% | 100% |
+| **合计** | **50** | **100%** | — |
+
+> 💡 **关键规则**: 区间边界要"互斥且完整" (MECE), 不要重叠也不要漏。
+
+```python
+import pandas as pd
+import numpy as np
+
+scores = np.array([62, 65, 70, 71, 73, 75, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87,
+                   88, 89, 90, 91, 92, 94, 95, 96, 58, 60, 64, 68, 72, 76, 77, 83,
+                   84, 85, 86, 87, 88, 89, 90, 92, 93, 95, 96, 98, 55, 65, 75, 85, 95, 99])
+
+bins = [50, 60, 70, 80, 90, 100]
+labels = ["50-59", "60-69", "70-79", "80-89", "90-99"]
+df = pd.DataFrame({"score": scores})
+df["bucket"] = pd.cut(df["score"], bins=bins, right=False, labels=labels)
+
+freq_table = df["bucket"].value_counts().sort_index()
+freq_table_pct = df["bucket"].value_counts(normalize=True).sort_index() * 100
+cum_pct = freq_table_pct.cumsum()
+
+result = pd.DataFrame({
+    "频数": freq_table,
+    "相对频率(%)": freq_table_pct.round(1),
+    "累积相对频率(%)": cum_pct.round(1),
+})
+print(result)
+```
+
+## 2. 直方图:频数分布的图形化
+
+直方图 = 频数分布表的可视化, 看起来像"柱子"。
+
+```python
+import matplotlib.pyplot as plt
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# 左图: 默认频率
+axes[0].hist(scores, bins=10, edgecolor="black", color="steelblue")
+axes[0].set_title("直方图: 10 个等宽区间")
+axes[0].set_xlabel("分数"); axes[0].set_ylabel("频数")
+
+# 右图: 频率密度 (面积=1)
+axes[1].hist(scores, bins=10, density=True, edgecolor="black", color="salmon")
+axes[1].set_title("频率密度直方图 (面积=1)")
+axes[1].set_xlabel("分数"); axes[1].set_ylabel("密度")
+
+plt.tight_layout(); plt.show()
+```
+
+### 直方图的 3 个关键参数
+- **区间数**: Sturges 公式 `k = 1 + log2(n)`, 50 个数据约用 6-7 个区间
+- **区间宽度**: 等宽 vs 不等宽, 数据有长尾时用**对数尺度**
+- **纵轴**: 频数 vs 频率 vs 密度 — 密度才能跨数据集比较
+
+## 3. 散点图:看两个变量的关系
+
+研究"广告费 vs 销售额"的关系, 直方图就无能为力了, 这时用**散点图**。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(42)
+ads = np.random.uniform(1, 10, 50)              # 广告费 (万元)
+sales = 5 + 2.5 * ads + np.random.normal(0, 3, 50)  # 销售额 (有噪声)
+size = np.random.uniform(20, 200, 50)            # 门店面积 (用于气泡大小)
+
+plt.figure(figsize=(8, 6))
+plt.scatter(ads, sales, s=size, alpha=0.6, c=size, cmap="viridis")
+plt.colorbar(label="门店面积 (m²)")
+plt.xlabel("广告费 (万元)"); plt.ylabel("销售额 (万元)")
+plt.title("广告费 vs 销售额 (气泡大小 = 门店面积)")
+plt.show()
+```
+
+### 散点图能告诉你的 4 件事
+1. **方向**: 正相关 / 负相关
+2. **形态**: 线性 / 曲线 / 簇状
+3. **强度**: 点越紧, 关系越强
+4. **异常点**: 远离主群的点
+
+> ⚠️ **强相关 ≠ 因果**: 冰淇淋销量和溺水率高度相关 — 都因为夏天人多。
+
+## 4. 相关分析:把"关系"量化
+
+散点图给的是"感觉", 想**量化**两变量的关系, 用**相关系数 r** (Pearson):
+
+<MBlock tex="r = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum (x_i - \bar{x})^2 \cdot \sum (y_i - \bar{y})^2}}" />
+
+| r 范围 | 解释 |
+|---|---|
+| \|r\| &lt; 0.3 | 弱相关 |
+| 0.3 ≤ \|r\| &lt; 0.7 | 中等相关 |
+| \|r\| ≥ 0.7 | 强相关 |
+
+```python
+from scipy.stats import pearsonr
+
+r, p_value = pearsonr(ads, sales)
+print(f"皮尔逊 r = {r:.3f}, p = {p_value:.4f}")
+# r = 0.86, p &lt; 0.001 → 强正相关, 统计显著
+```
+
+### 相关的 3 个常见陷阱
+1. **非线性关系**: r 只测**线性**关系, U 形关系 r ≈ 0
+2. **异常值敏感**: 1 个离群点就能把 r 拉高
+3. **分层混杂**: Simpson 悖论 — 整体相关和分层相关方向相反
+
+## 5. 回归线:从"看关系"到"做预测"
+
+散点图是"看", 回归是"算"。最简单的**线性回归**就是找一条**最拟合**的直线:
+
+<MBlock tex="\hat{y} = b_0 + b_1 x" />
+
+其中:
+- `b1` (斜率) = `r × (sy / sx)`, 即"x 变 1 单位, y 变多少"
+- `b0` (截距) = `ȳ - b1 × x̄`
+
+最小化残差平方和 (RSS) 求解, 这就是**最小二乘法 (OLS)**。
+
+```python
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+
+model = LinearRegression()
+model.fit(ads.reshape(-1, 1), sales)
+
+# 画图
+plt.figure(figsize=(8, 6))
+plt.scatter(ads, sales, alpha=0.6, label="数据点")
+plt.plot(ads, model.predict(ads.reshape(-1, 1)),
+         color="red", linewidth=2, label=f"y = {model.intercept_:.2f} + {model.coef_[0]:.2f}x")
+plt.xlabel("广告费 (万元)"); plt.ylabel("销售额 (万元)")
+plt.title("简单线性回归")
+plt.legend(); plt.show()
+
+print(f"斜率 b1 = {model.coef_[0]:.3f}")
+print(f"截距 b0 = {model.intercept_:.3f}")
+print(f"R² = {model.score(ads.reshape(-1, 1), sales):.3f}")
+```
+
+## 6. 误导性图表:3 个常见陷阱
+
+图表**会撒谎**。下面 3 种最常见:
+
+### 6.1 截断 Y 轴
+柱状图从 5 起步, 而不是 0, 差异看起来放大 10 倍。
+
+```python
+# 错: 截断 y 轴, 看起来差异巨大
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+axes[0].bar(["A", "B"], [50, 51], color=["gray", "red"])
+axes[0].set_ylim(50, 52)        # ❌ 截断!
+axes[0].set_title("截断 Y 轴 (误导)")
+
+# 对: Y 轴从 0 开始
+axes[1].bar(["A", "B"], [50, 51], color=["gray", "red"])
+axes[1].set_ylim(0, 60)         # ✅ 0 起点
+axes[1].set_title("Y 轴从 0 开始 (正确)")
+```
+
+### 6.2 不等宽频率分布
+把"200 人的 0-10 段"和"20 人的 10-20 段"画一样宽, 看起来 0-10 段人数是 10-20 的 10 倍 — 但其实比例差不多。
+
+### 6.3 面积感知偏差
+饼图用面积编码比例, 但人眼对**角度**更敏感。3D 饼图会加剧这个问题, **永远不要用 3D 饼图**。
+
+## 7. 启发性图表 vs 误导性图表
+
+| 启发性 (好的) | 误导性 (坏的) |
+|---|---|
+| 标轴 0 起点 | 截断 Y 轴 |
+| 标轴单位明确 | 无单位 |
+| 标题说清数据来源 | 标题主观 ("惊人增长") |
+| 多图用同一尺度 | 跨图不同尺度 |
+| 数据点直接画出 | 只画平均, 不画分布 |
+
+## 8. Python 实战:完整 EDA 流水线
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import pearsonr
+
+# 1. 加载真实数据集
+df = sns.load_dataset("iris")  # 经典鸢尾花数据集
+
+# 2. 一行查看概况
+print(df.describe())  # 均值、标准差、分位数
+
+# 3. 数值列分布 (4 张子图)
+fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+for ax, col in zip(axes, df.select_dtypes("number").columns):
+    ax.hist(df[col], bins=20, edgecolor="black")
+    ax.set_title(col)
+plt.suptitle("数值变量分布")
+plt.tight_layout(); plt.show()
+
+# 4. 相关性热力图
+corr = df.select_dtypes("number").corr()
+sns.heatmap(corr, annot=True, cmap="coolwarm", center=0, vmin=-1, vmax=1)
+plt.title("变量间 Pearson 相关系数")
+plt.show()
+
+# 5. 散点图矩阵 (pairplot) — 一图看所有两两关系
+sns.pairplot(df, hue="species", diag_kind="kde")
+plt.suptitle("鸢尾花: 散点图矩阵", y=1.02)
+plt.show()
+```
+
+## 9. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 频数分布表 | 数据的"第一次整理" |
+| 直方图 | 看**单个变量**分布, 3 个参数: 区间数/宽度/纵轴 |
+| 散点图 | 看**两个变量**关系: 方向/形态/强度/异常 |
+| 相关系数 r | 量化线性关系, -1 ≤ r ≤ 1 |
+| 简单线性回归 | OLS 找最拟合直线, R² 衡量解释力 |
+| 误导性图表 | 截断 Y 轴、不等宽、3D 饼图 |
+
+## 10. 习题
+
+1. 用 `df = sns.load_dataset("tips")` (餐厅小费数据), 计算:
+   - `total_bill` 和 `tip` 的 Pearson r
+   - 画散点图 + 回归线
+   - 比较**午餐**和**晚餐**的回归斜率, 哪个时段"加菜 → 多给小费"效应更强?
+
+2. 直方图和柱状图 (bar plot) 区别是什么? 什么情况下**不能**互相替代?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 提示: 用 `df.groupby("time").apply(lambda g: LinearRegression().fit(g[["total_bill"]], g["tip"]))` 比较两组的 `coef_`。一般晚餐的斜率更大 (晚餐更"按比例"给小费)。
+
+2. 区别:
+   - 直方图 (histogram): 用于**连续定量数据**, x 轴是**连续区间**, 柱子之间无空隙
+   - 柱状图 (bar plot): 用于**离散分类数据**, x 轴是**离散类别**, 柱子之间有空隙
+   - 不能互相替代: 用柱状图画连续数据会"假装"数据离散; 用直方图画分类数据会画出没有意义的连续轴
+
+</details>
+
+## 11. 下一章
+
+- [描述统计:集中趋势与离散度](/courses/stats-foundations/descriptive-stats/): 用数字概括数据
+- [概率论基础](/courses/stats-probability/probability-basics/): 从样本到总体的桥梁
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 2 章, 加入 Seaborn/Matplotlib EDA 流水线。

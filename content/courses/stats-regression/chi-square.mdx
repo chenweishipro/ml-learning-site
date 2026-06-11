@@ -1,0 +1,292 @@
+---
+slug: "chi-square"
+title: "卡方检验: 拟合优度与列联表"
+description: "χ² 拟合优度、独立性检验、同质性检验。分类数据的统计方法。"
+duration: "35 分钟"
+---
+
+# 卡方检验: 拟合优度与列联表
+
+> **本章问题**: 骰子真的公平吗? (每个面 1/6)? 性别跟购买意愿有关吗? 浏览器偏好跟年龄段独立吗? 全部用**卡方检验**回答。
+
+## 1. 卡方统计量: 观测 vs 期望
+
+> **核心**: 比较"实际"和"理论"差多少。
+
+<MBlock tex="\chi^2 = \sum \frac{(O_i - E_i)^2}{E_i}" />
+
+- Oᵢ = 观测频数 (Observed)
+- Eᵢ = 期望频数 (Expected, H₀ 成立时的预测)
+
+| χ² 范围 | 解释 |
+|---|---|
+| 0 | 完全符合预期 |
+| 越大 | 偏离越大, p 越小 |
+| df | 自由度 = (行数-1) × (列数-1) |
+
+```python
+import numpy as np
+from scipy.stats import chisquare, chi2_contingency
+
+# 例: 抛 60 次骰子, 1-6 各面 出现次数 = [8, 12, 7, 14, 9, 10]
+observed = np.array([8, 12, 7, 14, 9, 10])
+expected = np.array([10, 10, 10, 10, 10, 10])  # 公平骰子期望
+
+chi2, p = chisquare(observed, expected)
+print(f"χ² = {chi2:.3f}, p = {p:.4f}")
+# p > 0.05 → 不能拒绝"骰子公平"假设
+```
+
+## 2. 拟合优度检验 (Goodness-of-Fit)
+
+> 检验"观测分布"是否等于"理论分布"。
+
+```python
+# 例: 孟德尔豌豆实验, 理论比 9:3:3:1
+observed = np.array([152, 39, 53, 16])  # 黄圆 / 黄皱 / 绿圆 / 绿皱
+total = observed.sum()
+expected_ratio = np.array([9, 3, 3, 1]) / 16
+expected = expected_ratio * total
+
+chi2, p = chisquare(observed, expected)
+print(f"χ² = {chi2:.3f}, p = {p:.4f}, df = {len(observed) - 1}")
+# 真实孟德尔数据 p > 0.05, 符合理论
+```
+
+### 2.1 期望频数的要求
+
+> **重要**: 每个 Eᵢ ≥ 5, 否则卡方不准。
+
+| 情况 | 解决 |
+|---|---|
+| Eᵢ &lt; 5 | 合并相邻类别 |
+| 2×2 表期望小 | 用 **Fisher 精确检验** |
+| df = 1 | 用 **Yates 校正** |
+
+## 3. 列联表独立性检验 (Contingency Table)
+
+> **最常用**: 检验两个分类变量是否独立。
+
+例: 性别 vs 购买意向
+
+|  | 买 | 不买 | 合计 |
+|---|---|---|---|
+| 男 | 30 | 70 | 100 |
+| 女 | 50 | 50 | 100 |
+| 合计 | 80 | 120 | 200 |
+
+```python
+from scipy.stats import chi2_contingency
+
+table = np.array([[30, 70], [50, 50]])
+chi2, p, dof, expected = chi2_contingency(table)
+print(f"χ² = {chi2:.3f}, p = {p:.4f}, dof = {dof}")
+print(f"期望频数:\n{expected}")
+# χ² ≈ 7.84, p ≈ 0.005 → 性别跟购买显著相关
+```
+
+### 3.1 列联表的 3 大检验
+
+| 检验 | 目的 | H₀ |
+|---|---|---|
+| **独立性** | 两个变量是否独立? | 变量 X, Y 独立 |
+| **同质性** | 多个总体在同一变量上的分布是否相同? | 多个总体分布相同 |
+| **拟合优度** | 观测分布 vs 理论分布 | 符合理论分布 |
+
+> 数学上, 独立性 vs 同质性的公式一样, 区别是**抽样设计**:
+> - 独立性: 1 个样本, 看 X, Y 关系
+> - 同质性: 多个独立样本, 看 X 分布
+
+## 4. 效应大小: Cramér's V
+
+> 卡方大不一定有意义 (n 大会让 χ² 变显著)。用 **Cramér's V** 衡量效应:
+
+<MBlock tex="V = \sqrt{\frac{\chi^2}{n \cdot \min(r-1, c-1)}}" />
+
+| V | 解释 |
+|---|---|
+| 0.1 | 小 |
+| 0.3 | 中 |
+| 0.5 | 大 |
+
+```python
+def cramers_v(chi2, n, r, c):
+    return np.sqrt(chi2 / (n * min(r-1, c-1)))
+
+n = table.sum()
+r, c = table.shape
+V = cramers_v(chi2, n, r, c)
+print(f"Cramér's V = {V:.3f}")
+# V = 0.198 (小效应), 但 p 显著
+```
+
+## 5. Fisher 精确检验: 小样本首选
+
+> 当**任一 Eᵢ &lt; 5** 时, 卡方不准。用 Fisher 精确:
+
+```python
+from scipy.stats import fisher_exact
+
+# 2x2 表: 新药临床试验
+#            有效  无效
+# 新药       8     2
+# 安慰剂     3     7
+table = [[8, 2], [3, 7]]
+odds_ratio, p = fisher_exact(table)
+print(f"Fisher 精确: OR = {odds_ratio:.3f}, p = {p:.4f}")
+# OR = 9.33 (新药 9.3 倍有效), p ≈ 0.07 (临界)
+```
+
+### 5.1 Fisher vs Chi-square
+
+| 条件 | 用 |
+|---|---|
+| 总 n ≥ 40, 最小 E ≥ 5 | χ² |
+| 总 n &lt; 40 或最小 E &lt; 5 | **Fisher 精确** |
+| 2x2 表 | χ² 或 Fisher |
+| r x c 表 (大) | χ² |
+
+## 6. McNemar 检验: 配对分类
+
+> 同一对象, 前后两次分类结果是否变化?
+
+```python
+# 50 个病人, 用药前/后
+#           用药前有效  用药前无效
+# 用药后有效    20         10       30
+# 用药后无效     5         15       20
+from statsmodels.stats.contingency_tables import mcnemar
+table = np.array([[20, 10], [5, 15]])
+result = mcnemar(table, exact=True)
+print(f"McNemar: p = {result.pvalue:.4f}")
+# 看"用药前有效, 用药后无效" (5) vs "用药前无效, 用药后有效" (10) 是否对称
+# 显著 → 药物真的有效
+```
+
+## 7. 实战: 用户行为分析 (多场景)
+
+### 7.1 拟合优度: 骰子公平
+```python
+# 1000 次投掷, 每个面期望 166.7
+observed = [180, 165, 170, 155, 168, 162]
+expected = [1000/6] * 6
+chi2, p = chisquare(observed, expected)
+print(f"骰子公平: χ² = {chi2:.3f}, p = {p:.4f}")
+```
+
+### 7.2 独立性: 浏览器 vs 操作系统
+```python
+table = np.array([
+    [120, 80, 50],   # Chrome / Win, Mac, Linux
+    [60,  40, 10],   # Safari
+    [200, 30, 5],    # Edge
+])
+chi2, p, dof, expected = chi2_contingency(table)
+print(f"浏览器 vs OS: χ² = {chi2:.3f}, p = {p:.4f}")
+# 显著 → 浏览器跟 OS 强相关 (Chrome 多在 Win/Mac, Edge 几乎全 Win)
+```
+
+### 7.3 同质性: 不同城市消费习惯
+```python
+# 3 个城市, 4 个消费等级
+table = np.array([
+    [50, 80, 40, 30],  # 北京
+    [30, 70, 60, 40],  # 上海
+    [20, 50, 80, 50],  # 深圳
+])
+chi2, p, dof, expected = chi2_contingency(table)
+print(f"城市消费同质性: χ² = {chi2:.3f}, p = {p:.4f}")
+# 显著 → 不同城市消费习惯不同
+```
+
+## 8. Python 实战: ML 评估中的卡方
+
+```python
+# 例: 分类模型预测 vs 真实
+import numpy as np
+from sklearn.metrics import confusion_matrix
+from scipy.stats import chi2_contingency
+
+# 真实 / 预测
+y_true = np.array([1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1])
+y_pred = np.array([1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1])
+cm = confusion_matrix(y_true, y_pred)
+print(f"混淆矩阵:\n{cm}")
+
+# McNemar 检验 (模型错分模式是否对称)
+result = mcnemar(cm, exact=True)
+print(f"McNemar: p = {result.pvalue:.4f}")
+# 不显著 → 模型对正负样本的错分能力类似
+```
+
+## 9. 卡方在 ML 中的角色
+
+| 场景 | 检验 |
+|---|---|
+| 特征选择 | χ² 检验 (sklearn `chi2`) |
+| 类别型特征独立性 | 列联表 |
+| A/B 测试 (比例) | 跟上一章 z 检验等价, χ² 更直观 |
+| 分类模型评估 | 混淆矩阵 + McNemar |
+| 残差分析 | 卡方拟合优度 |
+| 推荐系统 | 卡方相似度 (用户-物品矩阵) |
+| 异常检测 | χ² 距离 (Mahalanobis 距离的简化) |
+
+```python
+# sklearn 特征选择: 卡方
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.datasets import load_iris
+
+X, y = load_iris(return_X_y=True)
+# 卡方要求 X ≥ 0 (因为公式是 (O-E)²/E)
+selector = SelectKBest(chi2, k=2).fit(X, y)
+print("特征卡方分数:", selector.scores_.round(2))
+print("选中的特征:", selector.get_support())
+```
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 卡方统计量 | Σ (O-E)²/E, 衡量"实际"和"理论"差距 |
+| 拟合优度 | 1 个变量, 跟理论分布比 |
+| 独立性 | 2 个变量, 看是否独立 |
+| 同质性 | 多个总体, 看分布是否相同 |
+| Cramér's V | 卡方的效应大小, 0.1/0.3/0.5 小/中/大 |
+| Fisher 精确 | 小样本 (E&lt;5) 替代卡方 |
+| McNemar | 配对二分类 |
+| ML 应用 | 特征选择、A/B 测试、混淆矩阵 |
+
+## 11. 习题
+
+1. 抛硬币 100 次, 正面 60 次。是否公平?
+   - 用卡方拟合优度
+   - 用二项检验 (z)
+   - 两种方法 p 值应该相近
+
+2. 调研性别 vs 政党偏好 (2x3 列联表), 用 χ² 独立性检验
+   - 计算 Cramér's V 效应大小
+   - 如果 V 很小, 还需要关心 p 值吗?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 卡方: observed = [60, 40], expected = [50, 50]
+   - χ² = (10²+10²)/50 = 4, p = 0.046
+   - 二项 z 检验: z = (0.6-0.5)/√(0.25/100) = 2, p = 0.046
+   - 一样! 卡方和二项在 2 类时等价
+   - p &lt; 0.05, 拒绝公平, 但效应大小 = (0.6-0.5)/√(0.25) = 0.2, 小
+
+2. Cramér's V &lt; 0.1 → 即使 p &lt; 0.05, 实际差异很小, 几乎不重要
+   教训: **统计显著 ≠ 实际重要**, 永远报告效应大小
+
+</details>
+
+## 12. 下一章
+
+- [方差分析 ANOVA](/courses/stats-regression/anova/): 多组均值比较 (连续变量)
+- [机器学习入门 → EDA](/courses/ml-basics/eda-for-ml/): 卡方选特征
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): A/B 测试中的卡方
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 11 章 11-1、11-2 节, 加入 ML 实战。

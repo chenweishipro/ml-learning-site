@@ -1,0 +1,275 @@
+---
+slug: "sampling-clt"
+title: "抽样分布与中心极限定理"
+description: "样本均值的分布为什么也近似正态? 一切统计推断的"理由"。"
+duration: "35 分钟"
+---
+
+# 抽样分布与中心极限定理
+
+> **本章问题**: 工厂灯泡寿命是**偏态**分布 (少量灯泡寿命极长), 但抽 100 个灯泡算"平均寿命", 这个均值**却**近似正态。为什么? 因为**中心极限定理**。
+
+## 1. 抽样分布: 统计量的分布
+
+上一章学了 X 的分布, 但**统计量** (如 X̄) 也有自己的分布, 叫**抽样分布**。
+
+```
+总体 (任意分布) → 抽 n 个 → 算样本均值 X̄ → X̄ 也有分布
+```
+
+**关键洞察**: X̄ 的分布跟 X 的分布不同, 而且**通常更集中、更对称**。
+
+## 2. 中心极限定理 (CLT): 统计学的"第一定律"
+
+> **CLT**: 从任意总体 (无论正态还是偏态) 中**独立**抽 n 个样本, 当 n 足够大 (经验: n ≥ 30) 时, 样本均值 X̄ 近似服从正态分布:
+>
+> <MBlock tex="\bar{X} \sim N\left(\mu, \frac{\sigma^2}{n}\right)" />
+
+**3 个前提**:
+1. 抽样**独立** (随机)
+2. n **足够大** (n ≥ 30 通常够, 总体极端偏态需 n ≥ 40)
+3. 总体有**有限**均值和方差
+
+> 💡 **CLT 是统计学最重要的定理, 没有之一**。它让"用正态做推断"成为可能, 即使原始数据不是正态。
+
+## 3. Python 模拟验证 CLT
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 总体: 严重右偏的指数分布 (非正态)
+np.random.seed(42)
+population = np.random.exponential(scale=2, size=100_000)
+
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 3, 1)
+plt.hist(population, bins=50, density=True, color="lightcoral")
+plt.title(f"总体: 指数分布 (右偏)\nμ={population.mean():.2f}, σ={population.std():.2f}")
+
+# 抽不同 n, 看 X̄ 的分布
+for i, n in enumerate([1, 5, 30, 100], start=2):
+    sample_means = [np.mean(np.random.choice(population, n)) for _ in range(10_000)]
+    plt.subplot(1, 5, i)
+    plt.hist(sample_means, bins=30, density=True, color="steelblue", alpha=0.7)
+    plt.title(f"n={n}\nμ̄={np.mean(sample_means):.2f}, σ̄={np.std(sample_means):.2f}")
+plt.tight_layout(); plt.show()
+```
+
+观察: n 越大, X̄ 的分布越像正态, 标准差越小 (σ/√n)。
+
+## 4. 样本均值的标准误 (Standard Error)
+
+<MBlock tex="\sigma_{\bar{X}} = \frac{\sigma}{\sqrt{n}}" />
+
+**极其重要**: 把"误差缩小 √n 倍"。
+
+| n | σ_X̄ (假设 σ=10) |
+|---|---|
+| 1 | 10.00 |
+| 10 | 3.16 |
+| 100 | 1.00 |
+| 1000 | 0.32 |
+| 10000 | 0.10 |
+
+> 想把误差缩到 1/10, 样本量要 **×100**。这是为什么"大数据"如此重要, 也是为什么"边际效应递减"。
+
+```python
+# 经验: 增加样本的"性价比"
+import numpy as np
+import matplotlib.pyplot as plt
+n_seq = np.arange(10, 10001)
+se = 10 / np.sqrt(n_seq)
+plt.plot(n_seq, se)
+plt.xlabel("样本量 n"); plt.ylabel("标准误 σ/√n")
+plt.title("样本量 vs 标准误 (σ=10)")
+plt.grid(True); plt.show()
+```
+
+## 5. 抽样分布的 3 种类型
+
+| 抽样分布 | 适用条件 | 数学形式 |
+|---|---|---|
+| **正态 (z)** | σ 已知 或 n 很大 | X̄ ~ N(μ, σ²/n) |
+| **t 分布** | σ 未知, 用 s 估计 | t = (X̄ - μ) / (s/√n) |
+| **卡方 (χ²)** | 方差 σ² 的推断 | χ² = (n-1)s² / σ² |
+
+第 3 个用得相对少, 这里重点看前两个。
+
+## 6. t 分布: 小样本 + 未知 σ
+
+> 实际中, 我们**几乎总不知道 σ**, 只能用样本 s 估计。**这时 X̄ 不再服从正态, 而是 t 分布**。
+
+<MBlock tex="t = \frac{\bar{X} - \mu}{s/\sqrt{n}} \sim t(n-1)" />
+
+- **自由度 df = n - 1** (因为估计 μ 用了 1 个)
+- 形状像正态, 但**尾部更厚** (n 小时, 极端值概率更大)
+- n → ∞ 时, t → 标准正态
+
+```python
+from scipy.stats import t, norm
+import numpy as np
+import matplotlib.pyplot as plt
+
+x = np.linspace(-4, 4, 200)
+plt.plot(x, norm.pdf(x), "k-", label="N(0,1)", linewidth=2)
+for df in [1, 5, 30]:
+    plt.plot(x, t.pdf(x, df), "--", label=f"t({df})")
+plt.legend(); plt.title("t 分布 vs 正态 (df 越小, 尾部越厚)")
+plt.show()
+```
+
+### t 分布的现实意义
+- 样本量小时, "小概率事件" 比正态预测的更可能 (因为你不确定 σ)
+- 样本量变大 (n ≥ 30), t ≈ 正态, 这时 "用 t 还是 z" 差异不大
+
+## 7. 抽样分布的 3 个应用
+
+### 7.1 置信区间 (后面专门讲)
+- 用正态/抽样分布, 给出参数的"区间估计"
+
+### 7.2 假设检验 (第 7-9 章)
+- 检验样本是否跟某个"理论分布"一致
+
+### 7.3 质量控制 (第 14 章)
+- 抽样分布给出"正常波动范围"
+
+## 8. 大数定律 (LLN): 频率学派的基础
+
+跟 CLT 一起, 组成"频率学派两大支柱":
+
+| 定律 | 说什么 |
+|---|---|
+| **大数定律 (LLN)** | n → ∞, 样本均值 → 总体均值 |
+| **中心极限定理 (CLT)** | n 足够大, 样本均值 → 正态分布 |
+
+LLN 保证"**长期平均有意义**", CLT 保证"**波动幅度可量化**"。
+
+```python
+# 演示 LLN
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(42)
+# 抛硬币, 看累积频率
+flips = np.random.choice([0, 1], 10000)
+cum_mean = np.cumsum(flips) / np.arange(1, 10001)
+plt.plot(cum_mean)
+plt.axhline(0.5, color="red", linestyle="--", label="理论 0.5")
+plt.xlabel("抛硬币次数"); plt.ylabel("累积频率")
+plt.title("大数定律: 累积频率 → 0.5")
+plt.legend(); plt.grid(True); plt.show()
+```
+
+## 9. Bootstrap: 现代统计的"瑞士军刀"
+
+**当 CLT 都不够用时** (如数据偏态严重、n 太小), 用 Bootstrap:
+
+> 1. 从样本中**有放回**抽 n 个, 算统计量
+> 2. 重复 10000 次, 得到统计量的**经验分布**
+> 3. 用这个分布做推断
+
+**优势**: 不需要任何分布假设!
+
+```python
+# 例: 中位数置信区间 (中位数不是正态)
+import numpy as np
+from scipy.stats import bootstrap
+
+# 偏态数据: 收入
+np.random.seed(42)
+incomes = np.random.lognormal(10.5, 0.5, 200)  # 200 个高收入样本
+
+# 中位数及其 95% 置信区间
+median = np.median(incomes)
+boot = bootstrap((incomes,), np.median, n_resamples=10000,
+                 confidence_level=0.95, random_state=42)
+ci_low, ci_high = boot.confidence_interval
+print(f"中位数: {median:.0f}, 95% CI: [{ci_low:.0f}, {ci_high:.0f}]")
+```
+
+> 💡 **ML 实战**: sklearn 的 `BaggingClassifier` 内部就用了 bootstrap! 每次训练从训练集**有放回**抽 50% 样本, 训练一个弱模型, 然后投票。
+
+## 10. Python 实战: 完整 CLT 演示
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm, t
+
+# 设定: 某市成年男性身高 N(173, 8²), 抽 30 个
+mu, sigma = 173, 8
+n = 30
+sample_size = 10000  # 模拟 10000 次抽样
+
+# 1. 样本均值的均值和标准差 (理论: μ, σ/√n)
+sample_means = np.random.normal(mu, sigma, (sample_size, n)).mean(axis=1)
+print(f"X̄ 的均值: {sample_means.mean():.2f} (理论 {mu})")
+print(f"X̄ 的标准差: {sample_means.std():.3f} (理论 {sigma/np.sqrt(n):.3f})")
+
+# 2. 画图: X̄ 分布 + 理论正态
+plt.figure(figsize=(8, 5))
+plt.hist(sample_means, bins=40, density=True, alpha=0.6, label="模拟")
+x = np.linspace(mu - 3, mu + 3, 200)
+plt.plot(x, norm.pdf(x, mu, sigma/np.sqrt(n)), "r-",
+         label=f"N({mu}, {sigma/np.sqrt(n):.2f}²)")
+plt.xlabel("样本均值 X̄"); plt.ylabel("密度")
+plt.title(f"n={n} 时, X̄ 的抽样分布 vs 理论正态")
+plt.legend(); plt.show()
+
+# 3. 用 t 分布找 95% 置信区间 (假设 σ 未知)
+# 实际抽 1 个样本
+sample = np.random.normal(mu, sigma, n)
+xbar = sample.mean()
+s = sample.std(ddof=1)
+t_crit = t.ppf(0.975, df=n-1)  # 95% 置信度
+ci_low = xbar - t_crit * s / np.sqrt(n)
+ci_high = xbar + t_crit * s / np.sqrt(n)
+print(f"\n1 个样本均值: {xbar:.2f}, 95% CI: [{ci_low:.2f}, {ci_high:.2f}]")
+```
+
+## 11. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 抽样分布 | 统计量 (如 X̄) 自己的分布, 跟 X 不同 |
+| CLT | n 够大, X̄ 近似正态, 不管 X 什么分布 |
+| 标准误 | σ/√n, 衡量 X̄ 的精度 |
+| t 分布 | σ 未知时, 替代正态, df=n-1, 尾部更厚 |
+| 大数定律 | n → ∞, 频率 → 概率 |
+| Bootstrap | 不假设分布的"万能"重抽样方法 |
+| 三分布关系 | 抽样均值的 z, t, χ² 各有适用场景 |
+
+## 12. 习题
+
+1. 某厂灯泡寿命 X ~ Exp(λ=0.001) (指数分布, 不是正态), 抽 n=50:
+   - 理论 μ 和 σ?
+   - 用 CLT 求 P(X̄ > 1050)
+   - 模拟验证: 10000 次抽样, 实际比例跟理论差多少?
+
+2. 用 `np.random.standard_t(df=3, size=30)` 生成 30 个 t(3) 分布的样本 (重尾):
+   - 画直方图 (注意: 偶尔出现 ±10 的极端值)
+   - 算均值和标准差, 跟理论 (μ=0, σ=√3) 比较
+   - 把 30 个值的均值再求 10000 次, 画均值分布 (应该近似正态, 这就是 CLT)
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - X ~ Exp(0.001): μ=1000, σ=1000
+   - X̄ ~ N(1000, 1000²/50) ≈ N(1000, 141²)
+   - P(X̄ > 1050) = P(Z > 0.354) ≈ 0.362
+   - 模拟 10000 次 `np.random.exponential(1000, (10000, 50)).mean(axis=1)`, P 应该 ≈ 0.36, 验证 CLT!
+
+2. 提示: t(3) 偶尔出现 ±10 的极端值, 但**样本均值** 10000 次的分布仍是钟形 (CLT), 即使单次样本**不是**正态。
+
+</details>
+
+## 13. 下一章
+
+- [置信区间: 均值与比例](/courses/stats-estimation/ci-mean-proportion/): 用抽样分布量化估计的"区间"
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): CLT 是 A/B 测试的基石
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 6 章 6-3、6-4 节, 加入 Bootstrap 和 ML 实战。

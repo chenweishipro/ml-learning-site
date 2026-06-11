@@ -1,0 +1,282 @@
+---
+slug: "descriptive-stats"
+title: "描述统计:集中趋势与离散度"
+description: "均值/中位数/众数、方差/标准差/箱形图。把数据"翻译"成几个关键数字。"
+duration: "40 分钟"
+---
+
+# 描述统计:集中趋势与离散度
+
+> **本章问题**: 同样是 "平均工资 ¥15000", 北京和县城的生活水平天差地别。为什么一个数字会骗人? 因为**只看集中趋势, 不看离散度**, 等于只看半张地图。
+
+## 1. 集中趋势的 4 个度量
+
+### 1.1 均值 (Mean / Average)
+<MBlock tex="\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i" />
+
+```python
+import numpy as np
+data = [3, 5, 7, 8, 12]
+mean = np.mean(data)  # 7.0
+```
+
+**优点**: 利用了所有数据, 数学性质好  
+**缺点**: 极易受异常值影响 (1 个百万富翁拉高整村"平均收入")
+
+### 1.2 中位数 (Median)
+排序后取中间值。数据量为奇数: 中间那个; 偶数: 中间两个的平均。
+
+```python
+median = np.median(data)  # 7.0 (排序后 3,5,7,8,12, 中间是 7)
+```
+
+**优点**: 不受异常值影响, 描述"典型水平"  
+**缺点**: 不用所有数据信息, 大样本时效率低
+
+### 1.3 众数 (Mode)
+出现次数最多的值。**唯一能用于分类数据的集中趋势**。
+
+```python
+from scipy.stats import mode
+data2 = [1, 2, 2, 3, 3, 3, 4, 4]
+print(mode(data2, keepdims=False).mode)  # 3
+```
+
+### 1.4 中程数 (Midrange)
+(Min + Max) / 2。**几乎不用**, 但有时作快速估计。
+
+### 什么时候用什么?
+
+| 场景 | 推荐 |
+|---|---|
+| 数据对称 + 无异常值 | 均值 (数学性质好) |
+| 数据偏态 / 有异常值 / 收入类 | **中位数** (稳健) |
+| 分类数据 / 找最常见 | 众数 |
+| 离散数据 | 中位数 / 众数 (均值意义不大) |
+
+> 💡 **ML 实战**: 训练神经网络时, "loss" 经常打印"中位数最近 100 批" (running median), 而不是均值, 就是为了不被偶尔的离群 batch 干扰。
+
+## 2. 异常值 (Outlier): 1.5 × IQR 法则
+
+判断一个值是不是异常值的"经验法则":
+
+<MBlock tex="\text{Outlier} = x < Q_1 - 1.5 \times IQR \text{ 或 } x > Q_3 + 1.5 \times IQR" />
+
+其中 `IQR = Q3 - Q1` 是四分位距。
+
+```python
+import numpy as np
+data = [3, 5, 7, 8, 12, 100]  # 100 明显异常
+q1, q3 = np.percentile(data, [25, 75])
+iqr = q3 - q1
+lower = q1 - 1.5 * iqr
+upper = q3 + 1.5 * iqr
+outliers = [x for x in data if x < lower or x > upper]
+print(f"Q1={q1}, Q3={q3}, IQR={iqr}, 异常值={outliers}")
+# IQR=4.5, upper=14.75, 100 是异常值
+```
+
+## 3. 离散度:数据"散"到什么程度
+
+光有均值不够。比如两组数据:
+- A: [10, 20, 30], 均值 20
+- B: [0, 20, 40], 均值 20
+- **均值相同, 离散度不同** — B 的风险/波动更大
+
+### 3.1 极差 (Range)
+`Max - Min`。**最简单但最不稳定** (1 个异常值就毁掉)。
+
+### 3.2 标准差 (Standard Deviation) — 最重要
+<MBlock tex="s = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2}" />
+
+- 单位 = 数据单位 (比如身高 cm, 标准差也是 cm)
+- 经验法则 (正态分布): **68% 数据落在均值 ±1σ 内, 95% 在 ±2σ, 99.7% 在 ±3σ**
+
+```python
+import numpy as np
+data = [3, 5, 7, 8, 12]
+std_sample = np.std(data, ddof=1)   # 样本标准差 (n-1), 3.54
+std_pop = np.std(data, ddof=0)      # 总体标准差 (n), 3.16
+```
+
+> ⚠️ **注意分母**: 样本用 `n-1` (Bessel 校正), 总体用 `n`。Python `np.std` 默认 `n`, sklearn 默认 `n-1`。
+
+### 3.3 方差 (Variance)
+方差 = 标准差的平方。**单位是数据单位的平方** (解释起来不直观), 但数学上更方便。
+
+### 3.4 四分位距 (IQR) = Q3 - Q1
+**对异常值稳健**的离散度度量, 跟中位数是一对。
+
+## 4. 标准分数 (z-score): 跨数据集比较
+
+把数据"标准化", 看每个值偏离均值多少个标准差:
+
+<MBlock tex="z = \frac{x - \bar{x}}{s}" />
+
+```python
+from scipy.stats import zscore
+data = [60, 65, 70, 75, 80, 85, 90, 95]
+z = zscore(data)
+print(f"原始: {data}")
+print(f"z 分数: {[round(zi, 2) for zi in z]}")
+# z 分数: [-1.5, -1.16, -0.81, -0.47, -0.12, 0.23, 0.58, 0.93, 1.28]  ← 形状一致
+```
+
+| \|z\| 范围 | 解释 |
+|---|---|
+| &lt; 1 | 正常范围 |
+| 1 ~ 2 | 轻微异常 |
+| 2 ~ 3 | 高度异常 |
+| > 3 | 极端异常 (正态分布下概率 &lt; 0.3%) |
+
+> 💡 **ML 实战**: `StandardScaler.fit_transform(X)` 做的就是 z-score。这是 PCA、SVM、K-means、神经网络的**标配预处理**。
+
+## 5. 箱形图 (Box Plot): 5 数概括 + 异常值
+
+**5 数概括** (Five-Number Summary) 把数据浓缩成 5 个数字:
+- 最小值, Q1, 中位数, Q3, 最大值
+
+箱形图把这 5 个数画出来, 一图看全部分布:
+
+```
+        |---[   |=======|   ]---|        ← 上下边界 = 1.5×IQR
+        Min  Q1   Median  Q3    Max
+                ↑ IQR ↑
+        离群点 (o) 出现在须 (whiskers) 之外
+```
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 模拟 3 组数据, 中位数相同但分布不同
+np.random.seed(42)
+g1 = np.random.normal(50, 5, 100)    # 紧凑
+g2 = np.random.normal(50, 15, 100)   # 分散
+g3 = np.concatenate([np.random.normal(40, 5, 50), np.random.normal(60, 5, 50)])  # 双峰
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.boxplot([g1, g2, g3], labels=["紧凑 (σ=5)", "分散 (σ=15)", "双峰"], patch_artist=True)
+ax.set_ylabel("数值"); ax.set_title("三组数据: 中位数相同, 分布不同")
+plt.grid(True, alpha=0.3); plt.show()
+```
+
+> ⚠️ **箱形图不显示双峰**! 所以画完箱形图, 最好再叠加一个直方图或 violin plot。
+
+## 6. 切比雪夫不等式 (Chebyshev): 分布无关的保证
+
+无论数据分布是什么形状 (哪怕完全不是正态), **切比雪夫不等式**都成立:
+
+> 至少有 `(1 - 1/k²)` 的数据落在 `均值 ± k × 标准差` 内。
+
+| k | 至少比例 |
+|---|---|
+| 2 | 75% |
+| 3 | 89% |
+| 4 | 94% |
+
+**这是 68-95-99.7 法则的"最坏情况"版本**, 不需要正态假设。
+
+```python
+# 验证: 双峰分布也满足切比雪夫
+bimodal = np.concatenate([np.random.normal(0, 1, 1000), np.random.normal(0, 1, 1000)])
+# k=2: 至少 75% 在 [-2, 2]
+in_range = ((bimodal > -2) & (bimodal &lt; 2)).sum() / len(bimodal)
+print(f"双峰分布在 ±2σ 内的比例: {in_range:.2%}")  # ≈ 95% (实际更集中)
+```
+
+## 7. Python 实战:完整描述统计报告
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. 加载数据
+df = sns.load_dataset("iris")
+numeric = df.select_dtypes("number")
+
+# 2. 一次性计算所有描述统计
+desc = pd.DataFrame({
+    "均值": numeric.mean(),
+    "中位数": numeric.median(),
+    "众数": numeric.mode().iloc[0],  # mode 返回 DataFrame
+    "标准差": numeric.std(),
+    "方差": numeric.var(),
+    "极差": numeric.max() - numeric.min(),
+    "Q1": numeric.quantile(0.25),
+    "Q3": numeric.quantile(0.75),
+    "IQR": numeric.quantile(0.75) - numeric.quantile(0.25),
+    "偏度": numeric.skew(),       # 0 = 对称, > 0 右偏
+    "峰度": numeric.kurtosis(),    # 0 = 与正态同, > 0 更尖
+})
+print(desc.round(3))
+
+# 3. 画综合图: 箱形图 + 散点 + 密度
+fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+for ax, col in zip(axes, numeric.columns):
+    sns.violinplot(y=numeric[col], ax=ax, color="lightblue")
+    sns.stripplot(y=numeric[col], ax=ax, color="red", alpha=0.3, size=2)
+    ax.set_title(f"{col}\nμ={numeric[col].mean():.2f}, σ={numeric[col].std():.2f}")
+plt.tight_layout(); plt.show()
+```
+
+## 8. 描述统计在 ML 中的角色
+
+| 描述统计量 | ML 应用 |
+|---|---|
+| 均值/标准差 | 标准化 (`StandardScaler`) |
+| 中位数/IQR | 异常值处理 (Winsorize, Robust Scaler) |
+| 偏度 | 检查 target 分布, 决定要不要 `log` 变换 |
+| 峰度 | 检查 target 是否有重尾, 决定用 MAE 还是 MSE |
+| 5 数概括 | 表格数据 EDA, 一眼看异常 |
+| 相关系数 | 特征选择, 共线性检测 |
+
+## 9. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 集中趋势 4 度量 | 均值/中位数/众数/中程数, 各自适用场景 |
+| 离散度 4 度量 | 极差/方差/标准差/IQR, 选对稳健的 |
+| z 分数 | 跨数据集标准化, ML 必备 |
+| 箱形图 | 5 数概括可视化, 找异常值 |
+| 切比雪夫不等式 | 分布无关的"最坏保证" |
+| 偏度/峰度 | 检查分布形状, 决定变换策略 |
+
+## 10. 习题
+
+1. 5 个人的年薪 (万元): `3, 4, 5, 6, 100`
+   - 计算均值、中位数、众数、极差、标准差
+   - 如果用"均值"代表"典型年薪", 会高估多少? 为什么中位数更合适?
+   - 100 是不是异常值? 用 1.5×IQR 法则判断
+
+2. 用 `np.random.exponential(scale=2, size=10000)` 生成 10000 个指数分布样本
+   - 计算均值、方差 (理论值: 均值=2, 方差=4)
+   - 画直方图 + 拟合正态曲线, 直观感受右偏
+   - 对样本取 `np.log`, 再计算新样本的均值 — 发生了什么?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - 均值 = 23.6 (受 100 拉高)
+   - 中位数 = 5 (稳健)
+   - 众数 = 无 (全不同)
+   - 极差 = 97
+   - 标准差 ≈ 42.7
+   - 用均值"代表"会高估 5 倍, 因为 1 个百万富翁拉高整组。
+   - IQR 法则: Q1=4, Q3=6, IQR=2, 上界=9, 所以 100 确为异常值。
+
+2. 提示: `np.log(exponential)` 后分布接近正态 (中心极限定理的另一面: 乘法效应取 log 后变成加法)。这是为什么 ML 处理右偏特征 (收入、点击数) 时常用 `log1p` 变换。
+
+</details>
+
+## 11. 下一章
+
+- [概率的基本概念](/courses/stats-probability/probability-basics/): 从"频率"到"概率"
+- [机器学习入门 → EDA](/courses/ml-basics/eda-for-ml/): 把描述统计用到 ML 实战
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 3 章 3-1、3-2、3-3 节, 加入 ML 视角。

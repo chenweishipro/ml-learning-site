@@ -1,0 +1,287 @@
+---
+slug: "discrete-distributions"
+title: "离散概率分布"
+description: "二项分布、泊松分布、期望与方差。从单个概率到"分布"的飞跃。"
+duration: "40 分钟"
+---
+
+# 离散概率分布
+
+> **本章问题**: 一家工厂次品率 1%, 抽 100 件, 期望有几件次品? "期望"不是"一定" — 有时 0 件, 有时 3 件。怎么描述这种"围绕均值波动"的规律? 答案是**概率分布**。
+
+## 1. 从单个概率到分布
+
+之前我们算"抛一次硬币正面的概率", 但 ML 关心的是"模型输出**整个分布**":
+- 预测房价 = 300 万, 但**预测 280-320 万的概率是 80%**
+- 分类器预测 spam 概率 0.85, 而不只是 "是/否"
+
+**概率分布** = 给随机变量每个可能取值, 分配一个概率。
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 例: 抛 2 个骰子的点数和分布 (理论)
+sums = np.arange(2, 13)
+probs = np.array([1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1]) / 36  # C(2, sum-1) ... 等
+
+plt.figure(figsize=(8, 4))
+plt.bar(sums, probs, color="steelblue", edgecolor="black")
+plt.xticks(sums); plt.xlabel("两个骰子点数和"); plt.ylabel("概率")
+plt.title("均匀骰子的点数和分布")
+plt.show()
+```
+
+## 2. 期望 (Expected Value): 分布的"中心"
+
+<MBlock tex="E(X) = \sum_{x} x \cdot P(X = x)" />
+
+**期望 = 长期平均**。不是"下一次一定是", 而是"无穷多次实验后的平均值"。
+
+```python
+# 例: 抛 2 个骰子, 点数和的期望
+from itertools import product
+outcomes = list(product(range(1, 7), repeat=2))
+sums = [a + b for a, b in outcomes]
+probs = [1/36] * 36
+expected_value = sum(s * p for s, p in zip(sums, probs))
+print(f"E(两个骰子点数和) = {expected_value}")  # 7.0
+```
+
+### 期望的 3 个性质
+1. **常数期望**: E(c) = c
+2. **线性**: E(aX + b) = aE(X) + b
+3. **可加性** (无论独立与否): E(X + Y) = E(X) + E(Y)
+
+> 💡 **ML 应用**: 损失函数的"期望损失" = risk = E[loss]。ERM (经验风险最小化) 就是用样本平均估计这个期望。
+
+## 3. 方差与标准差: 分布的"散度"
+
+<MBlock tex="\text{Var}(X) = E[(X - E(X))^2] = E(X^2) - [E(X)]^2" />
+
+<MBlock tex="\sigma_X = \sqrt{\text{Var}(X)}" />
+
+```python
+import numpy as np
+# 抛 2 骰子点数和的方差
+sums_arr = np.array(sums)
+var = ((sums_arr - expected_value)**2).mean()
+print(f"Var = {var:.3f}, σ = {np.sqrt(var):.3f}")
+# Var ≈ 5.83, σ ≈ 2.42
+```
+
+### 方差的性质
+1. Var(c) = 0
+2. Var(aX + b) = a² × Var(X)
+3. **独立时** Var(X + Y) = Var(X) + Var(Y) — 重要!
+4. 不独立时, 还要加协方差: Var(X + Y) = Var(X) + Var(Y) + 2Cov(X, Y)
+
+> ⚠️ **为什么 Var 不是 0**: 方差用平方, 优点: 让大偏差贡献更大; 缺点: 单位变成原数据的平方 (身高² 不直观), 所以常用标准差 σ。
+
+## 4. 二项分布: n 次独立伯努利实验
+
+### 4.1 伯努利试验
+单次实验, 结果二选一 (成功/失败), 成功概率 p。X ~ Bernoulli(p)
+
+E(X) = p, Var(X) = p(1-p)
+
+### 4.2 二项分布
+**n 次独立伯努利**, 成功次数 X 的分布:
+
+<MBlock tex="X \sim B(n, p), \quad P(X = k) = \binom{n}{k} p^k (1-p)^{n-k}" />
+
+E(X) = np, Var(X) = np(1-p)
+
+```python
+from scipy.stats import binom
+import numpy as np
+
+# 例: n=10, p=0.5, 抛 10 次硬币, 正面次数的分布
+n, p = 10, 0.5
+x = np.arange(0, n + 1)
+pmf = binom.pmf(x, n, p)
+
+print(f"E(X) = {n*p}, Var(X) = {n*p*(1-p)}")
+print(f"P(X=5) = {pmf[5]:.3f}")  # 0.246
+print(f"P(X≥6) = {1 - binom.cdf(5, n, p):.3f}")  # 0.377
+```
+
+### 4.3 二项分布的 ML 应用
+
+| 场景 | 二项分布 |
+|---|---|
+| A/B 测试 | "n 个用户, 转化人数" |
+| 异常检测 | "过去 30 天, 0 次异常, 这是不是异常?" |
+| 分类准确率置信区间 | "n 个样本, 准确率 p 的 95% 置信区间" |
+| 抛硬币公平性 | 抛 100 次 60 次正面, p 真的 0.5 吗? |
+
+### 4.4 Python: A/B 测试转化率置信区间
+
+```python
+# 假设: A 组 1000 人 120 转化, B 组 1000 人 150 转化
+# B 组真的更好吗? 用二项分布置信区间
+from scipy.stats import binom
+n_a, x_a = 1000, 120
+n_b, x_b = 1000, 150
+
+# 用 Wilson 区间
+def wilson_ci(x, n, alpha=0.05):
+    from scipy.stats import norm
+    z = norm.ppf(1 - alpha / 2)
+    p_hat = x / n
+    denom = 1 + z**2 / n
+    center = (p_hat + z**2 / (2 * n)) / denom
+    margin = z * np.sqrt(p_hat * (1 - p_hat) / n + z**2 / (4 * n**2)) / denom
+    return center - margin, center + margin
+
+ci_a = wilson_ci(x_a, n_a)
+ci_b = wilson_ci(x_b, n_b)
+print(f"A 转化率: {x_a/n_a:.1%}, 95% CI: [{ci_a[0]:.1%}, {ci_a[1]:.1%}]")
+print(f"B 转化率: {x_b/n_b:.1%}, 95% CI: [{ci_b[0]:.1%}, {ci_b[1]:.1%}]")
+# 如果 CI 不重叠 → B 显著更好
+```
+
+## 5. 泊松分布: 稀有事件
+
+**单位时间/空间内** 稀有事件发生次数的分布。X ~ Poisson(λ)
+
+<MBlock tex="P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}" />
+
+E(X) = λ, Var(X) = λ (**均值 = 方差** 是泊松的标志)
+
+适用场景:
+- 1 小时内客服电话数
+- 1 公里道路上的车祸数
+- 一本书每页的错别字数
+- 一年内地震次数 (>4 级)
+
+```python
+from scipy.stats import poisson
+import numpy as np
+
+# 例: 平均每小时 3 通电话, 问 1 小时内 ≥ 5 通电话的概率
+lam = 3
+p_5_or_more = 1 - poisson.cdf(4, lam)
+print(f"P(X≥5) = {p_5_or_more:.3f}")
+# 0.185
+```
+
+### 泊松 vs 二项
+- **二项**: 有限 n 次独立实验, 关注成功次数
+- **泊松**: 无限或大 n, 关注"单位时间/空间内的事件数"
+- 当 n → ∞, p → 0, np → λ 时, 二项 → 泊松 (极限)
+
+### 5.1 ML 应用: 异常检测
+
+```python
+# 监控 API 每分钟请求数, 历史平均 100, 突然到 500 算异常?
+from scipy.stats import poisson
+lam = 100  # 历史平均
+threshold_high = poisson.ppf(0.999, lam)  # 99.9% 分位数
+print(f"正常范围上限: {threshold_high}")  # ≈ 149
+# 500 远超 149, 几乎肯定是异常
+```
+
+## 6. 几何分布与负二项
+
+### 6.1 几何分布
+"第 k 次才第一次成功" 的分布: P(X = k) = (1-p)^(k-1) × p
+
+E(X) = 1/p, Var(X) = (1-p) / p²
+
+```python
+from scipy.stats import geom
+# 平均 1/0.1 = 10 次出一次正面, 问前 5 次都没正面的概率
+print(geom.pmf(6, 0.1))  # 第 6 次才出现: (0.9)^5 × 0.1 = 0.059
+```
+
+### 6.2 负二项分布
+"第 r 次成功需要多少次实验" — 几何分布的推广。
+
+## 7. Python 实战: 真实数据拟合
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import binom, poisson, norm
+
+# 1. 二项分布模拟
+np.random.seed(42)
+samples_binom = np.random.binomial(n=20, p=0.3, size=10000)
+# 经验分布 vs 理论
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.hist(samples_binom, bins=21, density=True, alpha=0.7, label="模拟")
+x = np.arange(0, 21)
+plt.plot(x, binom.pmf(x, 20, 0.3), "ro-", label="理论")
+plt.title("二项分布: n=20, p=0.3"); plt.legend()
+
+# 2. 泊松分布模拟
+samples_pois = np.random.poisson(lam=4, size=10000)
+plt.subplot(1, 2, 2)
+plt.hist(samples_pois, bins=20, density=True, alpha=0.7, label="模拟")
+x = np.arange(0, 20)
+plt.plot(x, poisson.pmf(x, 4), "ro-", label="理论")
+plt.title("泊松分布: λ=4"); plt.legend()
+plt.tight_layout(); plt.show()
+```
+
+## 8. 期望在 ML 中的角色
+
+| 概念 | 期望视角 |
+|---|---|
+| 损失函数 | Risk = E[loss] — 期望损失, 真实泛化性能 |
+| 经验风险 | 训练集平均 = 经验估计 R̂ ≈ R |
+| 集成学习 | E[预测] = 单模型平均 ≈ 强模型 |
+| 蒙特卡洛 | 大量样本均值 ≈ 期望 |
+| 强化学习 | 累积奖励的期望 = V(s) 价值函数 |
+
+## 9. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 概率分布 | 给每个可能值分配概率, 不只是单次概率 |
+| 期望 | E(X) = 长期平均值, 不是"下次一定" |
+| 方差 | Var(X) = E[(X-μ)²], 度量波动 |
+| 二项分布 | n 次独立伯努利, 关注成功次数 |
+| 泊松分布 | 稀有事件, λ 是均值 = 方差 |
+| 几何/负二项 | "第 k 次才成功" 系列 |
+| 分布拟合 | 用模拟验证理论, 直观理解 |
+
+## 10. 习题
+
+1. 一家工厂次品率 2%, 抽 50 件:
+   - 用二项分布计算"恰好 1 件次品"的概率
+   - 用泊松近似 (λ = np = 1) 算"恰好 1 件"的概率, 跟二项对比
+   - 抽到的次品数 X 的分布, 期望和方差各是多少?
+
+2. 监控某服务, 平均每分钟 5 次错误, 假设泊松分布:
+   - 1 分钟内**没有**错误的概率?
+   - 1 分钟内**超过 10 次**错误的概率?
+   - 如果 1 分钟内出现 30 次错误, 是不是异常? 用 0.999 分位数判断
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - 恰好 1 件: binom.pmf(1, 50, 0.02) ≈ 0.371
+   - 泊松近似: poisson.pmf(1, 1) ≈ 0.368
+   - 期望 = 50 × 0.02 = 1, 方差 = 50 × 0.02 × 0.98 = 0.98 (≈ 1, 泊松近似)
+   - 泊松近似很准, 因为 n=50 大、p=0.02 小、np=1 固定。
+
+2. 计算:
+   - 0 错误: poisson.pmf(0, 5) ≈ 0.0067 (大约 1 分钟 0 错误只有 0.67%)
+   - > 10 错误: 1 - poisson.cdf(10, 5) ≈ 0.014
+   - 99.9% 分位: poisson.ppf(0.999, 5) ≈ 14, 所以 30 次远超异常阈值。
+
+</details>
+
+## 11. 下一章
+
+- [正态分布](/courses/stats-continuous/normal-distribution/): 连续分布之王, 中心极限定理
+- [抽样分布与中心极限定理](/courses/stats-continuous/sampling-clt/): 为什么样本均值也服从正态
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): A/B 测试的概率基础
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 5 章, 加入 A/B 测试和异常检测实战。

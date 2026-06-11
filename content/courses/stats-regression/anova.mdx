@@ -1,0 +1,329 @@
+---
+slug: "anova"
+title: "方差分析 ANOVA"
+description: "比较 3+ 组的均值。单因素、双因素 ANOVA 与 Bonferroni 修正。"
+duration: "35 分钟"
+---
+
+# 方差分析 ANOVA
+
+> **本章问题**: 5 种广告文案, 哪种转化率最高? 一次跑 5 次 t 检验 (C(5,2) = 10 对) 会怎样? 答案: **p-hacking**, 假阳性爆炸。ANOVA 是"用一次检验代替多次 t 检验"。
+
+## 1. ANOVA 的核心思想
+
+> **变异分解**: 把"总变异"拆成"组间" + "组内"。
+
+```
+总变异 SST = ∑(xᵢ - x̄)²
+   ├── 组间变异 SSA = ∑nᵢ(x̄ᵢ - x̄)²  (处理效应, "信号")
+   └── 组内变异 SSE = ∑∑(xᵢⱼ - x̄ᵢ)²  (误差, "噪声")
+```
+
+**F 统计量** = 信号/噪声:
+
+<MBlock tex="F = \frac{SSA/(k-1)}{SSE/(n-k)} = \frac{MS_{between}}{MS_{within}}" />
+
+- k = 组数, n = 总样本数
+- F 越大 → 组间差异越显著
+
+## 2. 单因素 ANOVA 流程
+
+### 2.1 假设
+- H₀: μ₁ = μ₂ = ... = μ_k (所有组均值相等)
+- H₁: 至少两个 μᵢ 不等
+
+### 2.2 数据要求
+- 各组**独立**
+- 各组**正态分布**
+- 各组**方差齐性** (可以用 Levene 检验)
+
+### 2.3 Python 一行
+
+```python
+from scipy.stats import f_oneway
+import numpy as np
+
+# 3 种广告文案的转化率 (连续化: 假设评分 1-100)
+np.random.seed(42)
+ad_a = np.random.normal(50, 10, 30)  # A 文案
+ad_b = np.random.normal(55, 10, 30)  # B 文案
+ad_c = np.random.normal(60, 10, 30)  # C 文案
+
+f_stat, p_val = f_oneway(ad_a, ad_b, ad_c)
+print(f"ANOVA: F = {f_stat:.3f}, p = {p_val:.4f}")
+# 显著 → 至少两组有差异
+```
+
+## 3. ANOVA 表
+
+| 来源 | SS (平方和) | df | MS (均方) | F | p |
+|---|---|---|---|---|---|
+| 组间 (处理) | SSA | k-1 | MSA = SSA/(k-1) | F = MSA/MSE | p |
+| 组内 (误差) | SSE | n-k | MSE = SSE/(n-k) |  |  |
+| 总 | SST | n-1 |  |  |  |
+
+```python
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+# 用 statsmodels 看完整 ANOVA 表
+df = pd.DataFrame({
+    "score": np.concatenate([ad_a, ad_b, ad_c]),
+    "ad": (["A"] * 30) + (["B"] * 30) + (["C"] * 30),
+})
+model = ols("score ~ C(ad)", data=df).fit()
+print(sm.stats.anova_lm(model, typ=2))
+```
+
+## 4. 事后检验: 哪两组有差异?
+
+> ANOVA 只说"至少两组有差异", 不说哪组。**必须做事后检验**:
+
+### 4.1 Bonferroni 修正
+> 用 t 检验比较每对, 但 α 调严: α' = α / C(k, 2)
+
+```python
+from scipy.stats import ttest_ind
+import itertools
+
+# 3 组, 3 对比较
+groups = {"A": ad_a, "B": ad_b, "C": ad_c}
+pairs = list(itertools.combinations(groups.keys(), 2))
+n_comparisons = len(pairs)
+alpha_bonf = 0.05 / n_comparisons
+
+print("事后比较 (Bonferroni 修正):")
+for g1, g2 in pairs:
+    t_stat, p = ttest_ind(groups[g1], groups[g2])
+    sig = "显著" if p < alpha_bonf else "不显著"
+    print(f"  {g1} vs {g2}: t = {t_stat:.3f}, p = {p:.4f} → {sig}")
+# 修正后阈值 0.05/3 = 0.0167
+```
+
+### 4.2 Tukey HSD (更专业)
+> **Tukey's Honestly Significant Difference**, 专为 ANOVA 设计, 比 Bonferroni 更稳。
+
+```python
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+tukey = pairwise_tukeyhsd(df["score"], df["ad"], alpha=0.05)
+print(tukey)
+# 输出: 每对比较, 是否拒绝 + 置信区间
+```
+
+## 5. 效应大小: η² (Eta-Squared)
+
+> 跟 R² 类似, η² 衡量"组间差异解释了多少总变异":
+
+<MBlock tex="\eta^2 = \frac{SSA}{SST}" />
+
+| η² | 解释 |
+|---|---|
+| 0.01 | 小 |
+| 0.06 | 中 |
+| 0.14 | 大 |
+
+```python
+# 偏 eta² (控制其他因素)
+from statsmodels.stats.anova import anova_lm
+result = anova_lm(model, typ=2)
+eta_sq = result["sum_sq"]["C(ad)"] / result["sum_sq"].sum()
+print(f"η² = {eta_sq:.3f}")
+```
+
+## 6. 方差齐性检验
+
+> ANOVA 假设各组方差相等。**先检验**!
+
+```python
+from scipy.stats import levene, bartlett
+
+# Levene 检验 (中位数, 稳健)
+stat, p = levene(ad_a, ad_b, ad_c)
+print(f"Levene 检验: stat = {stat:.3f}, p = {p:.4f}")
+# p > 0.05 → 方差齐性, ANOVA 适用
+
+# Bartlett 检验 (正态假设)
+stat, p = bartlett(ad_a, ad_b, ad_c)
+print(f"Bartlett 检验: stat = {stat:.3f}, p = {p:.4f}")
+```
+
+> 如果方差不齐: 用 **Welch ANOVA** (`pingouin.welch_anova`) 或直接用非参数 **Kruskal-Wallis**。
+
+## 7. 双因素 ANOVA
+
+> 2 个因素 (如广告文案 × 投放时段), 看**主效应 + 交互效应**。
+
+```python
+# 例: 文案 (3 种) × 时段 (2 种: 早/晚)
+import pandas as pd
+import numpy as np
+np.random.seed(42)
+df = pd.DataFrame({
+    "ad": np.repeat(["A", "B", "C"], 20),
+    "time": (["morning"] * 10 + ["evening"] * 10) * 3,
+    "score": np.concatenate([
+        np.random.normal(50, 5, 10), np.random.normal(55, 5, 10),  # A
+        np.random.normal(55, 5, 10), np.random.normal(60, 5, 10),  # B
+        np.random.normal(60, 5, 10), np.random.normal(50, 5, 10),  # C (晚上低)
+    ]),
+})
+
+# 双因素 ANOVA (含交互)
+model = ols("score ~ C(ad) * C(time)", data=df).fit()
+print(sm.stats.anova_lm(model, typ=2))
+# 输出:
+#                 sum_sq   df          F    PR(>F)
+# C(ad)            ...    2         ...      ...
+# C(time)          ...    1         ...      ...
+# C(ad):C(time)    ...    2         ...      ...   ← 交互效应
+# Residual         ...   54
+```
+
+### 7.1 主效应 vs 交互效应
+
+| 情况 | 解释 |
+|---|---|
+| 仅 ad 主效应显著 | 文案影响, 时段不影响, 跟时段无关 |
+| 仅 time 主效应显著 | 时段影响, 文案不影响 |
+| 仅交互显著 | 文案效果因时段而异 (C 晚上反而低) |
+| 都显著 | 文案 + 时段 + 交互都有影响 |
+| 都不显著 | 文案和时段都没用 |
+
+## 8. ANOVA vs 多次 t 检验
+
+> **重要**: 为什么不能跑多次 t 检验代替 ANOVA?
+
+| 比较次数 | α=0.05, 至少 1 次假阳性的概率 |
+|---|---|
+| 1 | 5% |
+| 3 (3 组) | 14% |
+| 5 | 23% |
+| 10 (5 组) | 40% |
+| 20 | 64% |
+
+**ANOVA 把"多次比较"问题降到一次, 控制总 α**。
+
+```python
+# 反例: 5 组, 跑 10 次 t 检验, 至少 1 次假阳性的概率
+p_at_least_one = 1 - (1 - 0.05)**10
+print(f"5 组, 跑 10 次 t 检验, 至少 1 次假阳性概率 = {p_at_least_one:.1%}")
+# 40%!
+```
+
+## 9. Python 实战: 营销活动完整分析
+
+```python
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+
+# 模拟 4 种营销活动, 各 50 个用户, 转化评分 (1-100)
+np.random.seed(42)
+data = pd.DataFrame({
+    "campaign": np.repeat(["邮件", "短信", "推送", "广告"], 50),
+    "score": np.concatenate([
+        np.random.normal(60, 10, 50),
+        np.random.normal(65, 10, 50),
+        np.random.normal(70, 10, 50),
+        np.random.normal(68, 10, 50),
+    ]),
+})
+
+# 1. 描述统计
+print(data.groupby("campaign")["score"].agg(["mean", "std", "count"]))
+
+# 2. 方差齐性
+from scipy.stats import levene
+groups = [data[data["campaign"] == c]["score"] for c in data["campaign"].unique()]
+stat, p_lev = levene(*groups)
+print(f"\nLevene 方差齐性: p = {p_lev:.3f}")
+
+# 3. 单因素 ANOVA
+model = ols("score ~ C(campaign)", data=data).fit()
+print("\nANOVA 表:")
+print(sm.stats.anova_lm(model, typ=2))
+
+# 4. 事后检验
+tukey = pairwise_tukeyhsd(data["score"], data["campaign"], alpha=0.05)
+print("\nTukey HSD 事后检验:")
+print(tukey)
+
+# 5. 效应大小
+ss_campaign = sm.stats.anova_lm(model, typ=2)["sum_sq"]["C(campaign)"]
+ss_total = data["score"].var(ddof=1) * (len(data) - 1)
+eta_sq = ss_campaign / ss_total
+print(f"\nη² = {eta_sq:.3f}")
+```
+
+## 10. ANOVA 在 ML 中的角色
+
+| 场景 | 用 ANOVA |
+|---|---|
+| 特征选择 (类别型) | 看"特征对 y 的影响" |
+| A/B/n 测试 | 多个组同时比 |
+| 实验设计 | 2×2×2 三因素, 看主+交互 |
+| 模型对比 | 多个模型在同一数据集, F 检验 |
+| 控制混杂 | ANCOVA (协方差分析) |
+
+```python
+# 特征选择: 类别型特征对连续 target 的影响
+import pandas as pd
+from sklearn.datasets import fetch_california_housing
+
+data = fetch_california_housing()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df["target"] = data.target
+df["high_income"] = (df["Population"] > df["Population"].median()).astype(str)
+
+# 看"高人口区" vs "低人口区" 房价均值
+model = ols("target ~ C(high_income)", data=df.sample(1000, random_state=0)).fit()
+print(sm.stats.anova_lm(model, typ=2))
+# 显著 → 人口密度跟房价相关
+```
+
+## 11. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| ANOVA | 一次检验比 3+ 组, 避免 p-hacking |
+| F 统计量 | 信号/噪声 (组间变异/组内变异) |
+| 3 假设 | 独立 + 正态 + 方差齐 (Levene 检验) |
+| 事后检验 | Tukey HSD > Bonferroni (更稳) |
+| η² 效应 | 0.01/0.06/0.14 小/中/大 |
+| 双因素 | 主效应 + 交互效应 |
+| ML 应用 | 特征选择、多组对比、实验设计 |
+
+## 12. 习题
+
+1. 4 种不同教学方法, 各 25 个学生, 比较期末成绩:
+   - 单因素 ANOVA F 检验
+   - 方差齐性 (Levene)
+   - 事后 Tukey HSD, 哪几种方法有差异?
+   - η² 是多少?
+
+2. 5 个模型在同一数据集上的 F1 (5 个随机种子): A=[0.85, 0.86, 0.84, 0.85, 0.86], B=[0.87, 0.88, 0.86, 0.87, 0.88], C=[0.86, 0.85, 0.86, 0.85, 0.87], D=[0.84, 0.85, 0.83, 0.85, 0.84], E=[0.87, 0.86, 0.88, 0.87, 0.86]
+   - 5 组间 ANOVA 显著吗?
+   - 5 组事后比较? 哪组最好?
+   - **重要**: 5 个样本能跑 ANOVA 吗? 解释
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 提示: 用 `ols("score ~ C(method)", data=df).fit()`, 看 F 统计量和 p 值, 然后 `pairwise_tukeyhsd`。
+
+2. 5 个样本做 ANOVA 严重违反"每组样本量足够"假设 (假设 ≥ 20), 应该改用**配对检验** (Wilcoxon) 而非 ANOVA。
+   **教训**: ANOVA 不是"组多了就 ANOVA", 跟样本量、组数、是否独立都有关。
+
+</details>
+
+## 13. 下一章
+
+- [机器学习入门 → EDA](/courses/ml-basics/eda-for-ml/): ANOVA 用于特征选择
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): ML 中的多组对比
+- [深度学习 → 训练过程的统计监控](/courses/deep-learning-advanced/training-stat-monitor/): 控制图
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 12 章 12-1、12-2 节, 加入营销实战。

@@ -1,0 +1,370 @@
+---
+slug: "eda-for-ml"
+title: "数据预处理与探索性分析 (EDA)"
+description: "用统计图表 + 集中趋势/离散度 指标快速摸清一份数据的样子。上 ML 前的"必修课"。"
+duration: "30 分钟"
+---
+
+# 数据预处理与探索性分析 (EDA)
+
+> **本章问题**: 拿到一份新数据, 第一步做什么? 答: 不是建模, 是**EDA**。一项研究: 数据科学家 80% 的时间花在 EDA 和清洗上, 只有 20% 在建模。
+
+## 1. 什么是 EDA?
+
+**Exploratory Data Analysis** = 探索性数据分析, 由 John Tukey (1962) 提出。
+
+**核心思想**: 在做任何假设/建模前, 先**用图表和数字**把数据"摸一遍"。
+
+> **3 个常见错误**:
+> 1. 不做 EDA, 直接建模 → 漏掉异常值、错关系、错数据
+> 2. 跳过可视化, 只看 describe() → 看不出偏态、聚类、异常
+> 3. 用训练集做 EDA, 然后用同一份数据评估 → 数据泄露
+
+## 2. EDA 的 4 步流水线
+
+```
+1. 数据概况 (head, info, describe, dtypes)
+   ↓
+2. 单变量分析 (分布、异常值、缺失)
+   ↓
+3. 双变量分析 (相关、散点、交叉表)
+   ↓
+4. 多变量分析 (交互、配对图、PCA 预览)
+```
+
+## 3. 真实数据 EDA 完整流程
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 加载泰坦尼克数据 (经典 EDA 案例)
+df = sns.load_dataset("titanic")
+print(df.head())
+print("\n形状:", df.shape)
+print("\n列类型:\n", df.dtypes)
+print("\n缺失值:\n", df.isnull().sum())
+print("\n数值统计:\n", df.describe())
+```
+
+## 4. 单变量分析: 摸清"每个列"
+
+### 4.1 数值列
+
+```python
+# 4 张子图: 直方图 + 箱形图 + QQ 图 + 描述
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+col = "age"
+
+# 1. 直方图 + 密度
+axes[0, 0].hist(df[col].dropna(), bins=30, edgecolor="black", density=True)
+df[col].dropna().plot.kde(ax=axes[0, 0], color="red")
+axes[0, 0].set_title(f"{col} 直方图 + 密度")
+
+# 2. 箱形图
+axes[0, 1].boxplot(df[col].dropna(), vert=False)
+axes[0, 1].set_title(f"{col} 箱形图")
+
+# 3. Q-Q 图
+from scipy.stats import probplot
+probplot(df[col].dropna(), dist="norm", plot=axes[1, 0])
+axes[1, 0].set_title(f"{col} Q-Q 图")
+
+# 4. 经验 CDF
+sorted_data = np.sort(df[col].dropna())
+cdf = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
+axes[1, 1].plot(sorted_data, cdf)
+axes[1, 1].set_title(f"{col} 经验 CDF")
+plt.tight_layout(); plt.show()
+```
+
+**关注 3 件事**:
+- **中心**: 均值 ≈ 中位数? → 对称; 否则偏态
+- **离散**: 标准差 / IQR 大? → 数据波动大
+- **形态**: 单峰 / 多峰? 正态 / 偏态? 异常值?
+
+### 4.2 分类列
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+# 计数
+df["class"].value_counts().plot(kind="bar", ax=axes[0], color="steelblue")
+axes[0].set_title("Class 计数")
+# 占比
+df["class"].value_counts(normalize=True).plot(kind="pie", ax=axes[1], autopct="%1.1f%%")
+axes[1].set_title("Class 占比")
+plt.tight_layout(); plt.show()
+```
+
+### 4.3 缺失值
+
+```python
+import missingno as msno
+msno.matrix(df)        # 缺失位置图
+msno.heatmap(df)       # 缺失相关性
+```
+
+## 5. 双变量分析: 变量间关系
+
+### 5.1 数值 vs 数值: 散点图 + 相关
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+# 散点
+axes[0].scatter(df["age"], df["fare"], alpha=0.5)
+axes[0].set_xlabel("age"); axes[0].set_ylabel("fare")
+
+# 相关热力图 (数值列)
+numeric = df.select_dtypes(include="number")
+sns.heatmap(numeric.corr(), annot=True, cmap="coolwarm", center=0, ax=axes[1],
+            vmin=-1, vmax=1, fmt=".2f")
+plt.tight_layout(); plt.show()
+```
+
+### 5.2 分类 vs 分类: 交叉表 + 卡方
+
+```python
+# 交叉表
+ct = pd.crosstab(df["class"], df["survived"], margins=True)
+ct_pct = pd.crosstab(df["class"], df["survived"], normalize="index")
+
+# 卡方检验
+from scipy.stats import chi2_contingency
+chi2, p, dof, exp = chi2_contingency(pd.crosstab(df["class"], df["survived"]))
+print(f"Class vs Survived: χ² = {chi2:.3f}, p = {p:.4f}")
+```
+
+### 5.3 数值 vs 分类: 分组箱形图
+
+```python
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+# 1. 分组箱形图
+df.boxplot(column="age", by="class", ax=axes[0])
+axes[0].set_title("Age by Class")
+
+# 2. 小提琴图 (更显示分布)
+sns.violinplot(data=df, x="class", y="age", ax=axes[1])
+plt.tight_layout(); plt.show()
+```
+
+## 6. 多变量: Pairplot + 交互热力图
+
+```python
+# Pairplot: 所有数值对都画散点 + 密度
+sns.pairplot(df[["age", "fare", "pclass", "survived"]].dropna(), hue="survived", diag_kind="kde")
+plt.suptitle("多变量关系", y=1.02)
+plt.show()
+```
+
+## 7. EDA 中的统计学工具
+
+| 工具 | 目的 |
+|---|---|
+| describe() | 中心 + 离散度 |
+| 直方图 / 密度图 | 分布形态 |
+| 箱形图 | 异常值检测 (1.5×IQR) |
+| Q-Q 图 | 正态性 |
+| Shapiro-Wilk | 定量正态性 |
+| Pearson r | 线性相关 |
+| Spearman ρ | 单调相关 (对异常值稳健) |
+| 卡方 | 类别变量独立性 |
+| VIF | 多重共线性 |
+| PCA | 高维降维可视化 |
+
+## 8. 异常值处理: 3 种策略
+
+```python
+import numpy as np
+
+# 数据
+np.random.seed(42)
+data = np.concatenate([np.random.normal(0, 1, 100), [10, -10]])  # 2 个异常
+
+# 1. 删除
+clean = data[np.abs(data) &lt; 3]
+
+# 2. 盖帽 (Winsorize)
+from scipy.stats.mstats import winsorize
+capped = winsorize(data, limits=[0.05, 0.05])  # 5%/95% 分位数外截断
+
+# 3. 替换 (用中位数)
+median = np.median(data)
+data_filled = np.where(np.abs(data) > 3, median, data)
+
+print(f"原: μ={data.mean():.2f}, σ={data.std():.2f}")
+print(f"删除: μ={clean.mean():.2f}")
+print(f"盖帽: μ={capped.mean():.2f}")
+print(f"替换: μ={data_filled.mean():.2f}")
+```
+
+## 9. 缺失值处理: 4 种策略
+
+| 策略 | 适用 | 缺点 |
+|---|---|---|
+| **删除** | 缺失 &lt; 5%, MCAR | 损失信息 |
+| **均值/中位数/众数填充** | 简单快速 | 低估方差 |
+| **前向/后向填充** | 时间序列 | 仅时间场景 |
+| **KNN / 回归 / 多重插补** | 重要变量 | 复杂 |
+
+```python
+# sklearn IterativeImputer (MICE) — 最先进
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+
+imputer = IterativeImputer(random_state=42, max_iter=10)
+df_imputed = pd.DataFrame(imputer.fit_transform(df.select_dtypes("number")),
+                          columns=df.select_dtypes("number").columns)
+```
+
+## 10. 标准化 vs 归一化
+
+```python
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
+import numpy as np
+
+data = np.array([[1], [2], [3], [4], [100]])  # 最后一个异常
+
+# 1. Z-score 标准化 (适合正态)
+s1 = StandardScaler().fit_transform(data)
+print(f"Z-score: {s1.flatten().round(2)}")
+# [1.96, 1.97, 1.98, 1.99, -7.91] 异常变成 -7.91 (极端)
+
+# 2. Min-Max (适合有界数据)
+s2 = MinMaxScaler().fit_transform(data)
+print(f"Min-Max: {s2.flatten().round(3)}")
+
+# 3. Robust (用中位数+IQR, 抗异常值)
+s3 = RobustScaler().fit_transform(data)
+print(f"Robust: {s3.flatten().round(2)}")
+# 异常值不会被"压扁"
+```
+
+## 11. 自动 EDA 库 (省时间)
+
+```python
+# pandas-profiling / ydata-profiling: 一行生成完整 EDA 报告
+# pip install ydata-profiling
+from ydata_profiling import ProfileReport
+
+profile = ProfileReport(df, title="Titanic EDA", explorative=True)
+profile.to_file("eda_report.html")
+# 自动生成 30+ 图表, 包括缺失、分布、相关、重复
+```
+
+```python
+# sweetviz: 另一种自动 EDA, 特别擅长"对比" (训练 vs 测试)
+# pip install sweetviz
+import sweetviz as sv
+report = sv.compare([df[df["survived"] == 1], "Survived"],
+                    [df[df["survived"] == 0], "Died"])
+report.show_html("compare.html")
+```
+
+## 12. 实战: Kaggle 风格 EDA 模板
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+def quick_eda(df, target=None):
+    """一键 EDA 报告"""
+    print("="*60)
+    print("数据形状:", df.shape)
+    print("="*60)
+    
+    # 1. 类型
+    print("\n数据类型:")
+    print(df.dtypes.value_counts())
+    
+    # 2. 缺失
+    print("\n缺失值 (前 10):")
+    missing = df.isnull().sum().sort_values(ascending=False)
+    print(missing[missing > 0].head(10))
+    
+    # 3. 重复
+    print(f"\n重复行: {df.duplicated().sum()}")
+    
+    # 4. 数值描述
+    print("\n数值列描述:")
+    print(df.describe().round(2).T)
+    
+    # 5. 分类描述
+    cat_cols = df.select_dtypes(exclude="number").columns
+    if len(cat_cols) > 0:
+        print("\n分类列描述:")
+        for col in cat_cols[:5]:
+            print(f"\n{col}: {df[col].nunique()} unique values")
+            print(df[col].value_counts().head(3))
+    
+    # 6. 相关热力图
+    numeric = df.select_dtypes(include="number")
+    if len(numeric.columns) > 1:
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(numeric.corr(), annot=True, cmap="coolwarm", center=0, fmt=".2f")
+        plt.title("相关系数热力图")
+        plt.tight_layout(); plt.show()
+    
+    # 7. 如果有 target, 看相关性
+    if target and target in numeric.columns:
+        print(f"\n与 {target} 的相关性 (Top 10):")
+        print(numeric.corr()[target].abs().sort_values(ascending=False).head(11))
+
+# 用
+quick_eda(df, target="fare")
+```
+
+## 13. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| EDA 价值 | 数据科学家 80% 时间花在 EDA, 不能跳过 |
+| 4 步流水线 | 概况 → 单变量 → 双变量 → 多变量 |
+| 单变量 | 分布、异常值、缺失、类型识别 |
+| 双变量 | 相关 (Pearson/Spearman)、交叉表、分组箱形图 |
+| 多变量 | Pairplot、PCA 预览 |
+| 异常值 | 删除 / 盖帽 / 替换 (3 策略) |
+| 缺失值 | 删除 / 简单填充 / 高级插补 |
+| 标准化 | Z-score / MinMax / Robust (按数据选) |
+| 自动工具 | ydata-profiling, sweetviz 节省时间 |
+
+## 14. 习题
+
+1. 用 `sns.load_dataset("tips")` 做完整 EDA:
+   - 哪些列有缺失? 多少?
+   - total_bill 分布: 偏态还是对称?
+   - total_bill 和 tip 的 Pearson r? Spearman ρ? 为什么 ρ > r?
+   - 性别 vs 吸烟 独立性 (卡方)?
+   - 用 RobustScaler 标准化 total_bill, 跟 StandardScaler 对比
+
+2. 用 `pd.read_csv()` 加载 `df = pd.DataFrame(np.random.normal(0, 1, (1000, 5)), columns=list("ABCDE"))`, 然后:
+   - 用 ydata-profiling 生成 HTML 报告
+   - 找出 1 个异常值 (3σ 以外), 删除后重新跑 ANOVA 看 A~E 差异
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 提示:
+   - tips 数据无缺失
+   - total_bill **右偏** (长尾往右, 跟大多数金额数据一样)
+   - Spearman ρ ≥ Pearson r, 因为 Spearman 用秩, 对极端 tip 不敏感, ρ > r 说明有大 tip 拉低 r
+   - 卡方检验 p 显著 → 性别跟吸烟有关 (历史上男性吸烟率更高)
+   - RobustScaler 用中位数, 抗异常; StandardScaler 用均值, 异常值会被拉偏
+
+2. 提示: ydata-profiling 会自动生成 30+ 报告, 包含 warnings (高相关、缺失、零值等)。删 1 个异常后, ANOVA 仍然不显著 (因为是随机数据)。
+
+</details>
+
+## 15. 下一章
+
+- [监督学习 → 假设检验与 A/B 测试](/courses/supervised-learning/hypothesis-testing/): 用统计方法比较模型
+- [统计学基础 → 描述统计](/courses/stats-foundations/descriptive-stats/): 统计学的核心度量
+- [统计学基础 → 用图表探索数据](/courses/stats-foundations/explore-with-charts/): 图表的更多玩法
+
+---
+
+> 📚 **本章综合**: 改编自 Triola《基础统计学》第 1-3 章 + 实战 EDA 范式, 加上 ML 视角的标准化、异常值、缺失值处理。

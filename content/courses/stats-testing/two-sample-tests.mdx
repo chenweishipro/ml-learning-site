@@ -1,0 +1,300 @@
+---
+slug: "two-sample-tests"
+title: "两样本推断与 A/B 测试"
+description: "独立样本 vs 配对样本 t 检验。A/B 测试、模型 A vs 模型 B, 全部靠它。"
+duration: "35 分钟"
+---
+
+# 两样本推断与 A/B 测试
+
+> **本章问题**: 两种教学方法, 班级 A 平均分 78, 班级 B 平均分 82。是 B 老师更厉害, 还是运气? 关键: 两个班级**独立**还是**配对**?
+
+## 1. 独立样本 vs 配对样本
+
+> **这一步选错, 后面全错!**
+
+| 类型 | 场景 | 例子 |
+|---|---|---|
+| **独立** | 两组样本**互不影响** | 不同病人分到 A/B 组、两个不同用户群 |
+| **配对** | 同一对象的**两次测量** | 同一病人用药前后、同一学生两次考试 |
+
+```python
+# 独立
+group_a = [78, 82, 91, 75, 88]    # 5 个学生
+group_b = [85, 90, 79, 92, 87]    # 另 5 个学生
+# → 两样本独立 t 检验
+
+# 配对
+before = [180, 165, 170, 175, 190]  # 5 个病人用药前
+after  = [165, 158, 162, 168, 180]  # 同一批病人用药后
+# → 配对 t 检验 (分析 before - after)
+```
+
+## 2. 独立样本 t 检验
+
+### 2.1 假设
+- H₀: μ₁ = μ₂ (两组均值相等)
+- H₁: μ₁ ≠ μ₂
+
+### 2.2 检验统计量 (合并方差)
+
+<MBlock tex="t = \frac{\bar{x}_1 - \bar{x}_2}{s_p \sqrt{\frac{1}{n_1} + \frac{1}{n_2}}}" />
+
+<MBlock tex="s_p^2 = \frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}" />
+
+<MBlock tex="df = n_1 + n_2 - 2" />
+
+### 2.3 Python 一行
+
+```python
+from scipy.stats import ttest_ind
+import numpy as np
+
+np.random.seed(42)
+# A 组: 老方法, 转化 30/500
+# B 组: 新方法, 转化 45/500
+conv_a = np.concatenate([np.ones(30), np.zeros(470)])
+conv_b = np.concatenate([np.ones(45), np.zeros(455)])
+
+t_stat, p_two = ttest_ind(conv_a, conv_b, equal_var=True)
+print(f"独立 t 检验: t = {t_stat:.3f}, p = {p_two:.4f}")
+# t ≈ -2.10, p ≈ 0.036 → 显著, 新方法更好
+```
+
+## 3. Welch t 检验 (方差不齐时)
+
+> 默认假设两组方差相等。**实际中方差经常不等**, 用 Welch 检验更稳:
+
+```python
+t_stat, p_two = ttest_ind(conv_a, conv_b, equal_var=False)  # Welch
+print(f"Welch t 检验: t = {t_stat:.3f}, p = {p_two:.4f}")
+# 略不同的 p, 但通常差别不大
+```
+
+> 💡 **最佳实践**: **永远默认 Welch**。它不假设方差相等, 在方差相等时也正确, 更稳健。
+
+## 4. 配对样本 t 检验
+
+> 同一对象的两次测量, **差值 d = x_after - x_before** 才是核心。
+
+```python
+from scipy.stats import ttest_rel
+import numpy as np
+
+# 10 个病人, 用药前后血压
+before = np.array([180, 165, 170, 175, 190, 185, 178, 192, 188, 170])
+after  = np.array([165, 158, 162, 168, 180, 175, 170, 184, 178, 162])
+
+t_stat, p_two = ttest_rel(after, before)  # 看 after - before
+# 也可以: ttest_rel(before - after) 然后看符号
+print(f"配对 t 检验: t = {t_stat:.3f}, p = {p_two:.4f}")
+# t 显著 (血压降了)
+```
+
+### 配对的 3 个关键点
+1. **必须配对**: 同一对象的两测量, 不是两组独立对象!
+2. **看差值分布**: `d_i = x_{i,after} - x_{i,before}`
+3. **差值要近似正态**: 用 Shapiro-Wilk 检验差值
+
+## 5. A/B 测试: 两样本比例检验
+
+> 转化率 (0/1 变量) 实际上也是两样本问题, 用 **z 检验**:
+
+<MBlock tex="z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})\left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}" />
+
+其中 <M tex="\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}" /> 是合并比例。
+
+```python
+from statsmodels.stats.proportion import proportions_ztest
+
+# A 组: 1000 人, 转化 100; B 组: 1000 人, 转化 130
+count = np.array([130, 100])
+nobs = np.array([1000, 1000])
+z_stat, p_two = proportions_ztest(count, nobs)
+print(f"比例 z 检验: z = {z_stat:.3f}, p = {p_two:.4f}")
+# z = 2.18, p = 0.029 → 显著, B 更好
+```
+
+### 5.1 A/B 测试完整流程
+
+```python
+import numpy as np
+from scipy import stats
+from statsmodels.stats.proportion import proportion_confint
+
+def ab_test(n_a, x_a, n_b, x_b, alpha=0.05):
+    """完整 A/B 测试报告"""
+    p_a, p_b = x_a / n_a, x_b / n_b
+    diff = p_b - p_a
+    
+    # 1. 假设检验
+    z, p_val = proportions_ztest([x_b, x_a], [n_b, n_a])
+    
+    # 2. 置信区间 (差值)
+    se = np.sqrt(p_a*(1-p_a)/n_a + p_b*(1-p_b)/n_b)
+    ci_low = diff - 1.96*se
+    ci_high = diff + 1.96*se
+    
+    # 3. 各自置信区间 (Wilson)
+    ci_a = proportion_confint(x_a, n_a, alpha=alpha, method="wilson")
+    ci_b = proportion_confint(x_b, n_b, alpha=alpha, method="wilson")
+    
+    # 4. 效应大小 (Cohen's h)
+    h = 2 * (np.arcsin(np.sqrt(p_b)) - np.arcsin(np.sqrt(p_a)))
+    
+    # 5. 决策
+    decision = "显著" if p_val < alpha else "不显著"
+    
+    return {
+        "A 转化率": f"{p_a:.3%} 95% CI [{ci_a[0]:.3%}, {ci_a[1]:.3%}]",
+        "B 转化率": f"{p_b:.3%} 95% CI [{ci_b[0]:.3%}, {ci_b[1]:.3%}]",
+        "B - A 差异": f"{diff:+.3%} 95% CI [{ci_low:+.3%}, {ci_high:+.3%}]",
+        "z 统计量": f"{z:.3f}",
+        "p 值": f"{p_val:.4f}",
+        "效应大小 (h)": f"{h:.3f} (0.2 小, 0.5 中, 0.8 大)",
+        "决策": f"{decision} (α={alpha})",
+    }
+
+# 测试
+result = ab_test(n_a=1000, x_a=100, n_b=1000, x_b=130)
+for k, v in result.items():
+    print(f"  {k:20s}: {v}")
+```
+
+输出:
+```
+  A 转化率             : 10.000% 95% CI [8.3%, 12.0%]
+  B 转化率             : 13.000% 95% CI [11.1%, 15.2%]
+  B - A 差异           : +3.000% 95% CI [+0.3%, +5.7%]
+  z 统计量              : 2.180
+  p 值                  : 0.0293
+  效应大小 (h)         : 0.095 (0.2 小, 0.5 中, 0.8 大)
+  决策                 : 显著 (α=0.05)
+```
+
+## 6. 两样本方差比 F 检验
+
+> **方差的差异**有时也很重要 (例如: 新方法稳定性如何)。
+
+```python
+from scipy.stats import f
+# F 检验两组方差
+def f_test(x, y):
+    f_stat = x.var(ddof=1) / y.var(ddof=1)
+    df1, df2 = len(x) - 1, len(y) - 1
+    p = 1 - f.cdf(f_stat, df1, df2)
+    return f_stat, p
+
+# 例: A 组 30 人, B 组 30 人, 比较反应时间
+np.random.seed(42)
+group_a = np.random.normal(100, 15, 30)  # σ=15
+group_b = np.random.normal(100, 20, 30)  # σ=20
+f_stat, p_val = f_test(group_a, group_b)
+print(f"F 检验方差齐性: F = {f_stat:.3f}, p = {p_val:.3f}")
+# p &lt; 0.05 → 方差不齐, 用 Welch t 检验
+```
+
+## 7. 非正态怎么办?
+
+| 数据分布 | 推荐检验 |
+|---|---|
+| 正态 + 方差齐 | 两样本 t 检验 |
+| 正态 + 方差不齐 | Welch t 检验 |
+| **不**正态 | **Mann-Whitney U 检验** (下章) |
+| 大样本 (n &gt; 30) | t 检验对偏离正态稳健 |
+
+> 💡 **ML 实战**: 实际 ML 评估指标 (accuracy, F1) 经常**不正态**, 用 **Bootstrap CI** + **Wilcoxon 符号秩** 检验更靠谱。
+
+## 8. 进阶: 多组比较怎么办?
+
+> 3 个以上组的均值比较, 用 **ANOVA** (单因素方差分析)。下章 (第 12 章 ANOVA) 详讲。
+
+```python
+from scipy.stats import f_oneway
+# 3 种方法效果
+method_a = np.random.normal(80, 5, 30)
+method_b = np.random.normal(82, 5, 30)
+method_c = np.random.normal(85, 5, 30)
+f_stat, p_val = f_oneway(method_a, method_b, method_c)
+print(f"ANOVA: F = {f_stat:.3f}, p = {p_val:.4f}")
+# p &lt; 0.05 → 至少两组有显著差异 (但哪两组? → 做事后检验)
+```
+
+## 9. Python 实战: 完整 ML 评估对比
+
+```python
+import numpy as np
+from scipy import stats
+
+# 模拟 5 个随机种子下, 模型 A 和 B 的 F1 分数
+np.random.seed(42)
+f1_a = np.random.normal(0.85, 0.02, 5)  # 模型 A: 平均 0.85
+f1_b = np.random.normal(0.87, 0.025, 5) # 模型 B: 平均 0.87
+
+print(f"模型 A F1: {f1_a.mean():.4f} ± {f1_a.std(ddof=1):.4f}")
+print(f"模型 B F1: {f1_b.mean():.4f} ± {f1_b.std(ddof=1):.4f}")
+
+# 1. 配对 t 检验 (同 5 个种子)
+t_stat, p_val = stats.ttest_rel(f1_b, f1_a)
+print(f"配对 t 检验: t = {t_stat:.3f}, p = {p_val:.4f}")
+
+# 2. Wilcoxon 符号秩 (非参数, 样本小时更稳)
+w_stat, p_val = stats.wilcoxon(f1_b - f1_a)
+print(f"Wilcoxon 检验: W = {w_stat:.3f}, p = {p_val:.4f}")
+
+# 3. 差值 95% CI (paired)
+diff = f1_b - f1_a
+t_crit = stats.t.ppf(0.975, len(diff) - 1)
+margin = t_crit * diff.std(ddof=1) / np.sqrt(len(diff))
+ci = (diff.mean() - margin, diff.mean() + margin)
+print(f"差值 95% CI: [{ci[0]:.4f}, {ci[1]:.4f}]")
+# CI 不包含 0 → 显著
+```
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 独立 vs 配对 | 选错全错! 同对象 vs 不同对象 |
+| 独立 t 检验 | 两组不同对象, equal_var=False (Welch) |
+| 配对 t 检验 | 同对象两测量, 看差值 |
+| A/B 比例 | proportions_ztest, CI 报告 |
+| 决策 | p &lt; α + 95% CI 不含 0 + 看效应 |
+| 方差不齐 | Welch 永远默认, 不会错 |
+| 不正态 | 改用 Wilcoxon / Bootstrap |
+
+## 11. 习题
+
+1. 两个班级, A 班 30 人平均 78 (σ=10), B 班 30 人平均 82 (σ=12):
+   - 独立 t 检验 p 值?
+   - Welch 检验 p 值?
+   - 95% CI 差值?
+
+2. 同一批 20 个病人, 用药前血压均 165 (σ=15), 用药后 155 (σ=14):
+   - 配对 t 检验 p 值? 差值 95% CI?
+   - 跟"配对 30+30 人独立"哪个 power 更高? 为什么?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - 独立 t 检验 (等方差): t = (78-82)/合并 SE ≈ -1.32, p ≈ 0.19 (不显著)
+   - Welch: t ≈ -1.32, df 略小, p ≈ 0.19
+   - 95% CI: 4 ± 1.96 × √(10²/30 + 12²/30) = 4 ± 5.48 = [-1.5, 9.5]
+   - CI 包含 0 → 不显著 (虽然均值差 4 分)
+
+2. 计算:
+   - d = 165 - 155 = 10, t = 10 / (15/√20) ≈ 2.98, p ≈ 0.008
+   - 差值 95% CI: 10 ± 2.093 × 15/√20 = [2.98, 17.02]
+   - 配对 power 更高: 因为"同对象"消除了个体差异 (年龄/性别), 只看"用药"效应
+
+</details>
+
+## 12. 下一章
+
+- [非参数检验](/courses/stats-testing/nonparametric-tests/): 不假设正态的检验
+- [机器学习 → 假设检验与 A/B 测试](/courses/supervised-learning/hypothesis-testing/): 完整 ML 实战
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 9 章 9-1、9-2、9-3 节, 加入 A/B 测试完整流程。

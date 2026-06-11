@@ -1,0 +1,255 @@
+---
+slug: "ci-mean-proportion"
+title: "置信区间: 均值与比例"
+description: "用样本估计总体, 给出"区间"和"可信度"。统计学最常用的报告方式。"
+duration: "30 分钟"
+---
+
+# 置信区间: 均值与比例
+
+> **本章问题**: 调研报告说"民调候选人 A 支持率 52% ± 2%"。这 ± 2% 怎么来的? 如果再调一次, 还会落在 50-54% 吗? 这就是**置信区间**。
+
+## 1. 为什么要区间估计?
+
+| 估计方式 | 报告形式 | 例子 |
+|---|---|---|
+| **点估计** | 一个数 | "平均寿命 78.5 岁" |
+| **区间估计** | 区间 + 置信度 | "平均寿命 [76.3, 80.7] (95% 置信)" |
+
+**点估计永远有误差**, 但很多人误以为它就是"真值"。区间估计**诚实地承认了不确定性**。
+
+## 2. 置信区间的核心思想
+
+> 置信区间: 从样本计算一个区间 [L, U], 使得在重复抽样下, **有 X% 的区间会包含真参数**。
+
+**最常被误解的概念**:
+- ❌ "真值有 95% 概率落在 [L, U]"  ← **错!**
+- ✅ "如果我们重复抽样 100 次, 大约 95 次的区间会包含真值"  ← **对!**
+
+> 真值 μ 是**固定**的, 区间是**随机的**。单个区间要么包含 μ, 要么不包含, **概率 0 或 1**。只有"重复抽样"才有 95% 这个数。
+
+## 3. 均值的置信区间
+
+### 3.1 σ 已知 (z 区间)
+<MBlock tex="\bar{x} \pm z_{\alpha/2} \cdot \frac{\sigma}{\sqrt{n}}" />
+
+### 3.2 σ 未知 (t 区间, 最常见)
+<MBlock tex="\bar{x} \pm t_{\alpha/2, n-1} \cdot \frac{s}{\sqrt{n}}" />
+
+```python
+import numpy as np
+from scipy.stats import t, norm
+
+# 例: 抽 25 个灯泡, 平均寿命 980h, 标准差 30h
+n = 25
+xbar = 980
+s = 30
+confidence = 0.95
+
+# t 临界值
+alpha = 1 - confidence
+t_crit = t.ppf(1 - alpha/2, df=n-1)  # ≈ 2.064
+margin = t_crit * s / np.sqrt(n)
+ci = (xbar - margin, xbar + margin)
+print(f"95% CI: [{ci[0]:.1f}, {ci[1]:.1f}]")
+# ≈ [967.6, 992.4]
+```
+
+### 3.3 几个常见 t 临界值
+| df | t(0.025) | t(0.005) |
+|---|---|---|
+| 1 | 12.71 | 63.66 |
+| 10 | 2.228 | 3.169 |
+| 30 | 2.042 | 2.750 |
+| 100 | 1.984 | 2.626 |
+| ∞ (z) | 1.960 | 2.576 |
+
+> n 越大, t → z。
+
+## 4. 比例的置信区间
+
+> 调研 1000 人, 520 人支持某政策, 支持率 52% 的 95% CI?
+
+<MBlock tex="\hat{p} \pm z_{\alpha/2} \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}" />
+
+```python
+from scipy.stats import norm
+n = 1000
+p_hat = 0.52
+z_crit = norm.ppf(0.975)  # 1.96
+margin = z_crit * np.sqrt(p_hat * (1 - p_hat) / n)
+ci = (p_hat - margin, p_hat + margin)
+print(f"95% CI: [{ci[0]:.3f}, {ci[1]:.3f}]")
+# ≈ [0.489, 0.551]
+```
+
+### 4.1 Wilson 区间 (更准)
+经典 z 区间在 p 接近 0 或 1 时不准。**Wilson 区间**或 **Clopper-Pearson** 更稳:
+
+```python
+from scipy.stats import beta
+# Clopper-Pearson 精确区间
+def cp_ci(x, n, alpha=0.05):
+    lower = beta.ppf(alpha/2, x, n - x + 1) if x > 0 else 0
+    upper = beta.ppf(1 - alpha/2, x + 1, n - x) if x &lt; n else 1
+    return lower, upper
+
+print(cp_ci(0, 100))   # 0 个事件: [0, 0.036]
+print(cp_ci(520, 1000))  # 跟 z 区间接近
+```
+
+## 5. 样本量计算:我需要抽多少?
+
+> 想要"误差不超过 1 个百分点, 95% 置信", 至少抽多少?
+
+<MBlock tex="n = \left(\frac{z_{\alpha/2} \cdot \sigma}{E}\right)^2" />
+
+**E = 允许的最大误差** (margin of error)。
+
+```python
+# 比例场景: 想让 margin ≤ 0.01, 95% 置信
+z = norm.ppf(0.975)
+E = 0.01
+# 最坏情况 p=0.5 (方差最大)
+n = (z / E)**2 * 0.25
+print(f"所需 n = {n:.0f}")  # ≈ 9604
+# 所以"误差 1%"的民调至少要 1 万人!
+```
+
+## 6. 常见错误
+
+### 6.1 "样本量" vs "总体数"
+如果总体 N 很大, 抽样比例 n/N &lt; 5%, **不需要修正**。
+如果 n/N &gt; 5%, 用**有限总体修正**:
+
+<MBlock tex="\text{调整后 SE} = \frac{\sigma}{\sqrt{n}} \cdot \sqrt{\frac{N-n}{N-1}}" />
+
+### 6.2 选错公式
+| 场景 | 用 | 关键 |
+|---|---|---|
+| 大样本 + σ 已知 | z | 几乎只出现在理论题 |
+| 小样本 + σ 未知 (正常) | t | 现实中最常见 |
+| 比例 | z 或 Wilson | Wilson 更稳 |
+| 两个均值/比例比较 | 见下章 | 公式不同 |
+
+### 6.3 95% 含义
+不是"区间 95% 准确", 而是"方法 95% 可靠"。具体一次抽样, 区间要么对要么错, 没"准确度"。
+
+## 7. Python 实战: 完整置信区间报告
+
+```python
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+# 加载鸢尾花数据
+import seaborn as sns
+df = sns.load_dataset("iris")
+
+# 对每个数值列, 计算均值和 95% CI
+results = []
+for col in df.select_dtypes("number").columns:
+    data = df[col].dropna().values
+    n = len(data)
+    xbar = data.mean()
+    s = data.std(ddof=1)
+    t_crit = stats.t.ppf(0.975, df=n-1)
+    margin = t_crit * s / np.sqrt(n)
+    results.append({
+        "变量": col,
+        "n": n,
+        "均值": f"{xbar:.3f}",
+        "标准差": f"{s:.3f}",
+        "95% CI 下限": f"{xbar - margin:.3f}",
+        "95% CI 上限": f"{xbar + margin:.3f}",
+        "宽度": f"{2*margin:.3f}",
+    })
+
+print(pd.DataFrame(results).to_string(index=False))
+```
+
+输出 (示例):
+```
+      变量     n      均值    标准差  95% CI 下限  95% CI 上限     宽度
+sepal_length  150   5.843   0.828      5.710        5.977   0.268
+ sepal_width  150   3.057   0.436      2.987        3.128   0.141
+petal_length  150   3.758   1.765      3.473        4.043   0.570
+ petal_width  150   1.199   0.762      1.077        1.322   0.245
+```
+
+## 8. 置信区间 vs 预测区间
+
+容易混! 区别:
+
+| 区间 | 估计目标 | 公式 |
+|---|---|---|
+| **置信区间 (CI)** | 总体参数 (μ, p) | x̄ ± t × s/√n |
+| **预测区间 (PI)** | 单个未来值 | x̄ ± t × s × √(1 + 1/n) |
+
+> CI 更窄 (估的是平均), PI 更宽 (估的是单个, 含个体变异)。
+
+```python
+# 例: 已知 25 个灯泡平均 980h ± 30h
+# CI: 估计"所有这种灯泡平均寿命"
+# PI: 估计"下一个灯泡的寿命"
+n, xbar, s = 25, 980, 30
+t_crit = stats.t.ppf(0.975, n-1)
+ci = (xbar - t_crit * s/np.sqrt(n), xbar + t_crit * s/np.sqrt(n))
+pi = (xbar - t_crit * s*np.sqrt(1 + 1/n), xbar + t_crit * s*np.sqrt(1 + 1/n))
+print(f"95% CI (均值): [{ci[0]:.1f}, {ci[1]:.1f}]")  # 窄
+print(f"95% PI (单值): [{pi[0]:.1f}, {pi[1]:.1f}]")  # 宽
+```
+
+## 9. ML 中的置信区间
+
+| 场景 | 应用 |
+|---|---|
+| 模型准确率 | 95% CI: [0.82, 0.88] (测试集 1000 样本) |
+| A/B 测试 | 转化率 95% CI 不重叠 → 显著 |
+| 回归系数 | β ± SE (标准误) |
+| 预测 | sklearn 不给 CI, 但 `mapie` 库可以 |
+| 强化学习 | 多次随机种子, 报告"平均 ± SE" |
+| 假设检验 | 95% CI 不含"零假设值" → 拒绝 H₀ (下章) |
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 区间估计 | 比点估计更诚实, 量化不确定性 |
+| z 区间 | σ 已知或 n 很大时用 |
+| t 区间 | σ 未知时, 用 s 估计, df=n-1 |
+| 比例区间 | z 或 Wilson, Wilson 更稳 |
+| 样本量 | n = (z × σ / E)², 误差越小要 n 越多 |
+| 95% 含义 | "方法 95% 可靠", 不是"区间 95% 准确" |
+| CI vs PI | CI 估参数, PI 估单值, PI 更宽 |
+
+## 11. 习题
+
+1. 100 个学生, 平均成绩 75, 标准差 10。求 95% 和 99% 置信区间。
+
+2. 民调 1500 人, 60% 支持某政策。求 95% 置信区间。如果要"误差 ≤ 1%", 至少需要多少人?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - 95% CI: 75 ± 1.984 × 10/√100 = 75 ± 1.98 = [73.02, 76.98]
+   - 99% CI: 75 ± 2.626 × 10/√100 = 75 ± 2.63 = [72.37, 77.63]
+   - 99% 更宽, 因为要求更高的"可靠度"。
+
+2. 计算:
+   - 95% CI: 0.60 ± 1.96 × √(0.24/1500) = [0.575, 0.625]
+   - 误差 1% 所需 n: (1.96/0.01)² × 0.25 ≈ 9604
+   - 但用 0.6 估计, 实际所需: (1.96/0.01)² × 0.6 × 0.4 ≈ 9220
+   - 所以"误差 1%"的民调至少 1 万人。
+
+</details>
+
+## 12. 下一章
+
+- [假设检验基础](/courses/stats-testing/hypothesis-testing-basics/): p 值、两类错误, 用 CI 替代 H₀
+- [监督学习 → 假设检验与 A/B 测试](/courses/supervised-learning/hypothesis-testing/): ML 实战
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 7 章 7-1、7-2、7-3 节, 加入 ML 视角。

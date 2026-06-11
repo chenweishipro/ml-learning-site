@@ -1,0 +1,291 @@
+---
+slug: "bayes-theorem"
+title: "条件概率与贝叶斯定理"
+description: "P(A|B)、贝叶斯公式、医学检验、垃圾邮件过滤。机器学习最重要的概率工具。"
+duration: "35 分钟"
+---
+
+# 条件概率与贝叶斯定理
+
+> **本章问题**: 新冠抗原检测阳性, 你真的有新冠的概率多大? 很多人以为是 90%, 实际可能只有 30%。这就是**贝叶斯定理**要回答的问题。
+
+## 1. 条件概率: 在已知 B 的情况下, A 发生的概率
+
+<MBlock tex="P(A \mid B) = \frac{P(A \cap B)}{P(B)}" />
+
+可以理解为: 把样本空间**缩小**到 B 发生的世界, 再看 A 在其中的比例。
+
+### 直观例子: 抽扑克
+- 52 张, 抽一张是 K: P(K) = 4/52 = 1/13
+- 已经知道是红桃, 再算 P(K | 红桃) = 1/13 (1 张红桃 K)
+- 已经知道是 K, 再算 P(红桃 | K) = 1/4
+
+```python
+import pandas as pd
+# 创建一个扑克数据框示例
+df = pd.DataFrame({
+    "花色": (["♥"]*13) + (["♠"]*13) + (["♦"]*13) + (["♣"]*13),
+    "人头": [1 if i in [10, 11, 12] else 0 for i in range(13)] * 4  # J/Q/K 标记为 1
+})
+
+# P(人头)
+p_face = df["人头"].mean()
+# P(人头 | 红桃)
+p_face_given_heart = df[df["花色"] == "♥"]["人头"].mean()
+print(f"P(人头) = {p_face:.3f}, P(人头|红桃) = {p_face_given_heart:.3f}")
+# 0.231, 0.231 (人头跟花色独立)
+```
+
+## 2. 独立 vs 互斥: 经常被混淆
+
+| 概念 | 意思 | 关系 |
+|---|---|---|
+| **互斥** | A 和 B 不可能同时发生 | P(A ∩ B) = 0 |
+| **独立** | A 发生不影响 B 发生 | P(A \| B) = P(A) |
+
+> ⚠️ **互斥**事件**不**独立 (除非其中一个概率为 0), **独立**事件也**不**互斥 (除非其中一个概率为 0)。
+
+```python
+# 互斥不独立
+P_A = 0.5
+P_B = 0.3
+P_AB = 0           # 互斥
+print(f"独立检查: P(A)*P(B) = {P_A*P_B}, P(A∩B) = {P_AB}  → 不独立!")
+
+# 独立不互斥
+P_A = 0.5; P_B = 0.3
+P_AB = P_A * P_B    # 独立
+print(f"互斥检查: P(A∩B) = {P_AB}  → 不互斥!")
+```
+
+## 3. 乘法原理的"条件"版本
+
+上一章我们学了:
+- 独立: P(A ∩ B) = P(A) × P(B)
+- 一般: P(A ∩ B) = P(A) × P(B | A)
+
+**两个都行**, 区别在于:
+- 独立场景: 直接相乘
+- 不独立场景: 必须用条件概率 (因为 P(B|A) ≠ P(B))
+
+## 4. 全概率公式:把"所有可能路径"加起来
+
+如果事件 B 可以通过多条"路径"发生, 用全概率拆解:
+
+<MBlock tex="P(B) = \sum_i P(A_i) \cdot P(B \mid A_i)" />
+
+其中 `{A_i}` 构成样本空间的**一个划分** (互斥且穷尽)。
+
+```python
+# 例: 工厂 3 条产线, 各产 30%/45%/25%, 不合格率 1%/2%/1.5%
+# 求任取一产品是不合格品的概率
+P_A = [0.30, 0.45, 0.25]
+P_B_given_A = [0.01, 0.02, 0.015]
+P_B = sum(p * q for p, q in zip(P_A, P_B_given_A))
+print(f"P(不合格) = {P_B:.4f}")  # 0.01575
+```
+
+## 5. 贝叶斯定理: 已知结果, 反推原因
+
+<MBlock tex="P(A \mid B) = \frac{P(B \mid A) \cdot P(A)}{P(B)}" />
+
+| 名称 | 含义 |
+|---|---|
+| P(A) | **先验** (Prior) — 看到 B 之前, 我们对 A 的信念 |
+| P(B \| A) | **似然** (Likelihood) — A 发生时 B 出现的概率 |
+| P(B) | **证据** (Evidence) — B 本身的概率 |
+| P(A \| B) | **后验** (Posterior) — 看到 B 之后, 对 A 的更新信念 |
+
+### 经典例子: 新冠抗原检测
+
+> 假设:
+> - 总体感染率 P(感染) = 0.01 (1%)
+> - 抗原检测灵敏度 P(阳性 | 感染) = 0.95
+> - 特异度 P(阴性 | 未感染) = 0.90 (即假阳性率 P(阳性 | 未感染) = 0.10)
+>
+> 问题: 检测阳性, 你真有新冠的概率 = ?
+
+```python
+p_infect = 0.01
+p_pos_given_infect = 0.95     # 灵敏度
+p_pos_given_healthy = 0.10    # 假阳性率
+p_healthy = 1 - p_infect
+
+# 全概率公式
+p_pos = p_pos_given_infect * p_infect + p_pos_given_healthy * p_healthy
+# 贝叶斯
+p_infect_given_pos = (p_pos_given_infect * p_infect) / p_pos
+
+print(f"P(感染 | 阳性) = {p_infect_given_pos:.3f}")  # ≈ 0.088
+```
+
+**答案: 只有 ~8.8%!**
+
+直觉错在哪? 因为大部分人是健康的 (99%), 假阳性 10% × 99% = 9.9%, 远超真阳性 0.95% × 1% = 0.95%。
+
+> 💡 **关键洞察**: 罕见病的阳性结果不可怕, 因为假阳性比真阳性还多。**多次检测** 或**改用更特异的检测** (PCR) 才能确认。
+
+## 6. 朴素贝叶斯分类器 (ML 实战)
+
+**垃圾邮件过滤** = 贝叶斯定理的直接应用。
+
+设邮件有词 w_1, w_2, ..., w_n, 想知道这是垃圾邮件的概率:
+
+<MBlock tex="P(\text{spam} \mid w_1, ..., w_n) \propto P(\text{spam}) \cdot \prod_i P(w_i \mid \text{spam})" />
+
+**朴素 (Naive) 假设**: 各词之间独立 (在垃圾邮件分类里近似成立)。
+
+```python
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.pipeline import make_pipeline
+
+# 训练数据
+emails = [
+    ("免费 限时 优惠 立即 点击 领取", 1),  # 1 = 垃圾
+    ("免费 折扣 立即 抢购", 1),
+    ("中奖 通知 现金 领取", 1),
+    ("明天下午 3 点 开会", 0),  # 0 = 正常
+    ("代码 review 一下", 0),
+    ("项目 进度 报告 会议纪要", 0),
+]
+texts, labels = zip(*emails)
+
+# 训练朴素贝叶斯
+model = make_pipeline(CountVectorizer(), MultinomialNB())
+model.fit(texts, labels)
+
+# 预测新邮件
+new_email = "限时优惠 立即领取 现金"
+prob_spam = model.predict_proba([new_email])[0][1]
+print(f"新邮件 '{new_email}' 是垃圾邮件的概率: {prob_spam:.3f}")
+```
+
+## 7. 贝叶斯 vs 频率学派: 哲学之争
+
+| 维度 | 频率学派 | 贝叶斯学派 |
+|---|---|---|
+| 概率本质 | 长期频率 (客观) | 信念程度 (主观) |
+| 参数 | 固定但未知 | 有分布 |
+| 推断方法 | 似然函数 + 置信区间 | 先验 + 后验分布 |
+| 数据少时 | 容易下错结论 | 先验"稳住" |
+| 计算 | 简单 (公式解) | 复杂 (MCMC 等) |
+| 工具 | t 检验, ANOVA, 回归 | 贝叶斯网络, MCMC |
+| ML 应用 | 频率派统计 / 经典 ML | 贝叶斯优化 / BNN / NLP |
+
+> 🎯 **ML 趋势**: 现代深度学习 = 频率派 (固定参数 + 大数据) + 贝叶斯思想 (不确定性量化、贝叶斯神经网络、Diffusion Models)。
+
+## 8. 似然函数:从概率到推断
+
+**似然 (Likelihood)** = 已知参数, 看到数据的"合理性"。
+
+<MBlock tex="L(\theta \mid \text{data}) = P(\text{data} \mid \theta)" />
+
+跟概率看似一样, 但**视角相反**:
+- 概率: 已知 θ, 看 data 多可能
+- 似然: 已知 data, 看哪个 θ 最合理
+
+**最大似然估计 (MLE)**: 找让 L 最大的 θ。这是几乎所有 ML 模型的训练目标 (loss 函数多来自负 log 似然)。
+
+```python
+# 例: 抛 10 次硬币, 8 次正面, MLE 估计正面概率
+# L(p) = p^8 × (1-p)^2, 取对数 log L = 8 log p + 2 log(1-p)
+# d/dp = 0 → 8/p - 2/(1-p) = 0 → p = 0.8
+import numpy as np
+from scipy.optimize import minimize_scalar
+
+# MLE: 找让 -log L 最小的 p
+def neg_log_likelihood(p):
+    return -(8 * np.log(p + 1e-10) + 2 * np.log(1 - p + 1e-10))
+
+result = minimize_scalar(neg_log_likelihood, bounds=(0.01, 0.99), method="bounded")
+print(f"MLE 估计 p = {result.x:.3f}")  # 0.800
+```
+
+> 💡 **这就是机器学习的核心**: 训练 = 最大化似然 = 最小化 loss。
+
+## 9. Python 实战: 完整贝叶斯推断
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import stats
+
+# 场景: 罕见病 (1% 患病率), 检测准确率 95%
+# 用贝叶斯更新: 阳性后, 第二次检测, 概率怎么变?
+
+p_disease = 0.01
+sensitivity = 0.95
+false_positive = 0.10
+
+# 第 1 次检测阳性后
+p1 = (sensitivity * p_disease) / (
+    sensitivity * p_disease + false_positive * (1 - p_disease)
+)
+print(f"1 次阳性后: P(患病) = {p1:.3f}")
+
+# 假定条件独立, 2 次都阳性
+p2 = (sensitivity**2 * p_disease) / (
+    sensitivity**2 * p_disease + false_positive**2 * (1 - p_disease)
+)
+print(f"2 次阳性后: P(患病) = {p2:.3f}")
+
+# 5 次都阳性
+p5 = (sensitivity**5 * p_disease) / (
+    sensitivity**5 * p_disease + false_positive**5 * (1 - p_disease)
+)
+print(f"5 次阳性后: P(患病) = {p5:.4f}")
+```
+
+```
+1 次阳性后: P(患病) = 0.088
+2 次阳性后: P(患病) = 0.473
+5 次阳性后: P(患病) = 0.9875
+```
+
+> 重复检测的威力! 每次新证据都"更新"后验。
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 条件概率 | P(A\|B) = P(A∩B)/P(B), 缩小样本空间 |
+| 独立 vs 互斥 | 完全不同的概念, 不要混 |
+| 全概率公式 | 把事件按"路径"拆开求和 |
+| 贝叶斯定理 | 先验 × 似然 ÷ 证据 = 后验 |
+| 朴素贝叶斯 | ML 经典分类器, 假设特征独立 |
+| 似然 vs 概率 | 视角不同, 同数学 |
+| MLE | 训练 = 最大化似然 = 最小化 loss |
+
+## 11. 习题
+
+1. 一项癌症筛查:
+   - 50 岁以上人群发病率 P(癌) = 0.005
+   - 检测阳性率 P(阳性 | 癌) = 0.98
+   - 假阳性率 P(阳性 | 健康) = 0.03
+   - 计算: 检测阳性, 真有癌的概率
+
+2. 实现朴素贝叶斯文本分类器, 区分"产品评论"和"新闻":
+   - 准备 20 条训练数据 (10 + 10)
+   - 训练 CountVectorizer + MultinomialNB
+   - 预测 3 条新文本, 打印是产品评论的概率
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. P(癌 | 阳性) = (0.98 × 0.005) / (0.98 × 0.005 + 0.03 × 0.995) ≈ 0.141
+   — 即使阳性, 也只有 14.1% 概率真有癌。**这就是为什么需要复检**。
+
+2. 提示: 用 `sklearn.feature_extraction.text.CountVectorizer` + `sklearn.naive_bayes.MultinomialNB`, 注意测试集要跟训练集同语言领域。
+
+</details>
+
+## 12. 下一章
+
+- [离散概率分布](/courses/stats-probability/discrete-distributions/): 二项分布、泊松分布
+- [机器学习入门 → EDA](/courses/ml-basics/eda-for-ml/): 把概率思维用到 ML
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): A/B 测试就是贝叶斯实战
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 4 章 4-3 节, 加入朴素贝叶斯和 MLE 实战。

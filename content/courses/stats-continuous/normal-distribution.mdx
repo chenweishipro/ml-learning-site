@@ -1,0 +1,252 @@
+---
+slug: "normal-distribution"
+title: "正态分布"
+description: "正态分布性质、z 分数、68-95-99.7 法则、查表。连续分布之王。"
+duration: "35 分钟"
+---
+
+# 正态分布
+
+> **本章问题**: 全世界成年人的身高、考试成绩、测量误差, 全都近似服从正态分布。为什么? 因为它是**许多独立小因素叠加**的极限形态 (中心极限定理)。这意味着 ML 几乎所有"线性模型"都默认它。
+
+## 1. 为什么正态分布这么重要?
+
+正态分布 (Normal / Gaussian) 出现在几乎所有地方:
+- 人的身高、体重、血压
+- 考试分数 (很多题, 每题小影响)
+- 测量误差 (很多微小因素)
+- 工厂零件尺寸 (机器 + 材料微小变化)
+- 股票日收益 (大量买卖者)
+
+> 💡 **历史趣闻**: 高斯用它预测谷神星的位置, 误差最小, 一战成名。数学家 Galton 把它说成"统治宇宙的神秘秩序"。
+
+## 2. 正态分布的数学定义
+
+<MBlock tex="X \sim N(\mu, \sigma^2)" />
+
+<MBlock tex="f(x) = \frac{1}{\sigma \sqrt{2\pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}" />
+
+| 参数 | 含义 | 影响 |
+|---|---|---|
+| μ (均值) | 分布中心 | 整体平移 |
+| σ (标准差) | 分布"胖瘦" | 越胖越散, 越瘦越集中 |
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+
+x = np.linspace(-5, 5, 200)
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+# 左图: 不同 μ, 同 σ
+for mu in [-2, 0, 2]:
+    axes[0].plot(x, norm.pdf(x, mu, 1), label=f"μ={mu}, σ=1")
+axes[0].set_title("不同 μ (均值)"); axes[0].legend()
+
+# 右图: 同 μ, 不同 σ
+for sigma in [0.5, 1, 2]:
+    axes[1].plot(x, norm.pdf(x, 0, sigma), label=f"μ=0, σ={sigma}")
+axes[1].set_title("不同 σ (标准差)"); axes[1].legend()
+plt.show()
+```
+
+## 3. 标准正态分布 (Z)
+
+为了"通用化", 把 X 标准化成 Z = (X - μ) / σ, 得到标准正态:
+
+<MBlock tex="Z \sim N(0, 1)" />
+
+**任何**正态分布都可以转化为标准正态 (反之亦然), 所以查表只需要查 Z 表。
+
+```python
+from scipy.stats import norm
+# 例: X ~ N(170, 10²), 问 X > 185 的概率
+mu, sigma = 170, 10
+x = 185
+z = (x - mu) / sigma  # = 1.5
+p = 1 - norm.cdf(z)
+print(f"z = {z}, P(X > 185) = {p:.3f}")
+# z = 1.5, P ≈ 0.067
+```
+
+## 4. 68-95-99.7 法则 (经验法则)
+
+如果 X ~ N(μ, σ²), 那么:
+
+| 区间 | 概率 |
+|---|---|
+| (μ - σ, μ + σ) | **68.27%** |
+| (μ - 2σ, μ + 2σ) | **95.45%** |
+| (μ - 3σ, μ + 3σ) | **99.73%** |
+| (μ - 1.96σ, μ + 1.96σ) | **95%** ← 常用置信度 |
+| (μ - 2.58σ, μ + 2.58σ) | **99%** |
+
+> 这就是为什么 ±3σ 经常被当作"异常值阈值"。
+
+```python
+from scipy.stats import norm
+# 验证
+print(f"±1σ: {norm.cdf(1) - norm.cdf(-1):.4f}")   # 0.6827
+print(f"±2σ: {norm.cdf(2) - norm.cdf(-2):.4f}")   # 0.9545
+print(f"±3σ: {norm.cdf(3) - norm.cdf(-3):.4f}")   # 0.9973
+print(f"±1.96σ: {norm.cdf(1.96) - norm.cdf(-1.96):.4f}")  # 0.95
+```
+
+## 5. 正态分布的常见问题
+
+### 5.1 已知概率, 求临界值
+> 某考试分数 X ~ N(500, 100²), 排名前 10% 需要多少分?
+
+```python
+from scipy.stats import norm
+mu, sigma = 500, 100
+# 前 10% → P(X > x) = 0.10 → P(X ≤ x) = 0.90
+x = norm.ppf(0.90, mu, sigma)
+print(f"前 10% 至少需要 {x:.0f} 分")  # ≈ 628
+```
+
+### 5.2 两个正态组合
+> 男性身高 N(175, 7²), 女性 N(162, 6²)。聚会男女各半, 随机选一人, 身高 > 175 的概率?
+
+```python
+# 全概率公式
+p_male = p_female = 0.5
+p_tall_male = 1 - norm.cdf(175, 175, 7)        # 男 > 175
+p_tall_female = 1 - norm.cdf(175, 162, 6)      # 女 > 175
+p_tall = p_male * p_tall_male + p_female * p_tall_female
+print(f"P(身高 > 175) = {p_tall:.3f}")
+```
+
+### 5.3 正态近似二项
+当 n 大, p 不接近 0/1 时, B(n, p) ≈ N(np, np(1-p))
+
+```python
+from scipy.stats import binom, norm
+n, p = 100, 0.5
+# 准确: P(40 ≤ X ≤ 60)
+p_exact = binom.cdf(60, n, p) - binom.cdf(39, n, p)
+# 近似
+mu = n * p
+sigma = np.sqrt(n * p * (1 - p))
+p_approx = norm.cdf(60.5, mu, sigma) - norm.cdf(39.5, mu, sigma)  # 连续性修正
+print(f"二项精确: {p_exact:.4f}, 正态近似: {p_approx:.4f}")  # ≈ 0.965
+```
+
+## 6. 什么时候数据不是正态?
+
+正态分布的"失败模式":
+- **有界数据**: 占比 (0-1)、考试分数 (0-100)
+- **偏态数据**: 收入、点击数 (右偏)、反应时间 (右偏)
+- **重尾数据**: 金融收益、互联网流量
+- **多峰数据**: 混合分布 (男性+女性身高)
+
+```python
+# 看是否正态: Q-Q 图
+import scipy.stats as stats
+import numpy as np
+
+# 模拟 3 种分布
+np.random.seed(42)
+normal_data = np.random.normal(0, 1, 1000)
+skewed_data = np.random.exponential(2, 1000)
+bimodal_data = np.concatenate([np.random.normal(-2, 1, 500),
+                                np.random.normal(2, 1, 500)])
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+for ax, data, title in zip(axes,
+    [normal_data, skewed_data, bimodal_data],
+    ["正态 (QQ 在直线上)", "右偏 (QQ 弯)", "双峰 (QQ S 形)"]):
+    stats.probplot(data, dist="norm", plot=ax)
+    ax.set_title(title)
+plt.tight_layout(); plt.show()
+```
+
+## 7. Python 实战: 真实数据正态性检验
+
+```python
+import numpy as np
+from scipy import stats
+
+# 1. Shapiro-Wilk 检验 (n &lt; 5000 推荐)
+data = np.random.normal(0, 1, 500)
+stat, p = stats.shapiro(data)
+print(f"Shapiro: stat={stat:.4f}, p={p:.4f}")
+# p > 0.05 → 不能拒绝正态性假设
+
+# 2. D'Agostino K² 检验 (大样本)
+stat, p = stats.normaltest(data)
+print(f"D'Agostino: stat={stat:.4f}, p={p:.4f}")
+
+# 3. Anderson-Darling 检验
+result = stats.anderson(data, dist="norm")
+print(f"Anderson-Darling: stat={result.statistic:.4f}")
+print(f"  临界值: {result.critical_values} (5%: {result.critical_values[2]})")
+```
+
+| 检验 | 适用 | 优点 |
+|---|---|---|
+| Shapiro-Wilk | 小样本 (n &lt; 5000) | 检验力最强 |
+| D'Agostino K² | 中大样本 | 兼顾偏度+峰度 |
+| Anderson-Darling | 任何 | 重视尾部 |
+| Kolmogorov-Smirnov | 任何 | 也可检验其他分布 |
+
+## 8. ML 中的正态分布
+
+| 场景 | 角色 |
+|---|---|
+| 线性回归 | 假设残差 ~ N(0, σ²) |
+| 高斯朴素贝叶斯 | 特征条件概率 P(x\|y) ~ N(μ_y, σ_y²) |
+| LDA 主题模型 | 隐变量先验是高斯 |
+| 异常检测 | \|z\| > 3 → 异常 |
+| 神经网络初始化 | 权重 ~ N(0, σ²) (Xavier/He) |
+| 变分自编码器 | 隐空间 ~ N(0, I) |
+| 扩散模型 | 每步加 N(0, σ²) 噪声 |
+| Dropout | 隐式给输出加近似高斯噪声 |
+
+## 9. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 正态分布 | f(x) = ..., 钟形, 对称 |
+| 标准正态 | Z = (X-μ)/σ, 通用查表 |
+| 68-95-99.7 | 1σ 68%, 2σ 95%, 3σ 99.7% |
+| 临界值问题 | `norm.ppf(0.95)` 等 |
+| 正态近似二项 | n 大 p 不极端时, B(n,p) ≈ N(np, np(1-p)) |
+| 正态性检验 | Shapiro / D'Agostino / Anderson / QQ 图 |
+| ML 角色 | 几乎所有线性/概率模型都假设它 |
+
+## 10. 习题
+
+1. 一考试分数 X ~ N(72, 8²):
+   - 求 P(X > 80)
+   - 求 P(60 &lt; X &lt; 80)
+   - 求前 5% 的分数线
+   - 90 分以上算优秀, 优秀率多少?
+
+2. 用 `np.random.normal(0, 1, 1000)` 生成 1000 个样本:
+   - 画直方图叠加理论正态曲线
+   - 做 Shapiro-Wilk 检验
+   - 把 1 个值改成 100 (注入异常值), 重新画图 + 检验, 观察变化
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - P(X > 80) = P(Z > 1) = 1 - Φ(1) ≈ 0.1587
+   - P(60 &lt; X &lt; 80) = P(-1.5 &lt; Z &lt; 1) = Φ(1) - Φ(-1.5) ≈ 0.7745
+   - 前 5% 分数线: μ + 1.645σ = 72 + 1.645 × 8 ≈ 85.2
+   - 优秀率 P(X > 90) = P(Z > 2.25) ≈ 0.0122
+
+2. 提示: 注入异常值后, 直方图右边出现一根"长刺", Shapiro 检验 p 值会骤降 → 拒绝正态。这演示了**异常值对正态性检验的影响**。
+
+</details>
+
+## 11. 下一章
+
+- [抽样分布与中心极限定理](/courses/stats-continuous/sampling-clt/): 为什么样本均值也服从正态
+- [监督学习 → 假设检验](/courses/supervised-learning/hypothesis-testing/): 用 z 检验做 A/B 测试
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 6 章 6-1、6-2 节, 加入 ML 模型中的正态假设。

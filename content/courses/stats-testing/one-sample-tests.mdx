@@ -1,0 +1,224 @@
+---
+slug: "one-sample-tests"
+title: "单样本检验 (z/t 检验)"
+description: "对总体均值/比例的检验: 你的样本跟某个理论值差多少?"
+duration: "35 分钟"
+---
+
+# 单样本检验 (z/t 检验)
+
+> **本章问题**: 工厂宣传灯泡平均寿命 1000 小时, 抽 25 个测得平均 980h, 标准差 30h。能不能索赔"质量不达标"?
+
+## 1. 何时用单样本检验?
+
+> **一组样本**, 跟某个**已知值** (理论值、历史值、规格) 比。
+
+| 场景 | 已知值 |
+|---|---|
+| 新批次跟历史均值比 | 历史 μ |
+| 实验组跟理论值比 | 理论 μ (如 0、50%) |
+| 抽样产品跟规格比 | 规格 (如 100g、±1mm) |
+| 模型预测跟真实值比 | 真实值 |
+
+## 2. 均值的单样本 z 检验 (σ 已知)
+
+<MBlock tex="\text{检验统计量: } z = \frac{\bar{x} - \mu_0}{\sigma / \sqrt{n}}" />
+
+```python
+import numpy as np
+from scipy.stats import norm
+
+# 例: 工厂历史灯泡寿命 μ=1000h, σ=50h (已知)
+# 抽 30 个, X̄ = 985h
+n, xbar, mu0, sigma = 30, 985, 1000, 50
+z = (xbar - mu0) / (sigma / np.sqrt(n))
+p_two = 2 * (1 - norm.cdf(abs(z)))
+print(f"z = {z:.3f}, p = {p_two:.4f}")
+# z = -1.643, p = 0.100 → 不显著
+```
+
+## 3. 均值的单样本 t 检验 (σ 未知, 现实最常见)
+
+<MBlock tex="\text{检验统计量: } t = \frac{\bar{x} - \mu_0}{s / \sqrt{n}}, \quad df = n - 1" />
+
+```python
+from scipy.stats import t
+
+# 同上例子, 但 σ 未知, 用 s 估计
+n, xbar, mu0, s = 30, 985, 1000, 60  # s = 60 (从样本估计)
+t_stat = (xbar - mu0) / (s / np.sqrt(n))
+p_two = 2 * (1 - t.cdf(abs(t_stat), df=n-1))
+print(f"t = {t_stat:.3f}, df = {n-1}, p = {p_two:.4f}")
+# t = -1.369, p = 0.181 → 不显著 (因为 s=60 > σ=50, 噪声更大)
+```
+
+### 何时用 z 何时用 t?
+
+| 情况 | 检验 |
+|---|---|
+| 总体 σ **已知** | z |
+| σ 未知, n ≥ 30 | t (实际跟 z 几乎一样) |
+| σ 未知, n &lt; 30 | t (必须, df=n-1) |
+
+> 💡 现代统计软件默认全用 t, 因为反正差不多。**实际考试/论文几乎都用 t**。
+
+## 4. 比例的单样本检验
+
+> 某市交通事故率历史 8%, 今年抽 500 起事故, 50 起涉及酒驾, 比例 10%。今年酒驾率真的升高了吗?
+
+<MBlock tex="z = \frac{\hat{p} - p_0}{\sqrt{p_0 (1-p_0) / n}}" />
+
+```python
+from scipy.stats import norm
+n, p_hat, p0 = 500, 0.10, 0.08
+z = (p_hat - p0) / np.sqrt(p0 * (1 - p0) / n)
+p_two = 2 * (1 - norm.cdf(abs(z)))
+print(f"z = {z:.3f}, p = {p_two:.4f}")
+# z = 1.838, p = 0.066 → 临界, 0.05 水平下不显著
+```
+
+## 5. 完整 t 检验: 实际项目流程
+
+```python
+import numpy as np
+from scipy import stats
+
+# 1. 准备数据
+np.random.seed(42)
+sample = np.random.normal(98, 1.5, 25)  # 25 个测量值
+mu0 = 100  # 标准值
+
+# 2. 数据探索
+print(f"n = {len(sample)}, X̄ = {sample.mean():.3f}, s = {sample.std(ddof=1):.3f}")
+print(f"Min = {sample.min():.3f}, Max = {sample.max():.3f}")
+
+# 3. 检验正态性 (小样本必做)
+stat, p_norm = stats.shapiro(sample)
+print(f"Shapiro-Wilk 正态性: stat = {stat:.3f}, p = {p_norm:.3f}")
+# p > 0.05 → 不拒绝正态性, 可用 t 检验
+
+# 4. t 检验 (scipy 一行)
+t_stat, p_two = stats.ttest_1samp(sample, mu0)
+print(f"t 检验: t = {t_stat:.3f}, p = {p_two:.4f}")
+
+# 5. 决策
+alpha = 0.05
+if p_two < alpha:
+    print(f"✅ p < {alpha}, 拒绝 H₀: 样本均值显著不等于 {mu0}")
+else:
+    print(f"❌ p ≥ {alpha}, 不能拒绝 H₀")
+
+# 6. 95% 置信区间 (配套)
+t_crit = stats.t.ppf(0.975, len(sample) - 1)
+margin = t_crit * sample.std(ddof=1) / np.sqrt(len(sample))
+print(f"95% CI: [{sample.mean() - margin:.2f}, {sample.mean() + margin:.2f}]")
+```
+
+## 6. 决策错误的成本: Power 分析
+
+> 实验前: 我想检测"差 1kg", 当前 σ=2, 显著性 0.05, 想要 power=0.8, 至少要多少样本?
+
+```python
+from statsmodels.stats.power import ttest_power
+# 已知: 效应大小 Cohen's d = 1/2 = 0.5
+# 找 n
+from statsmodels.stats.power import TTestIndPower
+analysis = TTestIndPower()
+n_required = analysis.solve_power(effect_size=0.5, alpha=0.05, power=0.8)
+print(f"达到 80% power 所需 n = {n_required:.0f}")  # ≈ 64
+```
+
+## 7. 假设"被拒绝"意味着什么?
+
+**常见误解**: "拒绝 H₀" 不等于"接受 H₁", 也不等于"差异巨大"。
+
+| 决策 | 真相 |
+|---|---|
+| 拒绝 H₀ (p &lt; 0.05) | 差异"统计显著", 跟 0 有差异, 但**效应大小未知** |
+| 不能拒绝 H₀ | 证据不足, 不是说"两组没差异" |
+| 显著性 | ≠ **实际重要**, 必须看效应大小 |
+
+```python
+# 反例: 显著但效应极小
+n = 100000
+sample_a = np.random.normal(0, 1, n)
+sample_b = np.random.normal(0.01, 1, n)  # 差 0.01
+t_stat, p_val = stats.ttest_ind(sample_a, sample_b)
+print(f"t = {t_stat:.3f}, p = {p_val:.4f}")
+# p ≈ 0.04 (显著), 但效应大小 0.01/1 = 0.01, 完全不重要
+```
+
+## 8. 实际报告模板
+
+> 假设检验的报告应包括 6 要素:
+> 1. 检验类型 (单/双样本 z/t)
+> 2. H₀ 和 H₁
+> 3. 样本量 n, 描述统计
+> 4. 检验统计量 (z/t)
+> 5. p 值
+> 6. 效应大小 (Cohen's d / r / OR)
+
+**报告示例**:
+> "为检验新方法 A 是否比传统方法 B 提升转化率, 我们进行了单样本 t 检验 (H₀: p = 0.10, H₁: p > 0.10)。A 方法在 1000 次实验中转化率 12.3% (95% CI [10.1%, 14.5%]), 显著高于基线 (t(999) = 3.45, p = 0.0003, Cohen's h = 0.073)。"
+
+## 9. ML 中的单样本检验
+
+| 场景 | 检验 |
+|---|---|
+| 训练集 / 测试集分布漂移 | 两样本 KS 检验 (下章) |
+| 模型准确率 vs 随机基线 | 单样本比例检验 |
+| A/B 测试新算法 vs 老算法 | 两样本 t / Mann-Whitney |
+| 损失函数值 vs 阈值 | 单样本 t 检验 |
+| 评估指标 CI | Bootstrap CI (比 t 准) |
+| 协变量平衡检查 (PSM) | 单样本 t (SMD &lt; 0.1) |
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 单样本检验 | 一组样本 vs 已知值 |
+| z 检验 | σ 已知时, 现代几乎不用 |
+| t 检验 | σ 未知时, 现实默认, df=n-1 |
+| 比例检验 | 转化率、A/B 测试基础 |
+| 报告要素 | 检验类型 + H₀/H₁ + n + 统计量 + p + 效应大小 |
+| Power 分析 | 实验前算所需 n, 避免"实验做完才发现效力不足" |
+
+## 11. 习题
+
+1. 新药临床试验: 100 人, 平均改善 8.5 分, 标准差 3 分, 理论改善 5 分:
+   - H₀, H₁?
+   - t 统计量?
+   - 5% 水平下结论?
+   - Cohen's d 是多少? (效应大小)
+
+2. 你的模型在 200 个测试样本上准确率 88%, 历史基线 85%:
+   - 比例 z 检验, p 值?
+   - 88% 的 95% CI?
+   - 如果想检测"提升 3%", 至少需要多少样本 (power=0.8)?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - H₀: μ = 5, H₁: μ ≠ 5 (双侧)
+   - t = (8.5 - 5) / (3 / √100) = 3.5 / 0.3 = 11.67, p ≈ 0
+   - 显著 (实际效应巨大)
+   - Cohen's d = 3.5 / 3 = 1.17 (大效应)
+
+2. 计算:
+   - z = (0.88 - 0.85) / √(0.85×0.15/200) = 0.03 / 0.0252 = 1.19, p ≈ 0.234
+   - 不显著! 因为样本量 200, 差 3% 在此规模下可能只是噪声
+   - 95% CI: 0.88 ± 1.96 × 0.0252 = [0.831, 0.929]
+   - 要 power=0.8 检测差 3%: 用 Cohen's h = 0.085, n ≈ 2200
+   - 教训: 准确率提升 3% 在小样本下不显著, 需要更大样本
+
+</details>
+
+## 12. 下一章
+
+- [两样本推断与 A/B 测试](/courses/stats-testing/two-sample-tests/): 比较两组 (A/B 测试核心)
+- [非参数检验](/courses/stats-testing/nonparametric-tests/): 不假设正态的检验
+
+---
+
+> 📚 **本章来源**: 改编自 Triola《基础统计学》第 14 版 第 8 章 8-2、8-3 节, 加入 ML 实战。

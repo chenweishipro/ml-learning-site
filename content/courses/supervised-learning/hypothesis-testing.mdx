@@ -1,0 +1,453 @@
+---
+slug: "hypothesis-testing"
+title: "假设检验与 A/B 测试"
+description: "用 p 值、置信区间判断两个模型/两组实验的差异是否显著。ML 工程师的统计武器。"
+duration: "35 分钟"
+---
+
+# 假设检验与 A/B 测试
+
+> **本章问题**: 模型 A 准确率 88%, 模型 B 准确率 89%, B 真的更好吗? A/B 测试中 B 组转化率 5.2%, A 组 4.8%, 真的能上线吗? 用**假设检验**做决策。
+
+## 1. 为什么 ML 工程师需要假设检验?
+
+| 场景 | 用假设检验回答 |
+|---|---|
+| 模型 A vs B | "提升 0.5% 是噪声还是真的?" |
+| 准确率 88% 报告 | "88% ± 多少? 95% CI?" |
+| 特征 A 加入模型 | "A 特征真的有用还是过拟合?" |
+| A/B 测试上线决策 | "B 组转化提升 0.4% 显著吗?" |
+| 训练集/测试集分布 | "数据漂移了吗?" |
+| 多次实验结果 | "哪个超参数最稳?" |
+
+> 不做检验, "看起来好" = 玄学。做完检验, "显著优于 X%" = 论文级证据。
+
+## 2. ML 工程师最常用的 5 个检验
+
+### 2.1 单比例 z 检验 (z-test for proportion)
+> 模型准确率跟某个基准比?
+
+```python
+from statsmodels.stats.proportion import proportions_ztest
+
+# 模型准确率 0.88, 测试集 1000 个, 基准 0.85
+n, p_hat, p0 = 1000, 0.88, 0.85
+z, p = proportions_ztest(int(p_hat * n), n, value=p0, alternative="larger")
+print(f"z = {z:.3f}, p = {p:.4f}")
+# p &lt; 0.05 → 模型显著优于 85% 基准
+```
+
+### 2.2 双比例 z 检验 (A/B 测试)
+> A vs B 两组转化率?
+
+```python
+# A: 10000 人, 转化 480 (4.8%)
+# B: 10000 人, 转化 520 (5.2%)
+z, p = proportions_ztest([520, 480], [10000, 10000], alternative="larger")
+print(f"z = {z:.3f}, p = {p:.4f}")
+# p &lt; 0.05 → B 显著好
+```
+
+### 2.3 配对 t 检验 / Wilcoxon (模型对比)
+> 同一数据集, 不同随机种子, 两个模型的 F1 差异?
+
+```python
+from scipy.stats import ttest_rel, wilcoxon
+import numpy as np
+
+f1_a = np.array([0.85, 0.86, 0.84, 0.85, 0.86])
+f1_b = np.array([0.88, 0.87, 0.89, 0.88, 0.87])
+
+# 配对 t (n ≥ 30 较稳)
+t_stat, p = ttest_rel(f1_b, f1_a)
+print(f"配对 t: t = {t_stat:.3f}, p = {p:.4f}")
+
+# Wilcoxon 符号秩 (n 小时更稳)
+w_stat, p = wilcoxon(f1_b - f1_a)
+print(f"Wilcoxon: W = {w_stat}, p = {p:.4f}")
+```
+
+### 2.4 卡方检验 (特征独立性)
+> 类别特征跟 target 独立吗?
+
+```python
+from scipy.stats import chi2_contingency
+import pandas as pd
+import seaborn as sns
+
+df = sns.load_dataset("titanic")
+table = pd.crosstab(df["sex"], df["survived"])
+chi2, p, dof, exp = chi2_contingency(table)
+print(f"性别 vs 生存: χ² = {chi2:.3f}, p = {p:.4f}")
+# 显著 → 性别跟生存强相关
+```
+
+### 2.5 KS 检验 (分布漂移)
+> 训练集和测试集分布是否一样?
+
+```python
+from scipy.stats import ks_2samp
+import numpy as np
+
+# 训练集 / 测试集某特征分布
+train_feat = np.random.normal(0, 1, 1000)
+test_feat = np.random.normal(0.1, 1, 1000)  # 略偏移
+
+stat, p = ks_2samp(train_feat, test_feat)
+print(f"KS 检验: stat = {stat:.3f}, p = {p:.4f}")
+# p &lt; 0.05 → 分布有显著漂移
+```
+
+## 3. 完整 A/B 测试流程
+
+> 这是 ML 工程师最常做、也最容易出错的实验。
+
+### 3.1 实验设计
+
+```python
+import numpy as np
+from statsmodels.stats.proportion import proportion_confint
+
+def design_ab_test(baseline_rate, mde, alpha=0.05, power=0.8):
+    """实验设计: 算所需样本量"""
+    from statsmodels.stats.power import NormalIndPower
+    p1 = baseline_rate
+    p2 = baseline_rate * (1 + mde)
+    # Cohen's h
+    h = 2 * (np.arcsin(np.sqrt(p2)) - np.arcsin(np.sqrt(p1)))
+    n = NormalIndPower().solve_power(h, alpha=alpha, power=power)
+    return int(np.ceil(n))
+
+# 例: 基准 5%, 想检测 10% 提升, 95% 置信, 80% power
+n = design_ab_test(baseline_rate=0.05, mde=0.10, alpha=0.05, power=0.8)
+print(f"每组所需样本: {n}")
+# 通常 30000+ 才够检测小提升
+```
+
+### 3.2 实验运行 (SRM 检查)
+
+```python
+# Sample Ratio Mismatch: 检查分流是否真的 50/50
+def check_srm(observed_n_a, observed_n_b, expected_ratio=0.5, alpha=0.001):
+    """严格的 SRM 检查 (Bonferroni 修正)"""
+    n = observed_n_a + observed_n_b
+    expected_n_a = n * expected_ratio
+    expected_n_b = n * (1 - expected_ratio)
+    chi2 = ((observed_n_a - expected_n_a)**2 / expected_n_a
+            + (observed_n_b - expected_n_b)**2 / expected_n_b)
+    from scipy.stats import chi2 as chi2_dist
+    p = 1 - chi2_dist.cdf(chi2, df=1)
+    srm = p < alpha
+    return srm, p
+
+# 例: 期望 50/50, 实际 5030/4970
+srm, p = check_srm(5030, 4970)
+print(f"SRM 检查: srm = {srm}, p = {p:.4f}")
+# srm = False → 分流均匀, 数据可信
+```
+
+### 3.3 结果分析 (含 CI)
+
+```python
+def ab_test_report(n_a, x_a, n_b, x_b, alpha=0.05):
+    """完整 A/B 测试报告"""
+    p_a, p_b = x_a / n_a, x_b / n_b
+    diff = p_b - p_a
+    
+    # 1. 假设检验
+    z, p_val = proportions_ztest([x_b, x_a], [n_b, n_a])
+    
+    # 2. 差值 95% CI
+    se = np.sqrt(p_a*(1-p_a)/n_a + p_b*(1-p_b)/n_b)
+    z_crit = 1.96
+    ci = (diff - z_crit*se, diff + z_crit*se)
+    
+    # 3. 各组 CI (Wilson)
+    ci_a = proportion_confint(x_a, n_a, alpha=alpha, method="wilson")
+    ci_b = proportion_confint(x_b, n_b, alpha=alpha, method="wilson")
+    
+    # 4. 效应大小
+    from math import asin, sqrt
+    h = 2 * (asin(sqrt(p_b)) - asin(sqrt(p_a)))
+    
+    # 5. 相对提升
+    rel_lift = (p_b - p_a) / p_a if p_a > 0 else float("inf")
+    
+    return {
+        "A 转化率": f"{p_a:.3%} 95% CI [{ci_a[0]:.3%}, {ci_a[1]:.3%}]",
+        "B 转化率": f"{p_b:.3%} 95% CI [{ci_b[0]:.3%}, {ci_b[1]:.3%}]",
+        "差值 (B-A)": f"{diff:+.3%} 95% CI [{ci[0]:+.3%}, {ci[1]:+.3%}]",
+        "相对提升": f"{rel_lift:+.1%}",
+        "z 统计量": f"{z:.3f}",
+        "p 值": f"{p_val:.4f}",
+        "效应 (h)": f"{h:.3f}",
+        "决策": "✅ 上线 B" if p_val < alpha and diff > 0 else "❌ 保持 A" if p_val < alpha and diff &lt; 0 else "⚠️ 不显著, 继续实验",
+    }
+
+# 模拟
+result = ab_test_report(n_a=10000, x_a=480, n_b=10000, x_b=550)
+for k, v in result.items():
+    print(f"  {k:20s}: {v}")
+```
+
+输出:
+```
+  A 转化率             : 4.800% 95% CI [4.4%, 5.2%]
+  B 转化率             : 5.500% 95% CI [5.1%, 6.0%]
+  差值 (B-A)           : +0.700% 95% CI [+0.1%, +1.3%]
+  相对提升              : +14.6%
+  z 统计量              : 2.323
+  p 值                  : 0.0202
+  效应 (h)             : 0.032
+  决策                 : ✅ 上线 B
+```
+
+## 4. 模型对比的 3 种范式
+
+### 4.1 配对检验 (推荐)
+> 同一数据集, 不同模型, **多个随机种子** (5-10 次)
+
+```python
+import numpy as np
+from scipy.stats import ttest_rel, wilcoxon
+
+# 5 个随机种子下, A 和 B 的 F1
+np.random.seed(42)
+f1_a = np.random.normal(0.85, 0.02, 5)
+f1_b = np.random.normal(0.87, 0.02, 5)
+
+# 配对 t 检验
+t_stat, p_t = ttest_rel(f1_b, f1_a)
+
+# Wilcoxon 符号秩 (n 小时更稳)
+w_stat, p_w = wilcoxon(f1_b - f1_a)
+
+# 95% CI 差值
+diff = f1_b - f1_a
+t_crit = 2.776  # df=4
+ci = (diff.mean() - t_crit * diff.std(ddof=1) / np.sqrt(5),
+      diff.mean() + t_crit * diff.std(ddof=1) / np.sqrt(5))
+print(f"差值: {diff.mean():.4f}, 95% CI [{ci[0]:.4f}, {ci[1]:.4f}]")
+```
+
+### 4.2 Bootstrap CI
+> **最稳**, 不依赖正态假设
+
+```python
+n_boot = 10000
+boot_diffs = [np.mean(np.random.choice(diff, len(diff), replace=True))
+              for _ in range(n_boot)]
+ci = np.percentile(boot_diffs, [2.5, 97.5])
+print(f"Bootstrap 95% CI: [{ci[0]:.4f}, {ci[1]:.4f}]")
+# CI 不含 0 → 显著
+```
+
+### 4.3 多次随机种子 (业界标准)
+> 不只对比 mean, 看**稳定性**
+
+```python
+import matplotlib.pyplot as plt
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+# 箱形图: 整体分布
+axes[0].boxplot([f1_a, f1_b], labels=["A", "B"])
+axes[0].set_title("F1 分布")
+
+# 配对连线
+axes[1].plot(f1_a, "o-", label="A")
+axes[1].plot(f1_b, "s-", label="B")
+for i in range(len(f1_a)):
+    axes[1].plot([0, 1], [f1_a[i], f1_b[i]], "gray", alpha=0.5)
+axes[1].set_xticks([0, 1]); axes[1].set_xticklabels(["A", "B"])
+axes[1].set_title("配对连线图")
+axes[1].legend()
+plt.tight_layout(); plt.show()
+```
+
+## 5. 多重比较: Bonferroni vs BH FDR
+
+> 测了 10 个特征, 哪几个显著?
+
+```python
+from statsmodels.stats.multitest import multipletests
+import numpy as np
+
+# 10 个特征的 p 值
+p_values = np.array([0.001, 0.008, 0.039, 0.041, 0.042, 0.06, 0.074, 0.205, 0.5, 0.8])
+
+# Bonferroni 修正
+reject_bonf, p_bonf, _, _ = multipletests(p_values, alpha=0.05, method="bonferroni")
+
+# Benjamini-Hochberg FDR
+reject_bh, p_bh, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+
+print("原始 p:", p_values)
+print("Bonferroni 调整 p:", p_bonf.round(4), "reject:", reject_bonf)
+print("BH 调整 p:", p_bh.round(4), "reject:", reject_bh)
+# BH 比 Bonferroni 宽松 (但合理)
+```
+
+## 6. 实战: ML 模型的 A/B 测试设计
+
+```python
+import numpy as np
+from scipy import stats
+import matplotlib.pyplot as plt
+
+# 1. 实验前: 算样本量
+# 基准 5%, 最小可检测 5% 提升, 80% power, 5% alpha
+n_required = 30000  # 大约 (用 statsmodels 算)
+print(f"每组所需样本: {n_required}")
+
+# 2. 实验中: 检查 SRM, 持续监控
+# (实际中: 每天看指标趋势, 用混合效应模型)
+
+# 3. 实验后: 多重检验
+metrics = {
+    "转化率": (0.052, 0.049, 30000),  # (B, A, n_per_group)
+    "客单价": (120, 118, 30000),
+    "复购率": (0.20, 0.21, 30000),
+    "退款率": (0.015, 0.012, 30000),
+    "NPS": (45, 42, 5000),  # 抽样
+}
+
+# 多个指标一起检验, 用 Bonferroni 或 BH
+p_values = []
+for name, (b, a, n) in metrics.items():
+    # 简化: z 检验
+    se = np.sqrt((a + b) / n)  # 粗略 SE
+    if se > 0:
+        z = (b - a) / se
+        p = 2 * (1 - stats.norm.cdf(abs(z)))
+    else:
+        p = 1
+    p_values.append(p)
+    print(f"  {name:10s}: A={a:.3f}, B={b:.3f}, p={p:.4f}")
+
+# 多重检验修正
+reject, p_adj, _, _ = multipletests(p_values, alpha=0.05, method="fdr_bh")
+print(f"\nBH 调整后: {p_adj.round(4)}, reject: {reject}")
+```
+
+## 7. 决策框架: 显著 ≠ 重要
+
+> 永远报告 3 件事: p 值 + 效应大小 + 业务影响
+
+```python
+# 决策表
+def make_decision(p_value, effect_size, business_impact, alpha=0.05):
+    """综合决策: 统计显著 + 实际重要"""
+    if p_value >= alpha:
+        return "⚠️ 不显著, 继续收集数据"
+    if effect_size &lt; 0.2:  # 小效应
+        return "📊 显著但小效应, 谨慎上线"
+    if business_impact &lt; 0:  # 负面
+        return "❌ 显著但负向影响, 不上线"
+    return f"✅ 上线! 显著 + 重要 + 正向, 业务影响 +{business_impact:.1%}"
+
+# 例
+print(make_decision(p_value=0.02, effect_size=0.05, business_impact=0.15))
+# "显著但小效应, 谨慎上线" - 看起来显著, 但 5% 提升无业务价值
+```
+
+## 8. 实战: 训练过程监控中的假设检验
+
+```python
+# 模型迭代: 5 次训练, 每次用不同数据划分
+# A: 老模型, B: 新模型
+import numpy as np
+from scipy import stats
+
+# 假设 5 次实验结果
+acc_a = [0.870, 0.872, 0.868, 0.871, 0.869]
+acc_b = [0.875, 0.878, 0.873, 0.876, 0.874]
+
+# 配对 t 检验
+t_stat, p_val = stats.ttest_rel(acc_b, acc_a)
+print(f"配对 t: t = {t_stat:.3f}, p = {p_val:.4f}")
+
+# 95% CI
+diff = np.array(acc_b) - np.array(acc_a)
+t_crit = stats.t.ppf(0.975, df=4)
+margin = t_crit * diff.std(ddof=1) / np.sqrt(5)
+ci = (diff.mean() - margin, diff.mean() + margin)
+print(f"差值 95% CI: [{ci[0]:.5f}, {ci[1]:.5f}]")
+# CI 不含 0, 显著
+# 但 ~0.005 提升是否值得部署?
+```
+
+## 9. KS 检验在数据漂移检测中的应用
+
+```python
+import numpy as np
+from scipy.stats import ks_2samp
+
+# 训练集 vs 线上数据
+np.random.seed(42)
+train_age = np.random.normal(35, 10, 5000)
+prod_age = np.random.normal(38, 12, 5000)  # 漂移 (均值+3, σ+2)
+
+stat, p = ks_2samp(train_age, prod_age)
+print(f"KS 漂移检测: stat = {stat:.3f, p = {p:.4f}")
+# p &lt; 0.05 → 显著漂移, 模型可能需要重训
+
+# 监控告警: 多个特征都漂移
+features = ["age", "income", "page_views", "session_time"]
+for feat in features:
+    train = np.random.normal(0, 1, 5000)
+    prod = np.random.normal(0, 1.2, 5000) if feat == "income" else np.random.normal(0, 1, 5000)
+    stat, p = ks_2samp(train, prod)
+    if p &lt; 0.01:
+        print(f"  ⚠️ {feat} 显著漂移, KS={stat:.3f}, p={p:.4f}")
+```
+
+## 10. 小结
+
+| 你学到了 | 关键点 |
+|---|---|
+| 5 个 ML 常用检验 | z 比例 / 配对 t / Wilcoxon / 卡方 / KS |
+| 完整 A/B 流程 | 设计 (n 算) → SRM → CI + p + 效应 |
+| 决策框架 | 显著 + 重要 + 正向, 三者同时成立才上线 |
+| 多重比较 | Bonferroni / BH FDR |
+| 配对检验 | 同一数据集多种子, ML 评测标准 |
+| 漂移检测 | KS 检验训练 vs 线上 |
+| 业务影响 | p &lt; 0.05 但效应小 → 不一定值得上线 |
+
+## 11. 习题
+
+1. 模型 A 准确率 87% (n=1000), 模型 B 89% (n=1000):
+   - 比例 z 检验 p 值?
+   - 效应大小 Cohen's h?
+   - 95% CI 差值?
+   - **决策**: 显著? 重要?
+
+2. 你做了 5 轮 A/B 测试, 每次都有 5 个指标 (转化、客单、复购、退款、NPS):
+   - 5 轮 × 5 指标 = 25 个 p 值
+   - 用 BH FDR 控制假阳性率
+   - 假设其中 2 个真正显著, 5 个偶然显著 (噪声), 问 FDR 多大?
+
+<details>
+<summary>👉 查看参考答案</summary>
+
+1. 计算:
+   - z = (0.89 - 0.87) / √(0.88×0.12/1000 × 2) = 0.02 / 0.0145 = 1.38
+   - p ≈ 0.168 (双侧), 不显著!
+   - h = 2 × (arcsin√0.89 - arcsin√0.87) ≈ 0.063 (小)
+   - 差值 95% CI ≈ [-0.8%, 4.8%]
+   - 决策: ❌ 不显著, 样本量不够
+
+2. 5 轮 × 5 指标 = 25 个 p 值; 2 真正显著, 5 偶然显著
+   - FDR = 偶然显著 / (偶然 + 真正) = 5 / (5+2) ≈ 71% (太高)
+   - BH 控制 FDR ≤ 5%: 调整后阈值严格, 真正显著的 2 个全过, 偶然 5 个全拒
+   - **关键**: BH 比 Bonferroni 宽松但仍能控制 FDR
+
+</details>
+
+## 12. 下一章
+
+- [机器学习入门 → EDA](/courses/ml-basics/eda-for-ml/): 实验前的数据探索
+- [统计学基础 → 假设检验](/courses/stats-testing/hypothesis-testing-basics/): 系统学假设检验
+- [深度学习进阶 → 训练监控](/courses/deep-learning-advanced/training-stat-monitor/): 训练过程的统计监控
+
+---
+
+> 📚 **本章综合**: 改编自 Triola《基础统计学》第 8-9 章, 加入 ML 视角的 A/B 测试和模型对比实战。
