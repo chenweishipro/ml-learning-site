@@ -179,12 +179,13 @@ let _providerEnv: string | null = null;
 
 export function getLLMProvider(): LLMProvider {
   const which = (process.env.LLM_PROVIDER ?? "mock").toLowerCase();
-  console.log("[llm] getLLMProvider called, env=", process.env.LLM_PROVIDER, "which=", which, "cached_provider_name=", _provider?.name, "cached_env=", _providerEnv);
   // 缓存失效: env 变了或 _provider 未设过
   if (_provider && _providerEnv === which) return _provider;
   _providerEnv = which;
-  if (which === "MiniMax" || which === "openai" || which === "openai-compatible") {
-    if (which === "MiniMax") {
+  // env 设为 MINIMAX 或 minimax 都认
+  const MINIMAX = "MiniMax".toLowerCase();
+  if (which === MINIMAX || which === "openai" || which === "openai-compatible") {
+    if (which === MINIMAX) {
       _provider = new MiniMaxLLMProvider();
     } else {
       _provider = new OpenAILLMProvider();
