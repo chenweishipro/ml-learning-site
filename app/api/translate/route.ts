@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const provider = getLLMProvider();
+    console.log("[translate] provider:", provider.name, "env:", process.env.LLM_PROVIDER);
     // 检测 mock provider, 直接用专门的占位翻译
     if (provider.name.startsWith("mock")) {
       return Response.json({

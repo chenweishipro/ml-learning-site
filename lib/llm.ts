@@ -123,24 +123,50 @@ class OpenAILLMProvider implements LLMProvider {
 }
 
 /* ===========================================================================
- * 3. MiniMax provider (alias for OpenAI-compatible, 默认 base URL 指向 MiniMax API)
+ * 3. MiniMax provider (使用 MiniMax 自有的 chatcompletion_v2 端点, 不是 OpenAI 兼容协议)
  * =========================================================================== */
 
-class MiniMaxLLMProvider extends OpenAILLMProvider {
+class MiniMaxLLMProvider implements LLMProvider {
+  readonly name: string;
+  private baseUrl: string;
+  private apiKey: string;
+  private model: string;
+
   constructor() {
-    // 设置 MiniMax 默认环境变量后, 交给父类
-    if (!process.env.OPENAI_LLM_BASE_URL) {
-      process.env.OPENAI_LLM_BASE_URL = process.env.MINIMAX_BASE_URL ?? "https://api.MiniMax.chat/v1";
+    this.name = (process.env.MINIMAX_MODEL ?? "MiniMax-Text-01") + "@MiniMax";
+    this.baseUrl = (process.env.MINIMAX_BASE_URL ?? "https://api.minimaxi.com/v1").replace(/\/$/, "");
+    this.apiKey = process.env.MINIMAX_API_KEY ?? "";
+    this.model = process.env.MINIMAX_MODEL ?? "MiniMax-Text-01";
+    if (!this.apiKey) {
+      throw new Error("MINIMAX_API_KEY is required for MiniMax provider");
     }
-    if (!process.env.OPENAI_LLM_MODEL) {
-      process.env.OPENAI_LLM_MODEL = process.env.MINIMAX_MODEL ?? "MiniMax-Text-01";
+  }
+
+  async chat(messages: LLMMessage[], opts?: { maxTokens?: number; temperature?: number }): Promise<string> {
+    // MiniMax 使用 /text/chatcompletion_v2 端点
+    const res = await fetch(`${this.baseUrl}/text/chatcompletion_v2`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        max_tokens: opts?.maxTokens ?? 2048,
+        temperature: opts?.temperature ?? 0.3,
+        stream: false,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`MiniMax API error: ${res.status} ${err.slice(0, 200)}`);
     }
-    if (!process.env.OPENAI_API_KEY) {
-      process.env.OPENAI_API_KEY = process.env.MINIMAX_API_KEY ?? "";
+    const data = await res.json();
+    if (!data.choices || !data.choices[0]) {
+      throw new Error("MiniMax API: invalid response");
     }
-    super();
-    // 覆写 name 为 MiniMax 标识 (name 是 readonly, 只能在构造时覆盖)
-    (this as { name: string }).name = `MiniMax:${this.name}`;
+    return data.choices[0].message?.content ?? "";
   }
 }
 
@@ -149,10 +175,14 @@ class MiniMaxLLMProvider extends OpenAILLMProvider {
  * =========================================================================== */
 
 let _provider: LLMProvider | null = null;
+let _providerEnv: string | null = null;
 
 export function getLLMProvider(): LLMProvider {
-  if (_provider) return _provider;
   const which = (process.env.LLM_PROVIDER ?? "mock").toLowerCase();
+  console.log("[llm] getLLMProvider called, env=", process.env.LLM_PROVIDER, "which=", which, "cached_provider_name=", _provider?.name, "cached_env=", _providerEnv);
+  // 缓存失效: env 变了或 _provider 未设过
+  if (_provider && _providerEnv === which) return _provider;
+  _providerEnv = which;
   if (which === "MiniMax" || which === "openai" || which === "openai-compatible") {
     if (which === "MiniMax") {
       _provider = new MiniMaxLLMProvider();
