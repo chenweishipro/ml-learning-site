@@ -10,6 +10,8 @@ import {
 import { getChapterNeighbors } from "@/lib/content";
 import { suggestRelated } from "@/lib/recommend";
 import { RelatedChaptersCard } from "@/components/RelatedChaptersCard";
+import { AISummaryCard } from "@/components/AISummaryCard";
+import { getAISummary } from "@/lib/ai-summary";
 import { getQuiz } from "@/lib/quizzes";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
@@ -91,6 +93,9 @@ export default async function ChapterPage({ params }: Params) {
 
   // 提取目录 (VitePress 风格)
   const toc = await extractToc(data.content);
+
+  // AI 摘要 (server-side 预先拿, 让 SSR 直接显示)
+  const aiSummary = await getAISummary(params.slug, params.chapter, data.content).catch(() => null);
 
   // 是否显示"编辑此页"按钮
   const currentUser = await getCurrentUser();
@@ -189,6 +194,11 @@ export default async function ChapterPage({ params }: Params) {
 
         {/* 中间内容 (VitePress 风格: 较窄的 max-width) */}
         <article className="min-w-0">
+          <AISummaryCard
+            courseSlug={params.slug}
+            chapterSlug={params.chapter}
+            initial={aiSummary}
+          />
           <MDXContent source={data.content} />
 
           {/* 章末小测验 (如果该章有题) */}

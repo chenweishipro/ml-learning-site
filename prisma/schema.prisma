@@ -431,3 +431,16 @@ model QuizWrong {
   @@index([userId, resolved])
   @@index([userId, updatedAt])
 }
+
+model AiSummary {
+  id           String   @id @default(cuid())
+  courseSlug   String
+  chapterSlug  String
+  summary      String
+  content      String   // 章节内容 hash, 内容变化时重新生成
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([courseSlug, chapterSlug])
+  @@index([updatedAt])
+}
