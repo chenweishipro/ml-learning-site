@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock, Loader2, Edit3, History, Users } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, Clock, Loader2, Edit3, History, Users } from "lucide-react";
 import { LEVEL_META, cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth-provider";
 
@@ -83,6 +83,13 @@ export default function AdminHome() {
             </span>
           </Link>
         )}
+        <Link
+          href="/admin/analytics"
+          className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-800/50 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
+        >
+          <BarChart3 className="h-4 w-4" />
+          学习看板
+        </Link>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
