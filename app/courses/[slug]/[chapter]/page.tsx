@@ -41,11 +41,36 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const data = await getChapterWithOverrides(params.slug, params.chapter);
+  const [data, course] = await Promise.all([
+    getChapterWithOverrides(params.slug, params.chapter),
+    getCourseWithOverrides(params.slug),
+  ]);
   if (!data) return { title: "章节未找到" };
   return {
-    title: data.meta.title,
+    title: `${data.meta.title} · ${course?.title ?? "课程"} · ML 学习站`,
     description: data.meta.description,
+    openGraph: {
+      title: data.meta.title,
+      description: data.meta.description,
+      type: "article",
+      url: `/courses/${params.slug}/${params.chapter}/`,
+      siteName: "ML 学习站",
+      locale: "zh_CN",
+      images: [
+        {
+          url: `/courses/${params.slug}/${params.chapter}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: `${course?.title ?? ""} · ${data.meta.title}`,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: data.meta.title,
+      description: data.meta.description,
+      images: [`/courses/${params.slug}/${params.chapter}/opengraph-image`],
+    },
   };
 }
 
