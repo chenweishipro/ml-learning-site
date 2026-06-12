@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   keywords: ["机器学习", "深度学习", "Python", "NumPy", "Pandas", "中文教程"],
   authors: [{ name: "ML 学习站" }],
   manifest: "/manifest.json",
+  alternates: { canonical: "/", types: { "application/rss+xml": [{ url: "/api/feed/chapters", title: "ML 学习站 · 章节更新" }] } },
   appleWebApp: {
     capable: true,
     title: "ML 学习",
