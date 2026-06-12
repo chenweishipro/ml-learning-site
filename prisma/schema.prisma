@@ -11,6 +11,8 @@ datasource db {
 }
 
 model User {
+  badges     UserBadge[]
+
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
@@ -493,4 +495,19 @@ model ChatMessage {
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt])
+}
+
+
+// 成就/勋章
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  context   String?  // e.g. "chapter:ml-basics/first-model"
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
 }
