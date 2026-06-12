@@ -7,6 +7,7 @@ import { ProgressProvider } from "@/components/progress-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { AuthModal } from "@/components/auth-modal";
 import { PWARegister } from "@/components/pwa-register";
+import { GlossaryTooltip } from "@/components/GlossaryTooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
 
