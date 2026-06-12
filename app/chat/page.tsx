@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Loader2, MessageCircle, Send, Sparkles, Trash2, User as UserIcon } from "lucide-react";
+import { Bot, Loader2, MessageCircle, Plus, Send, Sparkles, Trash2, User as UserIcon, MessageSquarePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Source {
@@ -21,8 +21,16 @@ interface Message {
   sources?: Source[];
   provider?: string;
   pending?: boolean;
-  streaming?: boolean;  // SSE 流式传输中
+  streaming?: boolean;
   error?: string;
+}
+
+interface Session {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { messages: number };
 }
 
 const SUGGESTIONS = [
@@ -36,9 +44,60 @@ const SUGGESTIONS = [
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // 加载 session 列表
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/chat/sessions/", { credentials: "include" });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (j.ok) setSessions(j.data);
+      } catch {}
+    })();
+  }, [messages.length === 0 ? 0 : messages.length]); // refetch after each new convo
+
+  // 加载指定 session
+  async function loadSession(id: string) {
+    setSessionId(id);
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/chat/sessions/${id}/`, { credentials: "include" });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (j.ok && j.data?.messages) {
+        setMessages(j.data.messages.map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          sources: m.citations ? JSON.parse(m.citations) : undefined,
+        })));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function newSession() {
+    setMessages([]);
+    setSessionId(null);
+  }
+
+  async function deleteCurrentSession() {
+    if (!sessionId) {
+      newSession();
+      return;
+    }
+    if (!confirm("删除当前对话?")) return;
+    await fetch(`/api/chat/sessions/${sessionId}/`, { method: "DELETE", credentials: "include" });
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    newSession();
+  }
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -66,7 +125,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, history, topK: 3, stream: true }),
+        body: JSON.stringify({ sessionId, query: q, topK: 3, stream: true }),
       });
       if (!res.ok || !res.body) {
         throw new Error(`HTTP ${res.status}`);
@@ -148,20 +207,62 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="container max-w-3xl py-8 sm:py-10">
-      <div className="mb-6 text-center">
-        <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:ring-purple-800/50">
-          <Sparkles className="h-3 w-3" />
-          AI 答疑
-        </span>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">问 AI 助教</h1>
-        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          基于本站 23 个章节的 RAG 答疑 · 答案会标注来源
-        </p>
+    <div className="container max-w-6xl py-8 sm:py-10">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:ring-purple-800/50">
+            <Sparkles className="h-3 w-3" />
+            AI 答疑 · 多轮对话
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">问 AI 助教</h1>
+          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+            基于全站 44 章节的 RAG 答疑 · 多轮上下文 · 答案标注来源
+          </p>
+        </div>
+        <button
+          onClick={newSession}
+          className="inline-flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-purple-700"
+        >
+          <MessageSquarePlus className="h-4 w-4" />
+          新对话
+        </button>
       </div>
 
-      {/* 聊天窗口 */}
-      <div className="rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
+        {/* 左侧: session 列表 */}
+        <aside className="rounded-2xl border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900 lg:sticky lg:top-24 lg:self-start lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          <h3 className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">历史对话</h3>
+          {sessions.length === 0 ? (
+            <p className="px-2 py-3 text-xs text-neutral-500">还没有对话</p>
+          ) : (
+            <ul className="mt-1 space-y-1">
+              {sessions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    onClick={() => loadSession(s.id)}
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-sm transition",
+                      sessionId === s.id
+                        ? "bg-purple-100 text-purple-900 dark:bg-purple-950/50 dark:text-purple-200"
+                        : "hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                    )}
+                  >
+                    <MessageCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-medium">{s.title}</div>
+                      <div className="text-[10px] text-neutral-500">
+                        {s._count?.messages ?? 0} 条 · {new Date(s.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+
+        {/* 右侧: chat 窗口 */}
+        <div className="rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
         <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-2 dark:border-neutral-800">
           <div className="flex items-center gap-1.5 text-xs text-neutral-500">
             <Bot className="h-3.5 w-3.5 text-purple-500" />
@@ -169,8 +270,9 @@ export default function ChatPage() {
           </div>
           {messages.length > 0 && (
             <button
-              onClick={() => setMessages([])}
+              onClick={deleteCurrentSession}
               className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800"
+              title="删除当前对话"
             >
               <Trash2 className="h-3 w-3" />
               清空
@@ -234,6 +336,7 @@ export default function ChatPage() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </form>
+        </div>
       </div>
 
       <p className="mt-3 text-center text-[11px] text-neutral-500">

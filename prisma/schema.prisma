@@ -32,6 +32,8 @@ model User {
   certificates Certificate[]
   quizWrongs  QuizWrong[]
   codingSubs  CodingSubmission[]
+  chatSessions ChatSession[]
+  chatMessages ChatMessage[]
   comments     Comment[]
   commentLikes CommentLike[]
   notes        Note[]
@@ -463,4 +465,32 @@ model CodingSubmission {
   @@index([userId, challengeId])
   @@index([userId, passed])
   @@index([userId, createdAt])
+}
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  sessionId  String
+  userId     String
+  role       String   // "user" | "assistant"
+  content    String
+  citations  String?  // JSON array of {courseSlug, chapterSlug, snippet, score}
+  createdAt  DateTime @default(now())
+
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }
