@@ -71,6 +71,7 @@ export default function MePage() {
   const { user, ready } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [wrongCount, setWrongCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,9 +79,10 @@ export default function MePage() {
     setLoading(true);
     setError(null);
     try {
-      const [summaryRes, recRes] = await Promise.all([
+      const [summaryRes, recRes, wrongRes] = await Promise.all([
         fetch("/api/study/summary/", { credentials: "include" }),
         fetch("/api/recommend/?limit=5", { credentials: "include" }).catch(() => null),
+        fetch("/api/quiz/wrong/?resolved=false&limit=1", { credentials: "include" }).catch(() => null),
       ]);
       const data = await summaryRes.json();
       if (!data.ok) {
@@ -91,6 +93,10 @@ export default function MePage() {
       if (recRes && recRes.ok) {
         const rj = await recRes.json();
         if (rj.ok) setRecs(rj.data);
+      }
+      if (wrongRes && wrongRes.ok) {
+        const wj = await wrongRes.json();
+        if (wj.ok) setWrongCount(wj.data.items.length > 0 ? 100 : 0); // 简化: 只显示有没有
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "网络错误");
@@ -226,6 +232,22 @@ export default function MePage() {
               <span className="ml-3">近 30 天 · 共 {summary.totalStudyMinutes} 分钟</span>
             </div>
           </Card>
+
+          {/* 快捷入口 */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Link
+              href="/me/wrong-answers/"
+              className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-red-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-red-700"
+            >
+              <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-md bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4a2 2 0 00-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" /></svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-neutral-900 group-hover:text-red-700 dark:text-neutral-50 dark:group-hover:text-red-300">错题本</div>
+                <div className="text-xs text-neutral-500">复习 Quiz 错题</div>
+              </div>
+            </Link>
+          </div>
 
           {/* 下一步学什么 — 智能推荐 */}
           <NextStepsCard recs={recs} />

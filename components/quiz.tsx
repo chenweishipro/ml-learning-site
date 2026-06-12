@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@/components/auth-provider";
 import { Check, X, RotateCcw, Trophy } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +35,30 @@ export function Quiz({ title = "章末小测验", description, questions, chapte
   const reset = () => {
     setAnswers({});
     setSubmitted(false);
+  };
+
+  // 提交错题到后端 (useAuth 是 conditional, 但 React hook 必须在顶层)
+  const { user } = useAuth();
+  // 上次提交的错题集合 (避免重复存)
+  const submitWrong = async () => {
+    if (!user || !chapterId) return;
+    const [courseSlug, chapterSlug] = chapterId.split("/");
+    if (!courseSlug || !chapterSlug) return;
+    const wrongItems = questions
+      .map((q, i) => ({ q, i, answer: answers[i] }))
+      .filter(({ q, i, answer }) => answer !== undefined && answer !== q.correct)
+      .map(({ q, i, answer }) => ({ questionIndex: i, userAnswer: answer, correctAnswer: q.correct }));
+    if (wrongItems.length === 0) return;
+    try {
+      await fetch("/api/quiz/wrong", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseSlug, chapterSlug, wrongItems }),
+      });
+    } catch (e) {
+      // 静默失败
+    }
   };
 
   const allAnswered = questions.every((_, i) => answers[i] !== undefined);
@@ -111,7 +136,7 @@ export function Quiz({ title = "章末小测验", description, questions, chapte
           <div className="ml-8 flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-800">
             {!submitted ? (
               <Button
-                onClick={() => setSubmitted(true)}
+                onClick={() => { setSubmitted(true); submitWrong(); }}
                 disabled={!allAnswered}
                 size="md"
               >

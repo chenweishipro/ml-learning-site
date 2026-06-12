@@ -30,6 +30,7 @@ model User {
   studySessions StudySession[]
   studyPlans   StudyPlan[]
   certificates Certificate[]
+  quizWrongs  QuizWrong[]
   comments     Comment[]
   commentLikes CommentLike[]
   notes        Note[]
@@ -410,4 +411,23 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@index([createdAt])
+}
+
+model QuizWrong {
+  id            String   @id @default(cuid())
+  userId        String
+  courseSlug    String
+  chapterSlug   String
+  questionIndex Int
+  userAnswer    Int
+  correctAnswer Int
+  resolved      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseSlug, chapterSlug, questionIndex])
+  @@index([userId, resolved])
+  @@index([userId, updatedAt])
 }
