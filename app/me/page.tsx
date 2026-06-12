@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { cn } from "@/lib/utils";
+import { NextStepsCard } from "@/components/NextStepsCard";
+import type { Recommendation } from "@/lib/recommend";
 
 interface CourseProgress {
   slug: string;
@@ -68,6 +70,7 @@ interface Summary {
 export default function MePage() {
   const { user, ready } = useAuth();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,13 +78,20 @@ export default function MePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/study/summary/", { credentials: "include" });
-      const data = await res.json();
+      const [summaryRes, recRes] = await Promise.all([
+        fetch("/api/study/summary/", { credentials: "include" }),
+        fetch("/api/recommend/?limit=5", { credentials: "include" }).catch(() => null),
+      ]);
+      const data = await summaryRes.json();
       if (!data.ok) {
         setError(data.error ?? "加载失败");
         return;
       }
       setSummary(data.data.summary);
+      if (recRes && recRes.ok) {
+        const rj = await recRes.json();
+        if (rj.ok) setRecs(rj.data);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "网络错误");
     } finally {
@@ -216,6 +226,9 @@ export default function MePage() {
               <span className="ml-3">近 30 天 · 共 {summary.totalStudyMinutes} 分钟</span>
             </div>
           </Card>
+
+          {/* 下一步学什么 — 智能推荐 */}
+          <NextStepsCard recs={recs} />
 
           {/* 课程进度 */}
           <Card title="课程进度" icon={BookOpen}>

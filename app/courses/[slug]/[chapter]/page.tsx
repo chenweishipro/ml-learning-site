@@ -8,6 +8,8 @@ import {
   getCourseWithOverrides,
 } from "@/lib/content-overrides";
 import { getChapterNeighbors } from "@/lib/content";
+import { suggestRelated } from "@/lib/recommend";
+import { RelatedChaptersCard } from "@/components/RelatedChaptersCard";
 import { getQuiz } from "@/lib/quizzes";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
@@ -230,6 +232,9 @@ export default async function ChapterPage({ params }: Params) {
               </Link>
             )}
           </nav>
+
+          {/* 学完这章, 你可能想看 — 关联章节推荐 */}
+          <RelatedChaptersCard items={suggestRelated(params.slug, params.chapter, 3)} />
 
           {/* 评论区 */}
           <CommentSection
