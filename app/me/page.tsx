@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/components/auth-provider";
 import { cn } from "@/lib/utils";
 import { NextStepsCard } from "@/components/NextStepsCard";
+import { YearHeatmap } from "@/components/YearHeatmap";
 import type { Recommendation } from "@/lib/recommend";
 
 interface CourseProgress {
@@ -251,6 +252,7 @@ export default function MePage() {
 
           {/* 下一步学什么 — 智能推荐 */}
           <NextStepsCard recs={recs} />
+          <YearHeatmap year={new Date().getFullYear()} />
 
           {/* 课程进度 */}
           <Card title="课程进度" icon={BookOpen}>
