@@ -15,6 +15,8 @@ import {
 import { Math, M, MBlock } from "@/components/math";
 import { Quiz } from "@/components/quiz";
 import { PythonRunner } from "@/components/python-runner";
+import { CodingChallenge } from "@/components/CodingChallenge";
+import { getCodingChallenge } from "@/lib/coding-challenges";
 
 /**
  * 章节 MDX 的服务端渲染入口。
@@ -49,6 +51,11 @@ export function MDXContent({ source }: { source: string }) {
     MBlock,
     Quiz,
     PythonRunner,
+    CodingChallenge: (props: { id: string }) => {
+      const c = getCodingChallenge(props.id);
+      if (!c) return <div className="my-6 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">编程题 {props.id} 未找到</div>;
+      return <CodingChallenge challenge={c} />;
+    },
     pre: (props) => <CodeBlock>{props.children}</CodeBlock>,
   };
   // 注: MDXRemote 不缓存, 它是 RSC. 我们不强制缓存组件本身,

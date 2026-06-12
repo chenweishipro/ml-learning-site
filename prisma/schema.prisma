@@ -31,6 +31,7 @@ model User {
   studyPlans   StudyPlan[]
   certificates Certificate[]
   quizWrongs  QuizWrong[]
+  codingSubs  CodingSubmission[]
   comments     Comment[]
   commentLikes CommentLike[]
   notes        Note[]
@@ -443,4 +444,23 @@ model AiSummary {
 
   @@unique([courseSlug, chapterSlug])
   @@index([updatedAt])
+}
+
+model CodingSubmission {
+  id           String   @id @default(cuid())
+  userId       String
+  courseSlug   String
+  chapterSlug  String
+  challengeId  String
+  code         String
+  passed       Boolean
+  passedTests  Int
+  totalTests   Int
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, challengeId])
+  @@index([userId, passed])
+  @@index([userId, createdAt])
 }
