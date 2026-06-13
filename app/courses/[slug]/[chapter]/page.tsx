@@ -12,7 +12,7 @@ import { suggestRelated } from "@/lib/recommend";
 import { RelatedChaptersCard } from "@/components/RelatedChaptersCard";
 import { AISummaryCard } from "@/components/AISummaryCard";
 import { getAISummary } from "@/lib/ai-summary";
-import { getQuiz } from "@/lib/quizzes";
+import { getQuiz, getOrGenerateQuiz } from "@/lib/quizzes";
 import { getCurrentUser } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { extractToc } from "@/lib/toc";
@@ -82,6 +82,7 @@ export default async function ChapterPage({ params }: Params) {
 
   const data = await getChapterWithOverrides(params.slug, params.chapter);
   if (!data) notFound();
+  const quizQuestions = await getOrGenerateQuiz(params.slug, params.chapter, 5);
 
   const { prev, next, index, total } = getChapterNeighbors(
     params.slug,
@@ -201,19 +202,15 @@ export default async function ChapterPage({ params }: Params) {
           />
           <MDXContent source={data.content} />
 
-          {/* 章末小测验 (如果该章有题) */}
-          {(() => {
-            const questions = getQuiz(params.slug, params.chapter);
-            if (questions.length === 0) return null;
-            return (
-              <Quiz
-                title="章末小测验"
-                description={`检验你对《${data.meta.title}》的掌握程度。`}
-                questions={questions}
-                chapterId={`${params.slug}/${params.chapter}`}
-              />
-            );
-          })()}
+          {/* 章末小测验 (静态题库优先, 无则 AI 生成) */}
+          {quizQuestions.length > 0 && (
+            <Quiz
+              title="章末小测验"
+              description={`检验你对《${data.meta.title}》的掌握程度。`}
+              questions={quizQuestions}
+              chapterId={`${params.slug}/${params.chapter}`}
+            />
+          )}
 
           {/* 上下章导航 (VitePress 风格) */}
           <nav className="mt-12 grid gap-3 border-t border-neutral-200 pt-8 sm:grid-cols-2 dark:border-neutral-800">

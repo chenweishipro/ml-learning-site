@@ -8,6 +8,8 @@ import type { QuizQuestion } from "@/components/quiz";
  * 注意: 题干/选项/explanation 内部不要再包含英文双引号 ", 用 「」 或 单引号 替代。
  */
 
+import { generateAIQuiz } from "./ai-quiz";
+
 export const QUIZZES: Record<string, QuizQuestion[]> = {
   "ml-basics/what-is-ml": [
     {
@@ -331,4 +333,29 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
 
 export function getQuiz(courseSlug: string, chapterSlug: string): QuizQuestion[] {
   return QUIZZES[`${courseSlug}/${chapterSlug}`] ?? [];
+}
+
+/** 静态题库为空时, 调 LLM 生成 (AI 兜底)
+ * 章节页可直接调, 失败回退到空数组 (Quiz 组件不渲染)
+ */
+export async function getOrGenerateQuiz(courseSlug: string, chapterSlug: string, count = 5): Promise<QuizQuestion[]> {
+  const staticQs = QUIZZES[`${courseSlug}/${chapterSlug}`];
+  if (staticQs && staticQs.length > 0) return staticQs;
+  try {
+    // 读 mdx 内容
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const file = path.join(process.cwd(), "content", "courses", courseSlug, `${chapterSlug}.mdx`);
+    let content = await fs.readFile(file, "utf8");
+    content = content
+      .replace(/^---[\s\S]*?---\n?/, "")
+      .replace(/^import .*$/gm, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/```[\s\S]*?```/g, "")
+      .trim();
+    const r = await generateAIQuiz(courseSlug, chapterSlug, content, { count });
+    return r.questions;
+  } catch (e) {
+    return [];
+  }
 }
