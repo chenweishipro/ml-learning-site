@@ -40,6 +40,27 @@ export async function createComment(opts: CreateOpts) {
       author: { select: { id: true, email: true, displayName: true, role: true } },
     },
   });
+  // 解析 @ mentions (匹配 @<id> 或 @<name>, 找到对应 user)
+  try {
+    const mentionIds = await extractMentionedUserIds(opts.body);
+    // 通知被 @ 的 user (排除自己 + 排除 parent author, 那种走 reply 通知)
+    for (const mid of mentionIds) {
+      if (mid === opts.authorId) continue;
+      await prisma.notification.create({
+        data: {
+          recipientId: mid,
+          type: "comment_mention",
+          title: `${c.author.displayName || c.author.email.split("@")[0]} 在评论中提到了你`,
+          body: c.body.slice(0, 120),
+          link: opts.scope === "chapter" && opts.chapterSlug
+            ? `/courses/${opts.courseSlug}/${opts.chapterSlug}/#comment-${c.id}`
+            : `/courses/${opts.courseSlug}/#comment-${c.id}`,
+        },
+      });
+    }
+  } catch (e) {
+    // 通知失败不影响评论
+  }
   return { ok: true as const, data: c };
 }
 
@@ -107,4 +128,41 @@ export async function hideComment(opts: { id: string; isAdmin: boolean }) {
   if (!opts.isAdmin) return { ok: false as const, error: "需要管理员权限" };
   await prisma.comment.update({ where: { id: opts.id }, data: { status: "hidden" } });
   return { ok: true as const };
+}
+
+/**
+ * 解析评论里的 @ mention
+ * 支持:
+ *   @<userId>          内部标记 (前端发评论时把选中的 @ 转成 @<id>)
+ *   @displayName       简单匹配 (按 displayName / email 前缀)
+ * 最多取 5 个
+ */
+export async function extractMentionedUserIds(body: string): Promise<string[]> {
+  const out: string[] = [];
+  // 1) @<id> 形式 (cuid)
+  const idRe = /@<([a-z0-9]{20,40})>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = idRe.exec(body)) && out.length < 5) {
+    const u = await prisma.user.findUnique({ where: { id: m[1] }, select: { id: true } });
+    if (u && !out.includes(u.id)) out.push(u.id);
+  }
+  // 2) @<name> 形式 (displayName 或 email 前缀)
+  const nameRe = /@([\u4e00-\u9fa5A-Za-z0-9_\-]{2,30})/g;
+  while ((m = nameRe.exec(body)) && out.length < 5) {
+    const name = m[1];
+    // 跳过刚刚 id 形式的
+    if (out.includes(name)) continue;
+    // 模糊匹配: displayName = name 或 email 前缀 = name
+    const u = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { displayName: name },
+          { email: { startsWith: `${name.toLowerCase()}@` } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (u && !out.includes(u.id)) out.push(u.id);
+  }
+  return out;
 }

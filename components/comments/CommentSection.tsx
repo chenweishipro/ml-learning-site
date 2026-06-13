@@ -335,6 +335,8 @@ function CommentItem({
   onDelete,
   onLike,
   onHide,
+  parentAuthor,
+  replyToId,
 }: {
   comment: Comment & { children: Comment[] };
   currentUserId?: string;
@@ -343,7 +345,12 @@ function CommentItem({
   onDelete: (id: string) => void;
   onLike: (id: string) => void;
   onHide: (id: string) => void;
+  parentAuthor?: { id: string; name: string } | null;
+  replyToId?: string | null;
 }) {
+  // 子评论折叠: > 3 折叠前 2 + 隐藏其余
+  const COLLAPSE_THRESHOLD = 3;
+  const PREVIEW_COUNT = 2;
   const isOwn = currentUserId === comment.authorId;
   const role = comment.author.role as Role;
   const roleMeta = ROLE_META[role] ?? ROLE_META.user;
@@ -374,14 +381,7 @@ function CommentItem({
                 </span>
               )}
             </div>
-            <div
-              className={cn(
-                "mt-1.5 whitespace-pre-wrap text-sm leading-relaxed",
-                isDeleted ? "italic text-neutral-400 dark:text-neutral-500" : "text-neutral-700 dark:text-neutral-200"
-              )}
-            >
-              {comment.body}
-            </div>
+            <CommentBody body={comment.body} isDeleted={isDeleted} />
             {!isDeleted && (
               <div className="mt-2 flex items-center gap-3 text-[11px] text-neutral-500">
                 <button
@@ -421,23 +421,108 @@ function CommentItem({
         </div>
       </div>
 
-      {/* 回复列表 */}
+      {/* 引用提示: 显示被回复的那条 (如果当前 comment 是 reply) */}
+      {parentAuthor && (
+        <div className="mx-3 mb-1 flex items-center gap-1.5 rounded-md border-l-2 border-primary-300 bg-primary-50/40 px-2 py-1 text-[11px] text-neutral-600 dark:border-primary-700 dark:bg-primary-950/20 dark:text-neutral-400">
+          <CornerDownRight className="h-3 w-3" />
+          <span>回复</span>
+          <Link href={`/u/${parentAuthor.id}/`} className="font-medium text-primary-700 hover:underline dark:text-primary-300">
+            @{parentAuthor.name}
+          </Link>
+        </div>
+      )}
+
+      {/* 回复列表 (折叠) */}
       {comment.children.length > 0 && (
-        <ul className="space-y-2 border-t border-neutral-100 bg-neutral-50/40 p-3 dark:border-neutral-800 dark:bg-neutral-900/40">
-          {comment.children.map((child) => (
-            <CommentItem
-              key={child.id}
-              comment={child as any}
-              currentUserId={currentUserId}
-              isAdminUser={isAdminUser}
-              onReply={onReply}
-              onDelete={onDelete}
-              onLike={onLike}
-              onHide={onHide}
-            />
-          ))}
-        </ul>
+        <div className="border-t border-neutral-100 bg-neutral-50/40 dark:border-neutral-800 dark:bg-neutral-900/40">
+          {comment.children.length > COLLAPSE_THRESHOLD ? (
+            <details className="group">
+              <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-2 text-[11px] text-neutral-500 hover:text-primary-700">
+                <CornerDownRight className="h-3 w-3" />
+                展开 {comment.children.length} 条回复 ({comment.children.length - PREVIEW_COUNT} 折叠)
+              </summary>
+              <ul className="space-y-2 px-3 pb-3">
+                {comment.children.map((child) => (
+                  <CommentItem
+                    key={child.id}
+                    comment={child as any}
+                    currentUserId={currentUserId}
+                    isAdminUser={isAdminUser}
+                    onReply={onReply}
+                    onDelete={onDelete}
+                    onLike={onLike}
+                    onHide={onHide}
+                    parentAuthor={{ id: comment.author.id, name: comment.author.displayName ?? comment.author.email.split("@")[0] }}
+                    replyToId={child.id}
+                  />
+                ))}
+              </ul>
+            </details>
+          ) : (
+            <ul className="space-y-2 p-3">
+              {comment.children.map((child) => (
+                <CommentItem
+                  key={child.id}
+                  comment={child as any}
+                  currentUserId={currentUserId}
+                  isAdminUser={isAdminUser}
+                  onReply={onReply}
+                  onDelete={onDelete}
+                  onLike={onLike}
+                  onHide={onHide}
+                  parentAuthor={{ id: comment.author.id, name: comment.author.displayName ?? comment.author.email.split("@")[0] }}
+                  replyToId={child.id}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </li>
+  );
+}
+
+/** 解析 @xxx / @<id> 为指向用户主页的链接 */
+function CommentBody({ body, isDeleted }: { body: string; isDeleted: boolean }) {
+  if (isDeleted) {
+    return (
+      <div className="mt-1.5 whitespace-pre-wrap text-sm italic leading-relaxed text-neutral-400 dark:text-neutral-500">
+        {body}
+      </div>
+    );
+  }
+  // 切分: 普通文本 + @<id> + @name
+  const parts: React.ReactNode[] = [];
+  const re = /@(<([a-z0-9]{20,40})>|([\u4e00-\u9fa5A-Za-z0-9_\-]{2,30}))/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+  while ((m = re.exec(body))) {
+    if (m.index > last) parts.push(<span key={`t${k++}`}>{body.slice(last, m.index)}</span>);
+    const fullMatch = m[0]; // "@<id>" or "@name"
+    const inner = m[1];
+    if (inner.startsWith("<")) {
+      // @<id> - 用 Link 链到 /u/<id>/
+      const id = m[2];
+      parts.push(
+        <Link key={`m${k++}`} href={`/u/${id}/`} className="font-medium text-primary-700 hover:underline dark:text-primary-300">
+          @{id.slice(0, 6)}...
+        </Link>
+      );
+    } else {
+      // @name - 搜索提示
+      parts.push(
+        <Link key={`m${k++}`} href={`/courses/?q=%40${encodeURIComponent(inner)}`} className="font-medium text-primary-700 hover:underline dark:text-primary-300">
+          @{inner}
+        </Link>
+      );
+    }
+    last = m.index + fullMatch.length;
+  }
+  if (last < body.length) parts.push(<span key={`t${k++}`}>{body.slice(last)}</span>);
+  return (
+    <div className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-neutral-700 dark:text-neutral-200">
+      {parts}
+    </div>
   );
 }
