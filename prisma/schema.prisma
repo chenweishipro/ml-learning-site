@@ -12,11 +12,19 @@ datasource db {
 
 model User {
   badges     UserBadge[]
+  following  UserFollow[] @relation("UserFollowsFrom")
+  followers  UserFollow[] @relation("UserFollowsTo")
 
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   displayName  String?
+  // 公开个人资料 (v10.1)
+  avatarUrl    String?
+  bio          String?
+  // 公开等级 (前端读, 后端写)
+  // 0 = 仅自己可见, 1 = 公开
+  profilePublic Int     @default(1)
   // 角色: "user" (默认) | "admin" (可编辑内容) | "superadmin" (可设管理员)
   role         String   @default("user")
   createdAt    DateTime @default(now())
@@ -499,6 +507,20 @@ model ChatMessage {
 
 
 // 成就/勋章
+// 用户互相关注 (v10.1)
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followeeId  String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowsFrom", fields: [followerId], references: [id], onDelete: Cascade)
+  followee    User     @relation("UserFollowsTo", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followeeId])
+  @@index([followerId])
+  @@index([followeeId])
+}
+
 model UserBadge {
   id        String   @id @default(cuid())
   userId    String
