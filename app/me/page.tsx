@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  User,
   Award,
   BookOpen,
   Calendar,
@@ -246,6 +247,23 @@ export default function MePage() {
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-neutral-900 group-hover:text-red-700 dark:text-neutral-50 dark:group-hover:text-red-300">错题本</div>
                 <div className="text-xs text-neutral-500">复习 Quiz 错题</div>
+              </div>
+            </Link>
+
+            <Link
+              href="/me/edit/"
+              className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-primary-700"
+            >
+              <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-md bg-primary-50 text-primary-600 dark:bg-primary-950/30 dark:text-primary-400">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium text-neutral-900 group-hover:text-primary-700 dark:text-neutral-50 dark:group-hover:text-primary-300">
+                  编辑个人资料
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  昵称、简介、头像
+                </p>
               </div>
             </Link>
           </div>
