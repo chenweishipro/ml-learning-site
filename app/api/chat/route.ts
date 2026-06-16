@@ -21,7 +21,8 @@ interface ChatRequest {
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
-  if (!user) return fail("未登录", 401);
+  // 未登录始终走 mock (不持久化 session, 不调真实 LLM, 避免配额滥用)
+  const ANONYMOUS_ALLOWED = true;
 
   let body: ChatRequest;
   try {
@@ -31,6 +32,12 @@ export async function POST(req: Request) {
   }
   if (!body.query?.trim()) {
     return fail("query is required", 400);
+  }
+
+  // 未登录: 强制 mock 模式 (不持久化 session)
+  // 避免滥用真实 LLM 配额
+  if (!user) {
+    return await ragAnonymousStream(body.query, body.topK ?? 3);
   }
 
   // 拿/建 session
@@ -135,5 +142,44 @@ export async function GET() {
       "中心极限定理为什么重要?",
       "如何用 Python 调通一个最小神经网络?",
     ],
+  });
+}
+
+/** 未登录流式答疑: 强制 mock provider + 不持久化 */
+async function ragAnonymousStream(query: string, topK: number) {
+  // 临时覆盖 LLM_PROVIDER
+  const originalProvider = process.env.LLM_PROVIDER;
+  process.env.LLM_PROVIDER = "mock";
+  // 重置 LLM provider cache, 让 mock 生效
+  const { resetLLMProvider } = await import("@/lib/llm");
+  resetLLMProvider();
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      };
+      try {
+        for await (const event of ragChatStream({ query, history: [], topK })) {
+          send({ type: event.type, data: event.data, sessionId: null, anonymous: true });
+        }
+      } catch (e) {
+        send({ type: "error", data: e instanceof Error ? e.message : "答疑失败", sessionId: null, anonymous: true });
+      } finally {
+        // 恢复
+        if (originalProvider) process.env.LLM_PROVIDER = originalProvider;
+        else delete process.env.LLM_PROVIDER;
+        resetLLMProvider();
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
   });
 }

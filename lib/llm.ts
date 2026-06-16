@@ -279,8 +279,13 @@ async function* parseSSEStream(
  * 工厂方法
  * =========================================================================== */
 
-let _provider: LLMProvider | null = null;
+export let _provider: LLMProvider | null = null;
 let _providerEnv: string | null = null;
+
+export function resetLLMProvider(): void {
+  _provider = null;
+  _providerEnv = null;
+}
 
 export function getLLMProvider(): LLMProvider {
   const which = (process.env.LLM_PROVIDER ?? "mock").toLowerCase();
