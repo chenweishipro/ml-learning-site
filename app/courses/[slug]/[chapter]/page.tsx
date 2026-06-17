@@ -20,6 +20,7 @@ import { ChapterSidebar } from "./ChapterSidebar";
 import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
 import { ChapterPDFExport } from "@/components/chapter-pdf-export";
+import { ChapterDownload } from "@/components/chapter-download";
 import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
 import { NotesPanel } from "@/components/notes/NotesPanel";
@@ -168,6 +169,7 @@ export default async function ChapterPage({ params }: Params) {
             chapterSlug={params.chapter}
             chapterTitle={data.meta.title}
           />
+                <ChapterDownload courseSlug={params.slug} chapterSlug={params.chapter} chapterTitle={data.meta.title} />
           {canEdit && (
             <Link
               href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
