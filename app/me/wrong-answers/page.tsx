@@ -45,6 +45,7 @@ export default async function WrongAnswersPage() {
       return {
         id: w.id,
         resolved: w.resolved,
+        questionIndex: w.questionIndex,
         updatedAt: w.updatedAt.toISOString(),
         course: { slug: w.courseSlug, title: course.title },
         chapter: { slug: w.chapterSlug, title: chapter.title },
