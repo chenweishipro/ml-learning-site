@@ -5,7 +5,7 @@
 //   3. API (GET, /api/) -> Network First, 失败返回空 JSON
 //   4. 其它 -> Network First
 
-const CACHE_VERSION = "ml-site-v8.4";
+const CACHE_VERSION = "ml-site-v11.3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGES_CACHE = `${CACHE_VERSION}-pages`;
 
@@ -87,6 +87,22 @@ self.addEventListener("fetch", (event) => {
         .catch(() =>
           caches.match(req).then((cached) => cached || caches.match("/offline"))
         )
+    );
+    return;
+  }
+
+  // 3. 章节下载 (md/text/html): network first, 失败 fallback
+  if (url.pathname.startsWith("/api/chapter/export")) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(PAGES_CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
     );
     return;
   }

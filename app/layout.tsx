@@ -9,6 +9,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { PWARegister } from "@/components/pwa-register";
 import { GlossaryTooltip } from "@/components/GlossaryTooltip";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { InstallPrompt } from "@/components/install-prompt";
 import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
 

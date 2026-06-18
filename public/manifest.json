@@ -1,7 +1,7 @@
 {
   "name": "ML 学习站",
   "short_name": "ML 学习",
-  "description": "互动式机器学习教程 · 5 门课 23 章",
+  "description": "中文 ML 教程 · 5 门课 23 章 · AI 答疑 · 错题本 · 成就",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
@@ -28,27 +28,44 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["education", "books", "productivity"],
+  "categories": [
+    "education",
+    "books",
+    "productivity"
+  ],
   "shortcuts": [
     {
-      "name": "搜索",
-      "url": "/search",
-      "description": "搜索课程内容"
+      "name": "课程列表",
+      "short_name": "课程",
+      "url": "/courses/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "问答",
-      "url": "/qa",
-      "description": "提问和回答"
+      "name": "AI 答疑",
+      "short_name": "AI 答疑",
+      "url": "/chat/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
-      "name": "我的学习",
-      "url": "/me",
-      "description": "个人仪表盘"
-    },
-    {
-      "name": "问 AI",
-      "url": "/chat",
-      "description": "AI 答疑"
+      "name": "我的主页",
+      "short_name": "我",
+      "url": "/me/",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
