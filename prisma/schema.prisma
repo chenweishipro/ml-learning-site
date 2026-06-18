@@ -10,7 +10,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+model InviteCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  ownerId   String
+  owner     User     @relation("Invites", fields: [ownerId], references: [id], onDelete: Cascade)
+  usedById  String?
+  usedBy    User?    @relation("Redeemed", fields: [usedById], references: [id])
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+}
+
 model User {
+  invites         InviteCode[] @relation("Invites")
+  redeemedInvite  InviteCode[] @relation("Redeemed")
   badges     UserBadge[]
   following  UserFollow[] @relation("UserFollowsFrom")
   followers  UserFollow[] @relation("UserFollowsTo")

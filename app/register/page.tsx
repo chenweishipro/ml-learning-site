@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { ArrowLeft } from "lucide-react";
@@ -13,7 +14,9 @@ export default function RegisterPage() {
       </Link>
       <h1 className="mb-1 text-2xl font-bold tracking-tight">创建账号</h1>
       <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-400">几秒钟开始你的 ML 学习之旅</p>
-      <RegisterForm />
+      <Suspense fallback={<div className="text-center text-sm text-neutral-500">加载中...</div>}>
+        <RegisterForm />
+      </Suspense>
       <p className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
         已有账号?{" "}
         <Link href="/login" className="text-primary-700 hover:underline dark:text-primary-300">

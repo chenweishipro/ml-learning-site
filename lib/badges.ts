@@ -125,6 +125,54 @@ export const BADGES: Badge[] = [
     tier: "gold",
     check: async (s) => s.certificatesCount >= 1 ? { earned: true, context: `${s.certificatesCount} cert` } : { earned: false },
   },
+  {
+    id: "invited",
+    name: "新种子",
+    description: "通过邀请码注册加入, 开启了你的 ML 学习之旅",
+    emoji: "🌱",
+    tier: "bronze",
+    check: async (s) => {
+      const { prisma } = await import("./db");
+      const r = await prisma.inviteCode.findFirst({ where: { usedById: s.userId } });
+      return r ? { earned: true, context: "invited" } : { earned: false };
+    },
+  },
+  {
+    id: "promoter-3",
+    name: "破冰者",
+    description: "成功邀请 3 位新同学",
+    emoji: "🌟",
+    tier: "bronze",
+    check: async (s) => {
+      const { prisma } = await import("./db");
+      const c = await prisma.inviteCode.count({ where: { ownerId: s.userId, usedById: { not: null } } });
+      return c >= 3 ? { earned: true, context: `${c} invited` } : { earned: false };
+    },
+  },
+  {
+    id: "promoter-10",
+    name: "分享者",
+    description: "成功邀请 10 位新同学",
+    emoji: "💫",
+    tier: "silver",
+    check: async (s) => {
+      const { prisma } = await import("./db");
+      const c = await prisma.inviteCode.count({ where: { ownerId: s.userId, usedById: { not: null } } });
+      return c >= 10 ? { earned: true, context: `${c} invited` } : { earned: false };
+    },
+  },
+  {
+    id: "promoter-30",
+    name: "大使",
+    description: "成功邀请 30 位新同学, ML 学习推广大使",
+    emoji: "👑",
+    tier: "gold",
+    check: async (s) => {
+      const { prisma } = await import("./db");
+      const c = await prisma.inviteCode.count({ where: { ownerId: s.userId, usedById: { not: null } } });
+      return c >= 30 ? { earned: true, context: `${c} invited` } : { earned: false };
+    },
+  },
 ];
 
 export const TIER_META: Record<BadgeTier, { label: string; ring: string; bg: string; text: string }> = {

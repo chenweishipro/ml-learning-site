@@ -19,7 +19,7 @@ interface AuthContextValue {
   ready: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  register: (email: string, password: string, displayName?: string) => Promise<{ ok: boolean; error?: string }>;
+  register: (email: string, password: string, displayName?: string, inviteCode?: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ ok: boolean; error?: string }>;
   resetPassword: (token: string, password: string) => Promise<{ ok: boolean; error?: string }>;
@@ -104,13 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const register: AuthContextValue["register"] = useCallback(
-    async (email, password, displayName) => {
+    async (email, password, displayName, inviteCode) => {
       setLoading(true);
       try {
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, displayName }),
+          body: JSON.stringify({ email, password, displayName, inviteCode }),
           credentials: "include",
         });
         const data = await res.json();

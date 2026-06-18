@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Gift,
   User,
   Award,
   BookOpen,
@@ -263,6 +264,23 @@ export default function MePage() {
                 </h3>
                 <p className="mt-0.5 line-clamp-1 text-xs text-neutral-600 dark:text-neutral-400">
                   昵称、简介、头像
+                </p>
+              </div>
+            </Link>
+
+            <Link
+              href="/me/invite/"
+              className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-rose-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-rose-700"
+            >
+              <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400">
+                <Gift className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium text-neutral-900 group-hover:text-rose-700 dark:text-neutral-50 dark:group-hover:text-rose-300">
+                  邀请好友
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  生成邀请码, 双方得徽章
                 </p>
               </div>
             </Link>
