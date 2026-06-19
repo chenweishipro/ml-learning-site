@@ -329,6 +329,166 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       explanation: "BN 通过归一化让每层输入分布稳定,是现代深度网络的标配之一。",
     },
   ],
+
+  /* ============== v13.1 NLP 入门 ============== */
+  "nlp-basics/text-preprocessing": [
+    {
+      question: "中文分词最常用的开源工具是?",
+      options: ["NLTK", "spaCy", "jieba", "Stanford CoreNLP"],
+      correct: 2,
+      explanation: "jieba 是中文 NLP 最常用的分词库,基于前缀词典 + 动态规划,简单易用,适合大多数场景。",
+    },
+    {
+      question: "为什么情感分析中'不推荐'不能拆成'不'和'推荐'?",
+      options: ["太长了", "否定词'不'被去停用词过滤掉,语义反转", "速度太慢", "需要 GPU 加速"],
+      correct: 1,
+      explanation: "停用词表通常包含'不'、'没'等否定词,但情感分析必须保留它们,否则'不好'会变成'好',语义完全反转。",
+    },
+  ],
+  "nlp-basics/tf-idf": [
+    {
+      question: "TF-IDF 中的 IDF 是什么的缩写?",
+      options: ["Internal Document Format", "Inverse Document Frequency", "Index Data File", "Incremental Document Filter"],
+      correct: 1,
+      explanation: "IDF = Inverse Document Frequency (逆文档频率),衡量一个词在多少文档中出现,出现越少 IDF 越高,代表该词越有区分力。",
+    },
+    {
+      question: "词袋 (Bag-of-Words) 模型最大的局限是?",
+      options: ["计算太慢", "完全丢掉语序信息", "内存占用大", "不支持中文"],
+      correct: 1,
+      explanation: "词袋模型只看每个词出现几次,完全不关心顺序。所以'我打你'和'你打我'在词袋模型里完全一样。要保留语序需要用 n-gram 或深度学习。",
+    },
+  ],
+  "nlp-basics/word2vec": [
+    {
+      question: "Word2Vec 中'king - man + woman ≈ queen'这种类比能力是怎么来的?",
+      options: ["人工标注", "训练数据里有这个事实", "向量空间里几何关系自然涌现", "随机初始化"],
+      correct: 2,
+      explanation: "Word2Vec 把词映射到向量空间,语义关系以几何关系(向量加减)自然涌现。这是 word embedding 最有魅力的特性,不需要任何人工标注。",
+    },
+    {
+      question: "Skip-gram 和 CBOW 的区别是?",
+      options: ["Skip-gram 用 GPU, CBOW 用 CPU", "Skip-gram 用中心词预测上下文, CBOW 用上下文预测中心词", "Skip-gram 是监督学习, CBOW 是无监督", "没有区别, 只是名字不同"],
+      correct: 1,
+      explanation: "Skip-gram 用中心词预测周围上下文;CBOW 用周围上下文预测中心词。Skip-gram 在小数据集上表现更好,CBOW 训练更快。",
+    },
+  ],
+  "nlp-basics/sentiment-analysis": [
+    {
+      question: "TF-IDF + 逻辑回归在 IMDb 影评情感分析上通常能达到多少准确率?",
+      options: ["50-60%", "65-75%", "85-90%", "99%+"],
+      correct: 2,
+      explanation: "TF-IDF (ngram 1-2) + LogisticRegression 在 IMDb 数据集上通常 85-90% 准确率。要 95%+ 需要 BERT 等深度学习模型。",
+    },
+    {
+      question: "处理类别不平衡的简单方法是?",
+      options: ["加大 batch size", "class_weight='balanced'", "换优化器", "增加训练轮数"],
+      correct: 1,
+      explanation: "sklearn 的 LogisticRegression 支持 class_weight='balanced',自动根据类别频率反比分配权重,让模型关注少数类。",
+    },
+  ],
+
+  /* ============== v13.1 时间序列 ============== */
+  "time-series/ts-basics": [
+    {
+      question: "判断时间序列是否平稳的常用检验是?",
+      options: ["t 检验", "ADF 检验 (Augmented Dickey-Fuller)", "F 检验", "卡方检验"],
+      correct: 1,
+      explanation: "ADF 检验的原假设是'序列非平稳',p 值 < 0.05 拒绝原假设 → 序列平稳。KPSS 检验方向相反,原假设是平稳。",
+    },
+    {
+      question: "时间序列 4 大分析目标是?",
+      options: ["回归、分类、聚类、生成", "描述、预测、异常检测、控制", "训练、验证、测试、部署", "监督、无监督、半监督、强化"],
+      correct: 1,
+      explanation: "时序分析的 4 大目标是: 描述 (画图看趋势)、预测 (未来值)、异常检测 (找出反常点)、控制 (判断过程是否在控)。",
+    },
+  ],
+  "time-series/arima": [
+    {
+      question: "ARIMA(p, d, q) 中的 d 代表什么?",
+      options: ["滞后阶数", "差分次数", "季节周期", "残差项数"],
+      correct: 1,
+      explanation: "ARIMA 的 3 个参数: p = AR 阶数 (滞后), d = 差分次数 (让数据平稳), q = MA 阶数 (残差滞后)。",
+    },
+    {
+      question: "用 pmdarima 的 auto_arima 有什么好处?",
+      options: ["跑得更快", "自动遍历 (p,d,q) 组合选 AIC 最小的", "支持中文", "能预测未来 100 年"],
+      correct: 1,
+      explanation: "auto_arima 自动遍历 (p, d, q) 组合,选 AIC 最小的,省去手动调参。AIC 衡量'拟合好 + 参数少'的平衡,越小越好。",
+    },
+  ],
+  "time-series/prophet": [
+    {
+      question: "Prophet 公式 y(t) = ?",
+      options: ["y = wx + b", "y = trend + seasonality + holidays + error", "y = AR + MA + noise", "y = sigmoid(wx + b)"],
+      correct: 1,
+      explanation: "Prophet 把时序分解为: 长期趋势 (trend) + 季节性 (seasonality) + 节假日效应 (holidays) + 残差 (error)。简单可解释。",
+    },
+    {
+      question: "Prophet 处理中国春节影响最常用的方法是?",
+      options: ["改用 ARIMA", "自定义 holidays DataFrame, 标记春节日期", "删除春节前后数据", "用月度数据替代日数据"],
+      correct: 1,
+      explanation: "Prophet 接受自定义 holidays DataFrame,标记春节日期并设 lower_window/upper_window 让前后几天都受春节影响,通常能显著提升 MAPE。",
+    },
+  ],
+  "time-series/anomaly-detection": [
+    {
+      question: "PSI (Population Stability Index) > 0.25 通常表示?",
+      options: ["无漂移", "轻微漂移, 持续关注", "严重漂移, 需要重训模型", "系统故障"],
+      correct: 2,
+      explanation: "PSI < 0.1 无漂移, 0.1-0.25 轻微漂移, > 0.25 严重漂移。这是金融风控模型最常用的阈值,源于人口稳定性分析。",
+    },
+    {
+      question: "时序异常检测的 STL 分解方法的核心是?",
+      options: ["直接用原始数据", "拆成 trend + seasonal + residual, 残差超阈值就是异常", "跑深度学习模型", "做傅里叶变换"],
+      correct: 1,
+      explanation: "STL (Seasonal-Trend-Loess) 分解把时序拆成趋势、季节性、残差 3 部分。残差应该接近白噪声,超出 N 倍标准差就是异常。",
+    },
+  ],
+
+  /* ============== v13.1 MLOps ============== */
+  "mlops/model-versioning": [
+    {
+      question: "MLflow Tracking 主要记录什么?",
+      options: ["用户登录信息", "实验参数 (params) + 指标 (metrics) + artifact (模型文件)", "服务器日志", "网络请求"],
+      correct: 1,
+      explanation: "MLflow Tracking 记录实验的超参数、评估指标、模型文件等,让实验可复现。配合 mlflow ui 可视化对比。",
+    },
+    {
+      question: "Model Registry 中模型的生命周期阶段是?",
+      options: ["None → Staging → Production → Archived", "alpha → beta → release", "test → dev → prod", "draft → review → published"],
+      correct: 0,
+      explanation: "MLflow Model Registry 的标准流程: None (刚注册) → Staging (测试中) → Production (线上) → Archived (下线)。",
+    },
+  ],
+  "mlops/model-deployment": [
+    {
+      question: "FastAPI 部署模型时, joblib.load 应该放在哪?",
+      options: ["每个请求进来时", "服务启动时 (全局变量)", "数据库里", "客户端"],
+      correct: 1,
+      explanation: "joblib.load 应该放在服务启动时 (全局变量), 而不是每个请求都重新加载。否则会严重拖慢响应 (一次加载几秒)。",
+    },
+    {
+      question: "uwsgi/uvicorn 的 workers 数量经验值是?",
+      options: ["1", "等于 CPU 核数", "2 × CPU 核数 + 1", "100"],
+      correct: 2,
+      explanation: "经验公式 workers = 2 × CPU_cores + 1。太多会切换开销大,太少 CPU 利用率低。容器里看 cgroup CPU 配额。",
+    },
+  ],
+  "mlops/monitoring-drift": [
+    {
+      question: "KS 检验适合检测什么类型特征的漂移?",
+      options: ["类别特征", "连续特征", "时间特征", "文本特征"],
+      correct: 1,
+      explanation: "Kolmogorov-Smirnov 检验比较两个连续分布,适合连续特征。类别特征用卡方检验,业务风控常用 PSI。",
+    },
+    {
+      question: "数据漂移的 3 大类是?",
+      options: ["前向漂移 / 后向漂移 / 双向漂移", "Covariate shift / Label shift / Concept drift", "内部漂移 / 外部漂移 / 混合漂移", "季节漂移 / 趋势漂移 / 随机漂移"],
+      correct: 1,
+      explanation: "数据漂移 3 大类: Covariate shift (输入 P(X) 变) / Label shift (输出 P(Y) 变) / Concept drift (关系 P(Y|X) 变)。Concept drift 最难发现。",
+    },
+  ],
 };
 
 export function getQuiz(courseSlug: string, chapterSlug: string): QuizQuestion[] {

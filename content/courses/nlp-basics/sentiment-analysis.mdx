@@ -1,0 +1,196 @@
+# 情感分析实战
+
+这一章我们用前面学到的 **TF-IDF** + **逻辑回归**,给豆瓣电影评论打 1-5 星。这是工业界最常见的 NLP 任务之一——**文本分类**。
+
+## 任务定义
+
+输入: 一条电影评论 (中英文都行)
+输出: 1-5 星 (5 分类) 或 二分类 (正面/负面)
+
+## 准备数据
+
+没有豆瓣数据? 我们用 sklearn 自带的 IMDb 影评数据集 (英文 5 万条):
+
+```python
+from sklearn.datasets import load_files
+
+# 自己下载 IMDb 数据集 (约 80MB), 或者用 huggingface datasets
+# pip install datasets
+from datasets import load_dataset
+ds = load_dataset("imdb")
+train_texts = ds["train"]["text"]
+train_labels = ds["train"]["label"]  # 0=neg, 1=pos
+test_texts = ds["test"]["text"]
+test_labels = ds["test"]["label"]
+```
+
+## 5 行跑通 baseline
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report
+
+# 1. TF-IDF
+vec = TfidfVectorizer(max_features=20000, ngram_range=(1, 2), min_df=5)
+X_train = vec.fit_transform(train_texts)
+X_test = vec.transform(test_texts)
+
+# 2. 训练
+clf = LogisticRegression(max_iter=1000, n_jobs=-1)
+clf.fit(X_train, train_labels)
+
+# 3. 评估
+y_pred = clf.predict(X_test)
+print(f"准确率: {accuracy_score(test_labels, y_pred):.2%}")
+print(classification_report(test_labels, y_pred, target_names=["负面", "正面"]))
+# 通常 88-90% 准确率
+```
+
+<Callout type="tip">
+2-gram (bigram) 经常显著提升情感分析效果,因为"不好看"、"不推荐"这种否定短语比单个词更有信息量。
+</Callout>
+
+## 中文实战:豆瓣评论
+
+中文情感分析需要先分词。假设我们有 1 万条豆瓣评论 (label 是 1-5 星):
+
+```python
+import jieba
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+# 1. 加载数据 (假设有 csv: comment, star)
+import pandas as pd
+df = pd.read_csv("douban_comments.csv")
+# 标签: 1-2 星 = 负面 (0), 4-5 星 = 正面 (1), 3 星丢弃
+df = df[df["star"].isin([1, 2, 4, 5])]
+df["label"] = (df["star"] >= 4).astype(int)
+
+# 2. 分词
+def tokenize(text):
+    return " ".join(jieba.cut(text))
+
+df["tokens"] = df["comment"].apply(tokenize)
+
+# 3. 切分
+X_train, X_test, y_train, y_test = train_test_split(
+    df["tokens"], df["label"], test_size=0.2, random_state=42
+)
+
+# 4. TF-IDF (用空格分词)
+vec = TfidfVectorizer(max_features=30000, ngram_range=(1, 2))
+X_train_vec = vec.fit_transform(X_train)
+X_test_vec = vec.transform(X_test)
+
+# 5. 训练
+clf = LogisticRegression(max_iter=1000)
+clf.fit(X_train_vec, y_train)
+
+# 6. 评估
+print(f"准确率: {accuracy_score(y_test, clf.predict(X_test_vec)):.2%}")
+```
+
+## 改进:处理类别不平衡 + 调阈值
+
+豆瓣评论里 3 星 (中性) 最多, 1 星很少。直接训练会让模型倾向于预测多数类。
+
+```python
+# 1. class_weight 自动平衡
+clf = LogisticRegression(max_iter=1000, class_weight="balanced")
+
+# 2. 或用 SMOTE 过采样
+from imblearn.over_sampling import SMOTE
+smote = SMOTE(random_state=42)
+X_resampled, y_resampled = smote.fit_resample(X_train_vec, y_train)
+clf.fit(X_resampled, y_resampled)
+```
+
+## 看模型学到了什么
+
+抽出 TF-IDF 权重最高的词,看看模型在"关注什么":
+
+```python
+feature_names = vec.get_feature_names_out()
+coef = clf.coef_[0]  # 逻辑回归权重
+
+# Top 20 正面词
+top_pos = sorted(zip(coef, feature_names), reverse=True)[:20]
+print("正面词:")
+for weight, word in top_pos:
+    print(f"  {word}: {weight:.2f}")
+
+# Top 20 负面词
+top_neg = sorted(zip(coef, feature_names))[:20]
+print("\n负面词:")
+for weight, word in top_neg:
+    print(f"  {word}: {weight:.2f}")
+```
+
+通常能看到:正面词是"好看"、"精彩"、"推荐"、"经典";负面词是"难看"、"浪费时间"、"烂片"、"垃圾"。
+
+## 端到端 pipeline:保存 + 加载
+
+训好的模型要能上线用。`joblib` 序列化:
+
+```python
+import joblib
+
+# 保存
+joblib.dump({"vec": vec, "clf": clf}, "sentiment_model.pkl")
+
+# 加载 + 预测
+def predict_sentiment(text: str) -> str:
+    saved = joblib.load("sentiment_model.pkl")
+    tokens = " ".join(jieba.cut(text))
+    X = saved["vec"].transform([tokens])
+    pred = saved["clf"].predict(X)[0]
+    return "正面" if pred == 1 else "负面"
+
+print(predict_sentiment("这部 电影 真的 太 精彩 了, 强烈 推荐"))   # 正面
+print(predict_sentiment("什么 烂片, 完全 浪费 时间"))              # 负面
+```
+
+## 从 80% 到 92%:5 个调优技巧
+
+1. **清洗数据**: 去掉 HTML 标签、URL、@mention,降低噪音
+2. **数据增强**: 同义词替换 (随机把"好"换成"棒"、"赞"、"不错")
+3. **多模型融合**: 逻辑回归 + SVM + 朴素贝叶斯,投票决定
+4. **集成学习**: 用 XGBoost / LightGBM 替代 LR,通常 +2-3%
+5. **预训练词向量**: 用 Word2Vec / BERT 替代 TF-IDF 初始化,通常 +3-5%
+
+## 工业级方案:深度学习
+
+数据量大 (10 万+) 时,用 BERT 微调:
+
+```python
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+tokenizer = AutoTokenizer.from_pretrained("bert-base-chinese")
+model = AutoModelForSequenceClassification.from_pretrained(
+    "bert-base-chinese", num_labels=2
+)
+
+# 训练 (简化版, 实际需要 Trainer + Dataset)
+inputs = tokenizer("这部 电影 真的 太 精彩 了", return_tensors="pt")
+outputs = model(**inputs)
+pred = outputs.logits.argmax(-1).item()
+```
+
+BERT 准确率能到 93-95%,但需要 GPU。
+
+## 小结
+
+- 情感分析 = 文本分类, TF-IDF + LR 就能跑 85-90% 准确率
+- 中文要先 jieba 分词, 英文直接用空格
+- ngram_range=(1,2) + max_features=20k 是稳健起点
+- 类别不平衡用 `class_weight='balanced'` 或 SMOTE
+- 数据量小时传统 ML,数据量大时上 BERT
+
+## 练习思考
+
+1. 用自己爬的 100 条中文影评 (带 1-5 星) 跑一遍,准确率能到多少?
+2. 试 ngram_range=(1,3) 看看是否过拟合,怎么判断?
+3. 改用朴素贝叶斯 (`MultinomialNB`) 跟 LR 比, 哪个更适合情感分析?为什么?

@@ -1,0 +1,252 @@
+# 模型部署:从 pickle 到 REST API
+
+训好模型不是终点, **让用户用上**才是。 这一章我们把 scikit-learn 模型包装成 HTTP 服务, 用 Docker 部署, 用 nginx 限流。
+
+## 部署的 4 种姿势
+
+| 方式 | 适用 | 例子 |
+|------|------|------|
+| **在线推理 API** | 实时请求 | FastAPI + Docker |
+| **批处理** | 离线跑全量 | Spark / Airflow |
+| **嵌入式** | 移动端/IoT | TFLite / ONNX Runtime |
+| **流式** | 持续到达的数据 | Kafka + Flink |
+
+本章专注最常见的**在线推理 API**。
+
+## 方案 1: 最快的 FastAPI 服务
+
+```python
+# app.py
+from fastapi import FastAPI
+from pydantic import BaseModel
+import joblib
+import numpy as np
+
+app = FastAPI(title="ML Inference API")
+model = joblib.load("model.pkl")
+
+class Input(BaseModel):
+    features: list[float]
+
+class Output(BaseModel):
+    prediction: int
+    probability: float
+
+@app.post("/predict", response_model=Output)
+def predict(inp: Input):
+    X = np.array(inp.features).reshape(1, -1)
+    pred = model.predict(X)[0]
+    prob = model.predict_proba(X)[0].max()
+    return Output(prediction=int(pred), probability=float(prob))
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+```
+
+启动: `uvicorn app:app --host 0.0.0.0 --port 8000 --workers 4`
+
+## 客户端调用
+
+```bash
+# curl 测试
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [5.1, 3.5, 1.4, 0.2]}'
+
+# 输出
+{"prediction": 0, "probability": 0.98}
+```
+
+Python 客户端:
+```python
+import requests
+r = requests.post("http://api.example.com/predict", json={"features": [5.1, 3.5, 1.4, 0.2]})
+print(r.json())
+```
+
+## 方案 2: Docker 打包
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# 装依赖 (单独一层, 利用缓存)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制代码和模型
+COPY app.py .
+COPY model.pkl .
+
+EXPOSE 8000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+```
+
+```bash
+# build
+docker build -t ml-api:v1 .
+
+# run
+docker run -d --name ml-api -p 8000:8000 ml-api:v1
+```
+
+## 方案 3: docker-compose 多服务
+
+```yaml
+# docker-compose.yml
+version: "3.9"
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      - MODEL_PATH=/models/model.pkl
+    volumes:
+      - ./models:/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      retries: 3
+  
+  nginx:
+    image: nginx:alpine
+    ports: ["80:80"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+```
+
+```nginx
+# nginx.conf
+http {
+    upstream api {
+        server api:8000;
+    }
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://api;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        # 限流: 每秒 100 请求
+        limit_req_zone $binary_remote_addr zone=api:10m rate=100r/s;
+    }
+}
+```
+
+启动: `docker-compose up -d`
+
+## 性能优化: 4 个关键点
+
+1. **模型加载一次, 复用进程**: 不要每个请求都 `joblib.load`
+2. **worker 数量**: `workers = 2 * CPU_cores + 1` (uvicorn 默认是 1)
+3. **批量预测**: 客户端一次发 100 条, 比 100 次单条快 5-10x
+4. **异步框架**: 高并发用 `uvicorn[standard]` (uvloop + httptools)
+
+```python
+# 异步 + 批量
+from fastapi import FastAPI
+import asyncio
+
+app = FastAPI()
+model = joblib.load("model.pkl")  # 启动时加载一次
+
+@app.post("/predict_batch")
+async def predict_batch(items: list[Input]):
+    X = np.array([item.features for item in items])
+    preds = model.predict(X)
+    probs = model.predict_proba(X).max(axis=1)
+    return [{"prediction": int(p), "probability": float(pr)} for p, pr in zip(preds, probs)]
+```
+
+## 灰度发布: 10% 流量走新模型
+
+```python
+import random
+
+@app.post("/predict")
+def predict(inp: Input):
+    # 10% 流量用 v2, 90% 走 v1
+    if random.random() < 0.1:
+        model = model_v2
+    else:
+        model = model_v1
+    
+    return model.predict(...)
+```
+
+更稳的做法: nginx 按比例分流
+```nginx
+split_clients $request_id $model_version {
+    90% "v1";
+    10% "v2";
+}
+```
+
+## 模型加密:不让人看到权重
+
+模型 .pkl 文件可能含敏感 IP, 用 `pyarmor` 加密:
+
+```bash
+pip install pyarmor
+pyarmor gen --recursive app.py
+```
+
+加密后的 .py 反编译不了, 但 .pkl 还是要存安全的地方。
+
+## 监控:请求延迟 + 错误率
+
+```python
+import time
+from prometheus_client import Counter, Histogram
+
+REQUEST_COUNT = Counter("api_requests_total", "Total requests", ["endpoint", "status"])
+REQUEST_LATENCY = Histogram("api_latency_seconds", "Request latency", ["endpoint"])
+
+@app.middleware("http")
+async def metrics_middleware(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+    
+    REQUEST_COUNT.labels(request.url.path, response.status_code).inc()
+    REQUEST_LATENCY.labels(request.url.path).observe(duration)
+    
+    return response
+
+# /metrics 暴露给 Prometheus 抓
+@app.get("/metrics")
+def metrics():
+    return Response(prometheus_client.generate_latest(), media_type="text/plain")
+```
+
+## 部署清单
+
+- [ ] 模型在 MLflow Registry 标 Production
+- [ ] FastAPI 启动时加载模型 (不是每个请求)
+- [ ] Dockerfile 多阶段, 装依赖单独一层
+- [ ] docker-compose.yml + nginx 反代
+- [ ] healthcheck 端点
+- [ ] /metrics 暴露 Prometheus 指标
+- [ ] 限流 (nginx limit_req)
+- [ ] 日志到 stdout (docker logs 看)
+- [ ] 灰度发布 10% → 50% → 100%
+
+## 小结
+
+- 部署 = FastAPI 包装 + Docker 打包 + nginx 限流
+- 模型加载放启动时, 不用每个请求 load
+- `workers = 2*CPU + 1`, 批量预测比单条快 5-10x
+- 灰度发布用随机数或 nginx split_clients
+- 监控: 延迟 (Histogram) + 错误率 (Counter) + Prometheus 抓
+
+## 练习思考
+
+1. 用 Docker 部署一个 sklearn 模型, 用 curl 测试, 记录平均响应时间。
+2. 加 nginx 限流 (rate=10r/s), 用 ab 压测看 503 出现频率。
+3. 模型 .pkl 怎么安全分发? 想过用 S3 + 签名 URL 吗?

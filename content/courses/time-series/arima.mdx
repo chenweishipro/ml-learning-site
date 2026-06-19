@@ -1,0 +1,64 @@
+# ARIMA 模型
+
+ARIMA (AutoRegressive Integrated Moving Average) 是时序建模的"经典 + 主力"模型,1970 年提出至今仍在用。**理解 ARIMA = 理解时序建模的核心思路**。
+
+## ARIMA 拆解
+
+ARIMA 有 3 个参数 (p, d, q):
+
+- **AR (AutoRegressive) p**: 当前值 = 过去 p 个值的线性组合
+- **I (Integrated) d**: 做了 d 次差分让它平稳
+- **MA (Moving Average) q**: 当前值 = 过去 q 个残差的线性组合
+
+公式:
+
+```
+y(t) = c + phi(1) * y(t-1) + ... + phi(p) * y(t-p)
+     + theta(1) * e(t-1) + ... + theta(q) * e(t-q) + e(t)
+```
+
+直观:
+- **AR(p)**: 用历史值预测 (明天销量 ≈ 前 7 天销量的加权平均)
+- **MA(q)**: 用预测误差修正 (今天卖得差是因为前天预测偏高)
+- **I(d)**: 差分次数 (一般 d=0 或 1)
+
+<Callout type="tip">
+ARIMA 公式中所有 y 都先做 d 阶差分,所以即使原序列非平稳,ARIMA 也能处理。
+</Callout>
+
+## 4 步建模流程
+
+```python
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.arima.model import ARIMA
+import pmdarima as pm
+```
+
+`auto_arima` 会遍历 (p, d, q) 组合,选 AIC 最小的 (AIC 衡量"拟合好 + 参数少"的平衡)。
+
+## 残差诊断:看模型是否充分
+
+训完模型后, 必须看残差诊断。4 个子图:
+- 标准化残差时序 (应该像白噪声)
+- 直方图 (应该接近正态)
+- Q-Q 图 (应该沿红线)
+- ACF (应该无自相关)
+
+## 替代方案:Prophet
+
+ARIMA 对**非线性趋势 + 多重季节性 + 缺失值** 处理不好。下一章 [Prophet](/courses/time-series/prophet/) 是 Facebook 2017 年开源的工具,工业界更常用。
+
+## 小结
+
+- ARIMA(p, d, q) = 自回归 + 差分 + 移动平均
+- `pmdarima.auto_arima` 自动选参, 比手挑省事
+- SARIMA 加季节项, 参数 (p, d, q) × (P, D, Q, s)
+- 残差诊断 4 步: 时序图、直方图、Q-Q、ACF
+- ARIMA 适合"平稳 + 单一季节"的数据,复杂场景用 Prophet 或 LSTM
+
+## 练习思考
+
+1. 用 `auto_arima` 对气温数据建模, 输出的最佳 (p, d, q) 是多少?为什么?
+2. 对比 ARIMA 和 SARIMA 在有强季节性数据上的预测 MAPE, 差距有多大?
+3. 在 ARIMA 残差诊断中, 残差还有强自相关说明什么?应该怎么调?

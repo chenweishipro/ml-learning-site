@@ -1,0 +1,129 @@
+# 词袋与 TF-IDF
+
+把文本变成数字,最经典的两招:**词袋 (Bag-of-Words)** 和 **TF-IDF**。这一章讲清它们是什么、怎么用、什么时候会失效。
+
+## 词袋:把句子变成"词频向量"
+
+核心思想:把文档看成"装词的袋子",**只关心每个词出现几次**,不关心顺序。
+
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+
+corpus = [
+    "我 爱 机器学习",
+    "机器学习 是 一门 好 学科",
+    "深度学习 是 机器学习 的 子领域"
+]
+
+vec = CountVectorizer(token_pattern=r"(?u)\b\w+\b")
+X = vec.fit_transform(corpus)
+print(vec.get_feature_names_out())
+# ['一门' '子领域' '学科' '我' '是' '机器学习' '深度学习' '的' '好']
+print(X.toarray())
+# [[0 0 0 1 0 1 0 0 0]   <- "我 爱 机器学习"
+#  [1 0 1 0 1 1 0 0 1]   <- "机器学习 是 一门 好 学科"
+#  [0 1 0 0 1 1 1 1 0]]  <- "深度学习 是 机器学习 的 子领域"
+```
+
+每行是一个文档,每列是一个词,数值是出现次数。**句子变成了数字矩阵**。
+
+<Callout type="tip">
+词袋丢掉了所有语序。"我打你"和"你打我"在词袋模型里完全一样。需要保留顺序的话用 n-gram (见下) 或者深度学习模型。
+</Callout>
+
+## n-gram:稍微保留一点语序
+
+`n-gram` 把连续的 n 个词当成一个"超级词":
+
+```python
+# ngram_range=(1, 2) 表示同时使用 1-gram 和 2-gram
+vec = CountVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1, 2))
+X = vec.fit_transform(corpus)
+print(vec.get_feature_names_out())
+# ['一门' '一门 好' '学科' '我' '我 爱' '是' '是 机器学习' '机器学习' ...]
+```
+
+- 1-gram: 单个词 ("机器学习")
+- 2-gram: 两个连续词 ("机器学习 是")
+- 3-gram: 三个连续词
+
+n 越大,特征越多,**数据稀疏**问题越严重。一般用 bigram 就够,trigram 谨慎用。
+
+## TF-IDF:不是所有词都同等重要
+
+词袋的问题:**"是"、"的"、"了"在每篇文档都出现,信息量为零**。
+
+TF-IDF 解决这个:给罕见的、有区分力的词更高权重。
+
+公式:
+- **TF (Term Frequency)**: 词 t 在文档 d 中出现的次数 / 文档 d 的总词数
+- **IDF (Inverse Document Frequency)**: log(语料库总文档数 / 包含词 t 的文档数)
+- **TF-IDF = TF × IDF**
+
+直觉:一个词在**当前文档出现多** (TF 高) 但**在所有文档都出现少** (IDF 高),才是有信息量的词。
+
+```python
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vec = TfidfVectorizer(token_pattern=r"(?u)\b\w+\b")
+X = vec.fit_transform(corpus)
+print(X.toarray())
+# 每个数 = 该词在该文档的 TF-IDF 权重
+# "的"、"是" 这种常见词权重会接近 0
+# "子领域"、"深度学习" 这种独特的词权重高
+```
+
+## 实战:用 TF-IDF 给新闻分类
+
+我们用 sklearn 自带的 20 类新闻数据集,跑一个完整分类流程:
+
+```python
+from sklearn.datasets import fetch_20newsgroups
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+
+# 1. 加载数据
+data = fetch_20newsgroups(subset='all', categories=['sci.med', 'rec.autos'], remove=('headers','footers','quotes'))
+X_train, X_test, y_train, y_test = train_test_split(data.data, data.target, test_size=0.2, random_state=42)
+
+# 2. TF-IDF 向量化
+vec = TfidfVectorizer(max_features=5000, stop_words='english', token_pattern=r"(?u)\b\w+\b")
+X_train_vec = vec.fit_transform(X_train)
+X_test_vec = vec.transform(X_test)
+
+# 3. 训练逻辑回归
+clf = LogisticRegression(max_iter=1000)
+clf.fit(X_train_vec, y_train)
+
+# 4. 评估
+y_pred = clf.predict(X_test_vec)
+print(f"准确率: {accuracy_score(y_test, y_pred):.2%}")
+# 通常 90%+
+```
+
+`stop_words='english'` 自动去常见英文停用词,`max_features=5000` 限制特征数避免维度爆炸。
+
+## TF-IDF 的局限
+
+虽然好用,但有两个大问题:
+
+1. **不考虑语义**: "好" 和 "棒" 是近义词,但 TF-IDF 觉得它们没关系。需要 Word2Vec / BERT 等词向量。
+2. **稀疏矩阵**: 一篇 100 词的文档,词表可能有 10 万,矩阵是 99.9% 零。深度学习模型处理这种稀疏数据效率不高。
+
+下一章 [Word2Vec 词向量](/courses/nlp-basics/word2vec/) 解决第一个问题。
+
+## 小结
+
+- **词袋 (BoW)**: 文档 = 词频向量,简单但丢语序
+- **n-gram**: 把连续 n 个词当 1 个,稍微保留语序,特征数会爆炸
+- **TF-IDF**: 词频 × 逆文档频率,降权通用词,加权有区分力的词
+- sklearn: `CountVectorizer` 和 `TfidfVectorizer`,配 `LogisticRegression` 就能跑出 90% 准确率
+- 局限: 不懂语义, 矩阵稀疏, 深度学习时代已被词向量取代
+
+## 练习思考
+
+1. 给你 3 篇短新闻, 手工计算一个词 (比如"中国")的 TF、IDF、TF-IDF。
+2. `TfidfVectorizer` 的 `min_df` 和 `max_df` 参数分别控制什么? 为什么要设置?
+3. 试着用 `CountVectorizer(ngram_range=(2, 2))` 跑同一个新闻分类,准确率会变吗?为什么?

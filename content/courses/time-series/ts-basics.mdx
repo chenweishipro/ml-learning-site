@@ -1,0 +1,163 @@
+# 时间序列基础
+
+时间序列 (time series) 是一组**按时间顺序排列**的数据点,比如每日股票价格、每月销售额、每小时服务器请求数。它和"普通"表格数据的关键区别:**相邻点之间不独立,今天的值往往和昨天相关**。
+
+这一章我们建立时序分析的核心词汇:平稳性、自相关、ACF/PACF、季节性。
+
+## 什么是时间序列
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 模拟一个销售额时序: 趋势 + 季节性 + 噪声
+np.random.seed(42)
+dates = pd.date_range("2022-01-01", periods=365*2, freq="D")
+trend = np.linspace(100, 200, len(dates))   # 上升趋势
+seasonal = 20 * np.sin(np.arange(len(dates)) * 2 * np.pi / 365)  # 年周期
+noise = np.random.normal(0, 5, len(dates))
+sales = trend + seasonal + noise
+
+df = pd.DataFrame({"date": dates, "sales": sales})
+df.set_index("date", inplace=True)
+
+df["sales"].plot(figsize=(12, 4), title="某商品 2 年每日销量")
+plt.show()
+```
+
+你会看到:
+- 整体**上升** (趋势)
+- **周期波动** (季节性, 365 天周期)
+- 小幅**抖动** (噪声)
+
+## 4 大分析目标
+
+1. **描述 (Description)**: 画图、看统计量、找趋势和季节性
+2. **预测 (Forecasting)**: 未来 7 天 / 30 天的销量
+3. **异常检测 (Anomaly Detection)**: 找出"双11"那种反常高峰
+4. **控制 (Control)**: 判断过程是否"在控"
+
+## 平稳性 (Stationarity):最重要的概念
+
+**平稳序列**的统计性质 (均值、方差、自相关) 不随时间变化。
+
+直观理解:平稳序列**没有明显趋势,没有周期,均值和方差稳定**。
+
+```python
+# 上面的销量数据: 非平稳 (有趋势 + 季节性)
+# 对数 + 差分后: 接近平稳
+df["log_sales"] = np.log(df["sales"])
+df["diff"] = df["log_sales"].diff()  # 一阶差分
+df["diff"].plot(figsize=(12, 4), title="对数差分后")
+plt.show()
+```
+
+为什么要平稳?**大多数时序模型 (ARIMA 等) 要求数据平稳**,否则预测会"漂"。
+
+<Callout type="tip">
+判断平稳的 3 个方法:
+- **眼测**: 画图看趋势/方差
+- **ADF 检验**: 原假设是"非平稳",p 值 < 0.05 拒绝原假设 → 平稳
+- **KPSS 检验**: 原假设是"平稳",p 值 > 0.05 接受 → 平稳
+</Callout>
+
+```python
+from statsmodels.tsa.stattools import adfuller, kpss
+
+# ADF 检验
+result = adfuller(df["sales"].dropna())
+print(f"ADF p-value: {result[1]:.4f}")
+# 0.5+ → 非平稳
+
+# 对数 + 一阶差分后
+result = adfuller(df["diff"].dropna())
+print(f"差分后 ADF p-value: {result[1]:.4f}")
+# 0.001 → 平稳
+```
+
+## 自相关 (ACF) 和偏自相关 (PACF)
+
+**自相关**衡量"相隔 k 期的两个点有多相关"。
+
+- ACF: 包含所有中间影响的相关系数
+- PACF: 排除中间影响,只看"相隔 k 期的纯相关"
+
+```python
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 4))
+plot_acf(df["diff"].dropna(), lags=30, ax=ax1)
+plot_pacf(df["diff"].dropna(), lags=30, ax=ax2)
+plt.show()
+```
+
+看图判断:
+- ACF 在 lag=7, 14, 21... 处明显 → 周季节性
+- ACF 缓慢下降 → 序列有趋势
+- PACF 在 lag=1 后截尾 → 适合 AR(1) 模型
+- ACF 在 lag=1 后截尾 → 适合 MA(1) 模型
+
+## 分解:Trend + Seasonal + Residual
+
+把时间序列拆成 3 部分有助于理解和建模:
+
+```python
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+decomp = seasonal_decompose(df["sales"], model="additive", period=365)
+decomp.plot()
+plt.show()
+```
+
+- **Trend**: 长期趋势
+- **Seasonal**: 季节性波动
+- **Residual**: 剩余噪声 (应该接近白噪声)
+
+模型: `y(t) = Trend(t) + Seasonal(t) + Residual(t)` (加法)
+或:   `y(t) = Trend(t) × Seasonal(t) × Residual(t)` (乘法,适合波动幅度随趋势增大的)
+
+## 评估:训练/测试切分
+
+时序数据**不能随机打乱**! 必须是连续的时间段:
+
+```python
+train = df["sales"][:"2023-06-30"]
+test  = df["sales"]["2023-07-01":]
+
+# 或者按比例
+train_size = int(len(df) * 0.8)
+train = df["sales"][:train_size]
+test  = df["sales"][train_size:]
+```
+
+评估指标:
+- **MAE** (平均绝对误差): 直观, 同量纲
+- **RMSE** (均方根误差): 惩罚大误差
+- **MAPE** (平均绝对百分比误差): 相对误差,跨量纲可比
+
+```python
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+
+def eval_metrics(y_true, y_pred):
+    mae = mean_absolute_error(y_true, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    return {"MAE": mae, "RMSE": rmse, "MAPE%": mape}
+```
+
+## 小结
+
+- 时间序列: 按时间排列的数据, 关键特征是**相邻点相关**
+- 4 大任务: 描述、预测、异常检测、控制
+- **平稳性是核心**: 大多数模型要求数据平稳
+- ADF / KPSS 检验平稳, 差分让非平稳变平稳
+- ACF / PACF 看相关性结构, 指导模型选型
+- 时序切分: 训练在前, 测试在后, **不能随机打乱**
+
+## 练习思考
+
+1. 找一组真实数据 (气温、股票、销售), 画图看是否符合"平稳"?
+2. 对非平稳序列做一阶差分后, ADF 检验的 p 值变化多少?
+3. 同样的序列, 用 `period=7` (周) 和 `period=30` (月) 做分解, 季节性部分有什么不同?

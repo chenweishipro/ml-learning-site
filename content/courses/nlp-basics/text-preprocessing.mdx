@@ -1,0 +1,149 @@
+# 文本预处理与分词
+
+自然语言处理 (NLP) 是机器学习中专门处理**人类语言**的分支。但机器只懂数字,不懂"今天天气真好"这种字符串。所以**第一步永远是把文字变成数字**,而"怎么变"决定了后续模型能学到多少信息。
+
+这一章我们把文本预处理的整个流水线走一遍:从一段原始评论,到干净的"词袋"。
+
+## 为什么预处理这么重要
+
+一个真实例子。原始评论:
+
+```
+"  看了这部《流浪地球 2》, 真的太震撼了!!! 真❤️❤️❤️, 推荐给 5 星好评!!!! "
+```
+
+如果直接交给模型,它会被这些"噪音"干扰:
+- 多余空格和换行
+- 大小写混用 (这部 vs 这)
+- 标点符号重复 (!!!)
+- emoji (❤️)
+- 数字符号 (5 vs 五)
+
+预处理的目标就是**标准化**,让"震撼"和"震撼!"被识别成同一个词。
+
+<Callout type="tip">
+预处理不是越多越好。去除停用词会丢掉"不"、"没"这种否定词,对情感分析很致命。永远要根据任务决定保留什么。
+</Callout>
+
+## 4 个核心步骤
+
+### 1. 标准化:大小写、去噪、规范化
+
+英文一般会**小写化** + 用正则把奇怪的字符去掉:
+
+```python
+import re
+
+text = "  看了这部《流浪地球 2》, 真的太震撼了!!! 真❤️❤️❤️, 推荐给 5 星好评!!!!  "
+
+# 1. 去首尾空白
+text = text.strip()
+# 2. 全部小写 (英文场景)
+text_lower = text.lower()
+# 3. 用正则保留中文/英文/数字, 去掉 emoji 等
+text_clean = re.sub(r"[^\u4e00-\u9fa5a-zA-Z0-9\s]", " ", text)
+# 4. 多空格压成一个
+text_clean = re.sub(r"\s+", " ", text_clean).strip()
+print(text_clean)  # "看了这部 流浪地球 2 真的太震撼了 推荐给 5 星好评"
+```
+
+### 2. 分词:把句子切成词
+
+英文天然用空格分词。中文没有空格,需要算法:
+
+```python
+import jieba
+
+text = "我爱自然语言处理"
+tokens = list(jieba.cut(text))
+print(tokens)  # ['我', '爱', '自然', '语言', '处理']
+```
+
+`jieba` 是中文 NLP 最常用的分词库,基于前缀词典 + 动态规划。安装: `pip install jieba`。
+
+<Callout type="tip">
+jieba 也能识别新词:`jieba.add_word("流浪地球")` 让它把"流浪地球"切成整体而不是"流浪"+"地球"。
+</Callout>
+
+### 3. 去停用词
+
+停用词 (stop words) 是"了"、"的"、"是"这种几乎不携带语义的词。但**对情感分析要谨慎**,否定词"不"必须保留。
+
+```python
+# 常见停用词
+stopwords = {"的", "了", "是", "在", "和", "有", "我", "你", "他", "她", "它"}
+
+tokens = ['我', '爱', '自然', '语言', '处理']
+filtered = [t for t in tokens if t not in stopwords and len(t) > 1]
+print(filtered)  # ['爱', '自然', '语言', '处理']
+```
+
+### 4. 词形还原与词干提取 (英文)
+
+英文的 `running / ran / runs` 其实是同一个词,需要还原到**原型**:
+
+```python
+from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+stemmer = PorterStemmer()
+lemmatizer = WordNetLemmatizer()
+
+# 词干提取: 粗略, 可能不是真单词
+print(stemmer.stem("running"))   # "run"
+print(stemmer.stem("studies"))   # "studi" (不是单词)
+
+# 词形还原: 精确, 输出真单词
+print(lemmatizer.lemmatize("running", pos="v"))   # "run"
+print(lemmatizer.lemmatize("studies", pos="n"))   # "study"
+```
+
+## 完整流水线:一段评论变干净词袋
+
+我们把上面的步骤组合起来,给一个完整的处理函数:
+
+```python
+import re
+import jieba
+
+STOPWORDS = {"的", "了", "是", "在", "和", "有", "我", "你", "他", "她", "它", "也", "都", "就", "都"}
+
+def preprocess_chinese(text: str, remove_stopwords: bool = True) -> list[str]:
+    # 1. 去空白 + 标准化
+    text = text.strip().lower()
+    # 2. 只保留中英文和数字
+    text = re.sub(r"[^\u4e00-\u9fa5a-zA-Z0-9\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    # 3. 分词
+    tokens = list(jieba.cut(text))
+    # 4. 过滤: 去停用词, 去掉单字 (常用停用词已覆盖)
+    if remove_stopwords:
+        tokens = [t for t in tokens if t not in STOPWORDS and len(t) >= 1]
+    # 5. 去掉纯空格
+    tokens = [t for t in tokens if t.strip()]
+    return tokens
+
+raw = "  看了这部《流浪地球 2》, 真的太震撼了!!! 真❤️❤️❤️, 推荐给 5 星好评!!!!  "
+print(preprocess_chinese(raw))
+# ['看', '这部', '流浪', '地球', '2', '真', '太', '震撼', '推荐', '5', '星', '好评']
+```
+
+## 三个常见坑
+
+1. **不要全部小写化**: "iPhone 14" 小写后变成 "iphone 14",专有名词丢信息。可以用 NER (命名实体识别) 标记再决定是否小写。
+
+2. **emoji 不是垃圾**: 情感分析里 😍😍😍 是强烈的正面信号。可以用 `emoji.demojize()` 转成文字描述。
+
+3. **错别字/拼音**: 真实用户评论里到处都是"蓝瘦香菇"代替"难受想哭"。简单的正则匹配词典,复杂的用 text2vec 找近义词。
+
+## 小结
+
+- 预处理 = 标准化 + 分词 + 去停用词 + (词形还原)
+- 英文用空格分词 + 词形还原;中文用 jieba 等分词工具
+- 没有"标准流程",**根据任务决定保留什么** (情感分析不能乱去停用词)
+- 永远是流水线:原始文本 → 标准化 → 分词 → 过滤 → 干净 token 列表
+
+## 练习思考
+
+1. 用 jieba 分词 "我今天去星巴克喝了一杯拿铁",看看哪些词分错了?怎么用 `add_word` 修正?
+2. 给一个英文句子 "I LOVE running!!!  " 写预处理函数,要求保留情感强度 (LOVE 不要变小写)。
+3. 思考:为什么"商品评论"和"法律合同"的预处理流程应该不一样?

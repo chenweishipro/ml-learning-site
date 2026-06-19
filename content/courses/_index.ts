@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
- * 5 门机器学习课程 (23 章) + 6 门统计学课程 (14 章) = 11 门课, 37 章
+ * 5 门机器学习课程 (23 章) + 6 门统计学课程 (14 章) + 3 门 v13.1 新课 (11 章) = 14 门课, 48 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -199,6 +199,56 @@ export const courses: CourseMeta[] = [
       { slug: "multiple-regression", title: "多元回归与虚拟变量", description: "多元线性回归、虚拟变量、逻辑回归铺垫。", duration: "40 分钟" },
       { slug: "chi-square", title: "卡方检验:拟合优度与列联表", description: "χ² 拟合优度、独立性检验、同质性检验。", duration: "35 分钟" },
       { slug: "anova", title: "方差分析 ANOVA", description: "单因素/双因素 ANOVA、Bonferroni 修正。", duration: "35 分钟" },
+    ],
+  },
+
+  /* ============== v13.1 新课: NLP 入门 ============== */
+  {
+    slug: "nlp-basics",
+    title: "自然语言处理入门",
+    description: "从分词、TF-IDF、Word2Vec 到情感分析,带你走进让计算机理解人类语言的世界。",
+    level: "intermediate",
+    duration: "约 4 小时",
+    tags: ["NLP", "TF-IDF", "Word2Vec", "情感分析"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "text-preprocessing", title: "文本预处理与分词", description: "正则化、分词、停用词、词形还原与中文分词 jieba。", duration: "30 分钟" },
+      { slug: "tf-idf", title: "词袋与 TF-IDF", description: "把文本转成向量的两种经典方法, sklearn 三行实战。", duration: "35 分钟" },
+      { slug: "word2vec", title: "Word2Vec 词向量", description: "词嵌入的直觉, 跳字模型与负采样, gensim 训练自己的词向量。", duration: "40 分钟" },
+      { slug: "sentiment-analysis", title: "情感分析实战", description: "用 TF-IDF + 逻辑回归给豆瓣电影评论打 1-5 星。", duration: "45 分钟" },
+    ],
+  },
+
+  /* ============== v13.1 新课: 时间序列 ============== */
+  {
+    slug: "time-series",
+    title: "时间序列分析",
+    description: "从平稳性、ARIMA、Prophet 到异常检测,掌握处理时序数据的核心方法。",
+    level: "intermediate",
+    duration: "约 4 小时",
+    tags: ["时间序列", "ARIMA", "Prophet", "异常检测"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "ts-basics", title: "时间序列基础", description: "平稳性、自相关、ACF/PACF, 时序建模的 4 大目标。", duration: "30 分钟" },
+      { slug: "arima", title: "ARIMA 模型", description: "ARIMA(p,d,q) 参数解读, auto_arima 自动选参, 季节性 SARIMA。", duration: "45 分钟" },
+      { slug: "prophet", title: "Prophet 实战", description: "Meta 开源的时序工具, 趋势 + 季节性 + 节假日分解。", duration: "40 分钟" },
+      { slug: "anomaly-detection", title: "时序异常检测", description: "滚动 z-score, STL 残差, Isolation Forest 实战。", duration: "35 分钟" },
+    ],
+  },
+
+  /* ============== v13.1 新课: MLOps ============== */
+  {
+    slug: "mlops",
+    title: "MLOps 入门",
+    description: "把 ML 模型从 notebook 带到生产:版本管理、CI/CD、部署、监控与漂移检测。",
+    level: "advanced",
+    duration: "约 3 小时",
+    tags: ["MLOps", "MLflow", "Docker", "监控"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "model-versioning", title: "实验追踪与模型版本管理", description: "MLflow 三件套: Tracking + Projects + Registry, 让实验可复现。", duration: "40 分钟" },
+      { slug: "model-deployment", title: "模型部署:从 pickle 到 REST API", description: "FastAPI + Docker 包装模型, nginx 反向代理, 灰度发布。", duration: "50 分钟" },
+      { slug: "monitoring-drift", title: "线上监控与数据漂移", description: "性能监控、数据漂移检测、PSI / KS 检验, 报警链路。", duration: "40 分钟" },
     ],
   },
 ];

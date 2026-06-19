@@ -1,0 +1,214 @@
+# Prophet 实战
+
+Prophet 是 Meta (Facebook) 2017 年开源的时序预测库,工业界的事实标准。**比 ARIMA 简单,比深度学习稳定,对缺失值和异常值鲁棒**。
+
+## 为什么选 Prophet
+
+对比 ARIMA:
+- ✅ 不用手动选 p, d, q
+- ✅ 自动处理缺失值、异常值
+- ✅ 多重季节性 (年 + 周 + 日) 一起学
+- ✅ 加节假日效应 (春节、双11)
+- ❌ 不适合 < 1 年的数据 (学不到季节性)
+- ❌ 不能外推"未见过的趋势"
+
+## 5 行跑通 Prophet
+
+```python
+import pandas as pd
+from prophet import Prophet
+
+# 1. 准备数据 (Prophet 要求列名是 ds, y)
+df = pd.read_csv("sales.csv")
+df = df.rename(columns={"date": "ds", "sales": "y"})
+
+# 2. 训练
+model = Prophet()
+model.fit(df)
+
+# 3. 预测未来 90 天
+future = model.make_future_dataframe(periods=90, freq="D")
+forecast = model.predict(future)
+
+# 4. 看结果
+print(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail(10))
+```
+
+`yhat` 是预测值,`yhat_lower / yhat_upper` 是 95% 置信区间。
+
+## 可视化
+
+```python
+# 1. 预测 + 置信区间
+fig1 = model.plot(forecast)
+plt.title("Prophet 预测结果")
+plt.show()
+
+# 2. 分解: 趋势 / 季节性 / 节假日
+fig2 = model.plot_components(forecast)
+```
+
+`plot_components` 会画出 4 个子图:
+- **Trend**: 长期趋势 (线性 or 逻辑回归)
+- **Yearly**: 年季节性 (哪个月份最高)
+- **Weekly**: 周季节性 (周几最高)
+- **Holidays** (如果有): 节假日效应
+
+## 加入节假日:中文场景
+
+中国节假日 (春节、双11) 对销量影响巨大。Prophet 内置了美国 + 部分国际节日,但中国节日需要自己加:
+
+```python
+# 自定义节假日
+holidays = pd.DataFrame({
+    "holiday": "chinese_new_year",
+    "ds": pd.to_datetime([
+        "2022-02-01", "2023-01-22", "2024-02-10", "2025-01-29",
+        "2026-02-17"  # 预测范围内
+    ]),
+    "lower_window": -7,    # 前后 7 天都受春节影响
+    "upper_window": 7,
+})
+
+# 双11
+double11 = pd.DataFrame({
+    "holiday": "double_11",
+    "ds": pd.to_datetime([f"{y}-11-11" for y in range(2022, 2027)]),
+    "lower_window": 0,
+    "upper_window": 3,  # 前后 3 天
+})
+
+# 国庆
+national_day = pd.DataFrame({
+    "holiday": "national_day",
+    "ds": pd.to_datetime([f"{y}-10-01" for y in range(2022, 2027)]),
+    "lower_window": 0,
+    "upper_window": 7,
+})
+
+all_holidays = pd.concat([holidays, double11, national_day])
+
+model = Prophet(holidays=all_holidays)
+model.fit(df)
+```
+
+## 处理多重季节性
+
+默认 Prophet 学年 + 周季节性。如果数据有**日内小时**模式:
+
+```python
+# 关闭默认 + 加自定义季节性
+model = Prophet(weekly_seasonality=False, yearly_seasonality=True)
+model.add_seasonality(name="daily", period=1, fourier_order=8)
+model.add_seasonality(name="hourly", period=24, fourier_order=15)
+```
+
+## 调参:4 个最常用参数
+
+```python
+model = Prophet(
+    growth="linear",           # "linear" / "logistic" (有上限)
+    changepoints=25,           # 自动检测趋势变化的点数
+    changepoint_prior_scale=0.05,  # 趋势灵活度, 越大越"跟"数据
+    seasonality_prior_scale=10,    # 季节性强弱, 越大越拟合
+    holidays_prior_scale=10,
+    seasonality_mode="additive"  # "additive" / "multiplicative"
+)
+```
+
+**调参经验**:
+- `changepoint_prior_scale` 是关键, 太大过拟合, 太小欠拟合
+- 数据有明显上限 (用户量、库存) 用 `growth="logistic"` + `cap`
+- 季节性随趋势放大用 `multiplicative`
+
+## 调上限的 logistic 增长
+
+```python
+df["cap"] = 10000  # 上限
+
+model = Prophet(growth="logistic")
+model.fit(df)
+
+future = model.make_future_dataframe(periods=90)
+future["cap"] = 10000  # 预测时也要设
+forecast = model.predict(future)
+```
+
+## 评估
+
+```python
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error
+
+# 留出最后 30 天评估
+train = df[:-30]
+test = df[-30:]
+
+model = Prophet()
+model.fit(train)
+
+future = model.make_future_dataframe(periods=30)
+forecast = model.predict(future)
+y_pred = forecast["yhat"].tail(30).values
+
+mae = mean_absolute_error(test["y"], y_pred)
+mape = mean_absolute_percentage_error(test["y"], y_pred)
+print(f"MAE: {mae:.2f}, MAPE: {mape:.2%}")
+```
+
+典型表现: 日销量数据 MAPE 在 5-15% 之间。
+
+## 模型保存 + 加载
+
+```python
+import pickle
+
+# 保存
+with open("prophet_model.pkl", "wb") as f:
+    pickle.dump(model, f)
+
+# 加载
+with open("prophet_model.pkl", "rb") as f:
+    loaded = pickle.load(f)
+
+# 继续预测
+future = loaded.make_future_dataframe(periods=30)
+forecast = loaded.predict(future)
+```
+
+<Callout type="warning">
+Prophet 模型文件可能很大 (几百 MB, 因为要存 Stan 拟合后的样本)。生产环境建议用 `model.serialize()` 存为 JSON。
+</Callout>
+
+## 异常值处理
+
+Prophet 对异常值**默认鲁棒**,但极端异常还是会影响。如果某天销量突然 10 倍:
+
+```python
+# 方法 1: 直接删除异常点
+df_clean = df[(df["y"] > df["y"].quantile(0.01)) & (df["y"] < df["y"].quantile(0.99))]
+
+# 方法 2: 设 floor
+df["floor"] = 0
+model = Prophet(growth="logistic")
+model.fit(df)  # 需要 cap + floor 都设
+```
+
+## 三个替代方案
+
+1. **NeuralProphet** (2020): Prophet 的深度学习版, 加了滞后变量、自回归
+2. **DeepAR** (Amazon): 概率预测, 给出预测分布
+3. **TFT (Temporal Fusion Transformer)**: Google 的注意力时序模型, 长序列效果好
+
+## 小结
+
+- Prophet: 工业界时序预测的事实标准, 简单稳定
+- 公式: y(t) = trend + seasonality + holidays + error
+- 必须列名 `ds, y`, 用 `make_future_dataframe` 生成预测时间
+- 节假日是核心: 自定义春节/双11 能显著提升 MAPE
+- 调参重点: `changepoint_prior_scale` (灵活度) + `seasonality_mode` (加法/乘法)
+
+## 练习思考
+
+1. 同一份销售数据, ARIMA 和 Prophet 的 MAPE 差距多少?哪种更好?
+2. 加了"双11"自定义节假日后, 11 月 11 号附近的预测值变化多大?
+3. 用 `growth="logistic"` 拟合用户量数据, `cap` 怎么设才合理?

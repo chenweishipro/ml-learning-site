@@ -1,0 +1,157 @@
+# Word2Vec 词向量
+
+词袋和 TF-IDF 都把词当成"独立的、不相干的符号"。但人类语言里,"好"和"棒"明明是近义词, "中国"和"北京"也有关联。**Word2Vec 让计算机也能学到这种"语义关系"**。
+
+## 词向量:用数字描述词的含义
+
+Word2Vec 的核心思想:**用一个固定长度的实数向量 (比如 100 维) 表示一个词,让含义相近的词在向量空间里距离也近**。
+
+神奇的是,经过训练的 Word2Vec 会自动学到:
+
+```
+vec("国王") - vec("男") + vec("女") ≈ vec("女王")
+vec("中国") - vec("北京") + vec("东京") ≈ vec("日本")
+```
+
+## 两种模型:CBOW 和 Skip-gram
+
+Word2Vec 有两个对称的模型:
+
+- **CBOW (Continuous Bag-of-Words)**: 用上下文预测中心词
+- **Skip-gram**: 用中心词预测上下文
+
+<Callout type="tip">
+Skip-gram 在小数据集上表现更好,CBOW 训练更快。工业界一般用 Skip-gram + 负采样 (Negative Sampling)。
+</Callout>
+
+### CBOW 直观图
+
+```
+[我] [爱] [吃] [苹果] [和] [香蕉]
+
+用 "爱" "吃" 预测 → 中心词 "苹果"
+```
+
+### Skip-gram 直观图
+
+```
+[我] [爱] [吃] [苹果] [和] [香蕉]
+
+用中心词 "苹果" 预测 → 上下文 "爱" "吃" "和" "香蕉"
+```
+
+## 用 gensim 训练自己的词向量
+
+```python
+from gensim.models import Word2Vec
+from jieba import cut
+
+# 1. 准备语料: 切好词的句子列表
+sentences = [
+    list(cut("我 爱 自然 语言 处理")),
+    list(cut("机器 学习 是 人工智能 的 子领域")),
+    list(cut("深度 学习 让 计算机 学会 看 和 听")),
+    list(cut("自然 语言 处理 离不开 深度 学习")),
+    # ... 更多句子
+]
+
+# 2. 训练
+model = Word2Vec(
+    sentences,
+    vector_size=100,      # 词向量维度
+    window=5,             # 上下文窗口
+    min_count=1,          # 出现少于 1 次的词忽略
+    workers=4,            # 训练线程
+    sg=1                  # 1=Skip-gram, 0=CBOW
+)
+
+# 3. 拿到词向量
+vec = model.wv["自然"]
+print(f"\"自然\" 的向量 (前 5 维): {vec[:5]}")
+# [ 0.0123  -0.0451  0.0892  -0.0023  0.0567 ...]
+
+# 4. 找近义词
+print(model.wv.most_similar("学习", topn=3))
+# [('深度', 0.87), ('机器', 0.85), ('自然', 0.81)]
+
+# 5. 类比推理
+result = model.wv.most_similar(positive=["中国", "东京"], negative=["北京"], topn=1)
+print(result)
+# [('日本', 0.78)]
+```
+
+## 负采样:让训练从 O(V) 变 O(log V)
+
+传统 softmax 计算所有词的概率,词表 V=10 万时计算量巨大。**负采样**只更新正样本 (真实上下文) 和 5-20 个负样本 (随机词) 的权重,速度提升 100x。
+
+```python
+# gensim 内部已经实现了负采样, 你只需要设置
+model = Word2Vec(sentences, vector_size=100, negative=5)  # 5 个负样本
+```
+
+## 中文实战:用《人民日报》语料训词向量
+
+```python
+import jieba
+from gensim.models import Word2Vec
+
+# 1. 读文件
+with open("people_daily.txt", "r", encoding="utf-8") as f:
+    raw_text = f.read()
+
+# 2. 按句切 + 分词
+sentences = []
+for line in raw_text.split("\n"):
+    if len(line.strip()) > 5:
+        sentences.append(list(jieba.cut(line.strip())))
+
+print(f"共 {len(sentences)} 句, 开始训练...")
+
+# 3. 训练
+model = Word2Vec(sentences, vector_size=200, window=5, min_count=10, workers=4, sg=1, epochs=5)
+
+# 4. 保存
+model.save("word2vec_people_daily.model")
+print("训练完成, 已保存")
+
+# 5. 验证
+print(model.wv.most_similar("中国"))
+# 通常会找到: [('我国', 0.85), ('中华民族', 0.83), ('人民', 0.80), ...]
+```
+
+## 词向量的 3 个常见用法
+
+1. **初始化深度学习模型**: 把 word2vec 当作 Embedding 层初始值,在小数据集上效果显著提升
+2. **直接做特征**: 文档 = 词向量平均,扔进分类器 (比 TF-IDF 略好)
+3. **计算相似度**: 推荐系统、文本去重
+
+```python
+# 用法 1: PyTorch Embedding 初始化
+import torch
+import torch.nn as nn
+embedding = nn.Embedding.from_pretrained(
+    torch.FloatTensor([model.wv[w] for w in vocab])
+)
+```
+
+## Word2Vec 的局限
+
+- **静态向量**: 一个词只有 1 个向量,"苹果"在"吃苹果"和"苹果手机"里向量相同
+- **OOV 问题**: 训练时没见过的词没有向量
+- **窗口固定**: 不擅长捕捉长距离依赖
+
+BERT 等预训练模型解决了这些问题,但 Word2Vec 仍然是**理解"词嵌入"概念的最佳起点**。
+
+## 小结
+
+- 词向量 = 用 N 维实数表示一个词,让含义相近的词在向量空间里距离近
+- Word2Vec 两种模型: CBOW (上下文→中心) 和 Skip-gram (中心→上下文)
+- 关键技巧: 负采样 (Negative Sampling) 让训练从 O(V) 变 O(K)
+- gensim 5 行代码就能训练自己的词向量
+- "king - man + woman = queen" 这种类比能力是 Word2Vec 的最大亮点
+
+## 练习思考
+
+1. 用 gensim 训 100 句中文语料, 比较 `sg=0` 和 `sg=1` 的 `most_similar` 结果。
+2. 负采样数从 `negative=1` 改到 `negative=20`, 训练时间怎么变? 准确率怎么变?
+3. 找 5 个同义词 (比如"好/棒/赞/优秀/出色"), Word2Vec 训出的向量余弦相似度都高吗?
