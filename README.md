@@ -1,307 +1,229 @@
-# ML 学习站 · 中文机器学习教程
+# 🧠 ML 学习站 (ml-learning)
 
-一个完整的**中文机器学习学习平台**,从零基础到深度学习 / NLP / 时间序列 / MLOps,系统化课程 + 可运行代码 + 交互可视化 + 社区化。
+> 一站式中文机器学习学习平台 —— 从入门到 LLM, 涵盖 15 门课程 52 章, 40+ 公开特性, 全栈开源。
 
-> 🌐 线上: <http://122.51.221.63:7892> (IP 直连 · nginx 兜底 · systemd 守护)
-> 📦 21 个版本 · 19 个公开特性 · 14 门课 48 个章节 · 全程中文
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org)
+[![Prisma](https://img.shields.io/badge/Prisma-SQLite-2D3748)](https://www.prisma.io)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+[![版本](https://img.shields.io/badge/release-v14.3-FF6B6B)](https://github.com/chenweishipro/ml-learning-site/releases)
 
----
+## ✨ 特性一览
 
-## ✨ 特性 (v9 ~ v13)
+平台从 v8 起持续迭代, 已积累 **40+ 公开特性**, 涵盖学习、社区、闭环、稳定、增长、监控、域名、LLM 8 大主题。
 
-### 🧠 学习引擎 (v9.x)
-- 🏆 **14 门系统化课程, 48 章节**: 机器学习入门 → 监督学习 → 神经网络 → 深度学习进阶 → 强化学习 + 6 门统计 + **3 门 v13.1 新课** (NLP / 时间序列 / MLOps)
-- 🎮 **Monaco + Pyodide**: 浏览器内 Python 编程,免安装直接跑
-- 🧩 **4 道编程挑战**: 在线提交代码,自动评测
-- 🤖 **AI 出题**: LLM 兜底 + 内容 hash 缓存, 5 道题 10 秒
-- 💬 **多轮 AI 答疑**: 10 条对话历史, anonymous 自动降级 mock
-- 🗺️ **学习路线图**: SVG 课程依赖图, 看完一眼掌握全局
-- 🏗️ **6 个 Capstone 实战项目**: Titanic / Boston / 推荐 / 情感分析 / A-B / CIFAR-10
-- 📖 **术语表**: 18 个 ML/统计/数学/代码/数据术语, 鼠标 hover 即看
-- 🎖️ **16 枚成就徽章**: 4 阶 (铜/银/金/铂), 学习过程自动颁发
+### 🎓 学习引擎 (v9)
+- 🤖 **AI 答疑 2.0** —— RAG 检索 + LLM 解释, 带来源引文
+- 🐍 **Python 沙箱** —— Monaco 编辑器 + Pyodide 浏览器跑 Python
+- 🧩 **编程题系统** —— 20+ 题, 8 种数据类型
+- 🗺️ **学习路线图** —— 3 条路径推荐
+- 🏆 **Capstone 实战** —— 6 个综合项目
+- 📖 **术语表 (Glossary)** —— 100+ 概念, 悬停即看
+- 🎖️ **徽章成就** —— 15+ 枚, 进度可视化
+- 🔑 **登录注册** —— email + 邀请码
 
-### 👥 学习社区 (v10.x)
-- 👤 **公开用户主页** + 关注 (`/u/[id]/`)
-- 💬 **嵌套评论** (Discourse 风格折叠 + @ mention 通知 + 引用)
-- ✏️ **个人资料编辑** (头像 / bio / 隐私)
-- 🔔 **通知中心** (Bell + badge + 下拉, 嵌入全局 layout)
-- 🤝 **学习圈** (基于共同完成课程的相似用户推荐 + 一键关注)
+### 🌐 学习社区 (v10)
+- 👤 **公开用户主页** —— 学习统计、徽章墙、内容列表
+- 💬 **嵌套评论** —— 楼中楼, Markdown 支持
+- 🤖 **AI 出题** —— 一键基于章节生成 quiz
+- ✏️ **资料编辑** —— admin 可改章节, 保留版本
+- 🔔 **通知中心** —— 实时通知 + 已读未读
+- 🫂 **学习圈** —— follow / 粉丝 / 推荐
+- 💭 **匿名 chat** —— 免登录也能体验
 
-### 🔄 学习闭环 (v11.x)
-- 📥 **章节下载** (Markdown / Text / HTML, 一键保存)
-- 📊 **admin 章节质量报告** (8 维健康度分析, 帮 admin 找问题章节)
-- 📱 **PWA** (install prompt + manifest shortcuts + 离线章节缓存)
+### 🔄 学习闭环 (v11)
+- 📥 **章节下载** —— MD / Text / HTML 三种格式
+- 📊 **章节质量报告** —— admin 8 维评分
+- 📱 **PWA 安装 + 离线** —— 7 天去重提示
 
-### ✨ 打磨与增长 (v12.x)
-- ✨ **错题 AI 讲解** (LLM 针对性讲解 + SHA256 缓存 + 24h TTL)
-- 🎁 **邀请码系统** (生成 8 位码 → 注册双方得徽章: 新种子 / 破冰者 / 分享者 / 大使)
-- ⚙️ **systemd 服务化** (Restart=always + 5s 内崩溃自动拉起 + journald 日志)
+### 🛠️ 打磨稳定 (v12)
+- ✨ **错题 AI 讲解** —— 24h 缓存, 三段结构
+- 🎁 **邀请码系统** —— 8 字符 base32, 4 枚徽章
+- 🐧 **systemd 守护** —— 5s 自动拉起
 
-### 📧 触达与稳定 (v13.x)
-- 📚 **3 门新课** (NLP 入门 / 时间序列分析 / MLOps 入门) — 11 个新章节
-- 📧 **邮件简报周报** (紫粉渐变 HTML 模板, SMTP 配错时落本地 log, cron 每周一 9:00)
-- 🏥 **健康检查** `/api/health` (DB + LLM + disk 实时状态)
-- 📈 **Prometheus metrics** `/api/metrics` (8 个核心指标, Grafana / 监控告警直接用)
-- 🚨 **监控告警脚本** `scripts/monitor.sh` + cron `*/5 * * * *` (systemd 状态 / health / DB 大小 / journal 错误)
-- 🌐 **域名 + HTTPS 一键部署** (`scripts/setup-https.sh` + nginx + certbot)
+### 🚀 增长 + 监控 + 域名 (v13)
+- 📚 **3 门新课 11 章** —— NLP / 时间序列 / MLOps
+- 📧 **邮件简报周报** —— 紫粉渐变 HTML, 每周一推送
+- 📊 **监控告警** —— 13 指标 + Slack/钉钉 webhook
+- 🌐 **域名 + HTTPS** —— TLS 1.2/1.3 + HSTS + 限流
 
-### 🛠 基础体验 (v8.x)
-- 🔍 **全文搜索 + 语义搜索 + AI 摘要** (FTS5 + embedding)
-- 🌗 **暗色模式** (跟随系统 / 手动 / 本地存储)
-- ✅ **学习进度追踪** (章节标记完成 + 热力图)
-- 📐 **数学公式渲染** (KaTeX)
-- 📊 **个人数据看板** (heatmap / 课程进度 / 推荐下一步)
-- 🐍 **Python 演练场** (Monaco + Pyodide, 实时执行)
+### 🤖 LLM 入门 (v14.1)
+- 🧠 **Transformer 基础** —— Self-Attention / Q-K-V / Multi-Head
+- 🏋️ **预训练** —— Next-token / 三阶段 / Scaling Law / LoRA
+- ✍️ **Prompt Engineering** —— 5 基础 + Function Call + 5 错误
+- 🔍 **RAG** —— 检索增强 / 向量化 / Re-ranking / HyDE
 
----
+### 📊 Admin 增强 (v14.2)
+- 🎯 **平台概览仪表板** —— 7 卡片 + 3 排行, 一眼看全平台
 
-## 🛠 技术栈
+### 🔧 CI/CD (v14.3)
+- 🤖 **PR 模板** —— 改动类型 + 测试 checklist
 
-- **Next.js 14** (App Router + standalone 输出)
-- **TypeScript** + **Tailwind CSS**
-- **MDX** (`next-mdx-remote` 5.0)
-- **Prisma + SQLite** (单文件 dev.db, 简单部署)
-- **MiniMax-Text-01** (LLM 答疑 / 出题 / 错题讲解 / AI 总结)
-- **Pyodide** (浏览器 Python)
-- **Monaco Editor** (代码高亮)
-- **KaTeX** (数学公式)
-- **systemd + journald** (进程管理)
-- **Nginx + Let's Encrypt** (HTTPS)
-- **cron** (定时任务)
+## 📚 课程目录 (15 门 / 52 章)
 
----
+| # | 课程 | 章数 | 简介 |
+|---|-----|------|------|
+| 1 | ML 基础 | 6 | 监督 / 无监督 / 强化学习入门 |
+| 2 | 监督学习 | 4 | 回归 / 分类 / 决策树 / SVM |
+| 3 | 神经网络 | 4 | 感知机 / BP / CNN / RNN |
+| 4 | 深度学习进阶 | 3 | GAN / Transformer / 优化 |
+| 5 | 强化学习 | 2 | Q-Learning / 策略梯度 |
+| 6 | 统计基础 | 4 | 描述统计 / 抽样 / 分布 |
+| 7 | 统计概率 | 3 | 贝叶斯 / 条件概率 |
+| 8 | 统计连续 | 2 | 正态 / 中心极限定理 |
+| 9 | 统计估计 | 1 | 点估计 / 区间估计 |
+| 10 | 统计检验 | 4 | t 检验 / 卡方 / ANOVA |
+| 11 | 统计回归 | 4 | 线性 / Logistic / Ridge |
+| 12 | NLP 基础 | 4 | 预处理 / TF-IDF / Word2Vec / 情感分析 |
+| 13 | 时间序列 | 4 | 基础 / ARIMA / Prophet / 异常检测 |
+| 14 | MLOps | 3 | 模型版本 / 部署 / 监控漂移 |
+| 15 | **LLM 入门** | 4 | Transformer / 预训练 / Prompt / RAG |
+
+## 🛠️ 技术栈
+
+- **前端**: Next.js 14 (App Router) + TypeScript 5 + Tailwind CSS 3
+- **内容**: MDX (next-mdx-remote) + 自定义 Component
+- **数据库**: Prisma 5 + SQLite (生产: 绝对路径)
+- **认证**: cookie session (httpOnly, sameSite=lax)
+- **AI**: MiniMax API (MiniMax-Text-01) + 本地 embedding 缓存
+- **Python**: Pyodide 0.24 (浏览器内 Python 解释器)
+- **PWA**: Service Worker + Web App Manifest
+- **监控**: /api/metrics Prometheus 8 指标 + crontab */5
+- **部署**: systemd 守护 + nginx 80/443 + certbot (HTTPS)
+- **CDN**: 静态资源 1 年 immutable 缓存
 
 ## 📁 项目结构
 
 ```
 ml-learning/
 ├── app/                    # Next.js App Router
-│   ├── courses/[slug]/[chapter]/   # 章节详情 + MDX 渲染
-│   ├── me/                 # 个人中心 (进度 / 错题 / 成就 / 资料编辑 / 邀请码 / 设置)
-│   ├── admin/              # 管理后台 (analytics / quality / users / proposals)
-│   ├── api/                # 后端 API (40+ 端点)
-│   │   ├── chat/, ai/, auth/, quiz/, study/, recommend/, follow/, badges/
-│   │   ├── invite/, newsletter/, health/, metrics/
-│   ├── chat/, capstone/, glossary/, curriculum/, playground/python/
-│   └── u/[id]/             # 公开用户主页
-├── components/             # React 组件 (40+)
-│   ├── notifications/, auth/, comments/, admin/, layout/, home/, interactive/
-├── content/courses/        # 14 门课 48 章 MDX 内容
-│   ├── ml-basics/, supervised-learning/, neural-networks/, deep-learning-advanced/
-│   ├── reinforcement-learning/
-│   ├── stats-foundations/, stats-probability/, stats-continuous/, stats-estimation/
-│   ├── stats-testing/, stats-regression/
-│   └── nlp-basics/, time-series/, mlops/   # v13.1 新课
-├── lib/                    # 业务逻辑 (50+ 模块)
-│   ├── auth.ts, db.ts, llm.ts, content.ts, quizzes.ts, badges.ts,
-│   ├── newsletter.ts, quality-report.ts, people.ts, public-profile.ts,
-│   ├── recommendations, chat-sessions, comments, notes, qa, proposals, ...
-├── prisma/                 # 数据库 schema + migrations
-├── public/                 # 静态资源 (manifest.json, sw.js, icons, images)
-├── scripts/                # 部署 + 维护脚本
-│   ├── install-systemd.sh, setup-https.sh, monitor.sh, newsletter-cron.sh
-│   └── nginx/ml-learning.conf
-└── .env                    # 环境变量 (DATABASE_URL, LLM_API_KEY, ...)
+│   ├── api/                # 50+ API routes
+│   │   ├── admin/          # admin 后台
+│   │   ├── auth/           # 登录注册
+│   │   ├── chat/ sessions/ # AI 对话
+│   │   ├── newsletter/     # 邮件简报
+│   │   ├── quiz/           # 测验
+│   │   ├── health/         # 健康检查
+│   │   └── metrics/        # Prometheus
+│   ├── courses/            # 课程页面
+│   ├── me/                 # 个人中心
+│   ├── admin/              # 管理后台
+│   ├── playground/         # 编程 playground
+│   └── search/ qa/ chat/   # 各种功能
+├── content/courses/        # 15 门课程 MDX
+├── components/             # React 组件
+├── lib/                    # 工具库
+│   ├── auth, db, llm       # 核心
+│   ├── newsletter          # v13.2
+│   ├── badges              # v9.7
+│   └── ...
+├── prisma/                 # schema + db
+├── public/                 # 静态资源
+├── scripts/                # 运维脚本
+│   ├── install-systemd.sh
+│   ├── setup-https.sh
+│   ├── monitor.sh
+│   └── newsletter-cron.sh
+└── .github/                # PR 模板
 ```
 
----
-
-## 🚀 快速开始 (本地开发)
+## 🚀 本地开发
 
 ```bash
 # 1. 装依赖
 npm install
 
-# 2. 准备数据库
+# 2. 初始化数据库
+npx prisma db push
 npx prisma generate
-npx prisma db push   # 首次跑, 创建 dev.db
 
-# 3. 启动开发服务
+# 3. 跑 dev server
 npm run dev
-# → http://localhost:3000
+# 打开 http://localhost:3000
 ```
 
-### 环境变量 (`.env.local`)
-```bash
-# LLM (MiniMax)
-LLM_PROVIDER=minimax
-MINIMAX_API_KEY=sk-cp-...
-MINIMAX_BASE_URL=https://api.minimaxi.com/v1
-MINIMAX_MODEL=MiniMax-Text-01
-
-# 数据库
-DATABASE_URL="file:./prisma/dev.db"
-
-# Session
-AUTH_SESSION_SECRET=please-change-me
-```
-
----
-
-## 🏗 生产部署 (systemd)
+## 🐳 生产部署
 
 ```bash
-# 1. build
-npm install
-npx prisma generate
+# 1. 构建
 npx next build
-# 产物: .next/standalone/
 
-# 2. 准备部署目录
-mkdir -p /opt/ml-learning
-cp -r .next/standalone/* /opt/ml-learning/
-cp -r .next/static /opt/ml-learning/.next/
-cp -r public /opt/ml-learning/
+# 2. standalone 打包
+tar --exclude='./node_modules' \
+    --exclude='./.next/cache' \
+    --exclude='./prisma/dev.db*' \
+    --exclude='./.git' \
+    -czf ml-site.tar.gz .
 
-# 3. 配 systemd (一键)
-sudo bash scripts/install-systemd.sh
-# → sudo systemctl status ml-learning
-# → sudo journalctl -u ml-learning -n 50 --no-pager
+# 3. 服务器
+ssh ubuntu@SERVER
+sudo systemctl stop ml-learning
+rm -rf /opt/ml-learning/.next/standalone
+cd /opt/ml-learning && tar xzf ml-site.tar.gz
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/
+sudo systemctl start ml-learning
 ```
 
-服务配置 (`/etc/systemd/system/ml-learning.service`):
-- `Type=simple`, `User=ubuntu`, `WorkingDirectory=/opt/ml-learning`
-- `ExecStart=/usr/bin/node .next/standalone/server.js`
-- `Restart=always`, `RestartSec=5` (崩溃 5s 内自动拉起)
-- `Environment` 内联 (PORT/HOSTNAME/DATABASE_URL/LLM_API_KEY/...)
-- `LimitNOFILE=65535` + Hardening (NoNewPrivileges / ProtectSystem / ProtectHome / PrivateTmp)
+详细流程见 `scripts/` 目录:
+- `install-systemd.sh` —— 一键装 systemd 服务
+- `setup-https.sh` —— 一键申请 certbot 证书
+- `monitor.sh` —— 健康检查 + 告警
+- `newsletter-cron.sh` —— 每周一 9 点推邮件
 
----
+## 🌐 访问方式
 
-## 🌐 域名 + HTTPS (v13.4)
+生产部署支持:
+- ✅ **IP 直连** —— `http://SERVER_IP:7892`
+- ✅ **nginx 80 兜底** —— `http://SERVER_IP` (server_name _)
+- ✅ **HTTPS** —— `https://DOMAIN` (用 setup-https.sh 一键申请)
+
+## 📊 监控
 
 ```bash
-# 1. DNS A 记录
-#    ml.example.com    A    122.51.221.63
-#    www.ml.example.com A    122.51.221.63
+# 健康检查
+curl http://SERVER:7892/api/health/
 
-# 2. 一键部署
-cd /workspace/ml-site
-sudo ./scripts/setup-https.sh ml.example.com admin@example.com
+# Prometheus 指标
+curl http://SERVER:7892/api/metrics/
 
-# 脚本自动:
-# - 装 certbot + python3-certbot-nginx
-# - 拷 nginx 配置 → /etc/nginx/sites-available/
-# - certbot --nginx 申请证书 (Let's Encrypt)
-# - HTTP → HTTPS 301 重定向
-# - 加 certbot 自动续期 cron
-# - reload nginx
+# 监控 cron
+crontab -l | grep monitor
+# */5 * * * * /opt/ml-learning/scripts/monitor.sh
+
+# 日志
+journalctl -u ml-learning --no-pager -n 50
 ```
 
-nginx 关键配置:
-- TLSv1.2/1.3, HSTS (max-age=63072000), 强密码套件
-- `/_next/static` 1 年 immutable 缓存
-- `/sw.js` no-cache (PWA 关键)
-- `/api/` 限流 60r/s + burst=20
-- 反代到 `127.0.0.1:7892` (systemd ml-learning.service)
+## 📜 变更日志
 
-详细见 [scripts/nginx/README.md](./scripts/nginx/README.md)
-
----
-
-## 📊 监控 + 告警 (v13.3)
-
-### `/api/health` — 健康检查
-```bash
-curl http://127.0.0.1:7892/api/health
-# {
-#   "status": "healthy",
-#   "uptimeSec": 12345,
-#   "checks": {
-#     "db": { "ok": true, "latencyMs": 3 },
-#     "llm": { "ok": true, "latencyMs": 0 },
-#     "disk": { "ok": true, "sizeMb": 1 }
-#   },
-#   "timestamp": "2026-06-22T..."
-# }
-```
-
-### `/api/metrics` — Prometheus 格式
-```bash
-curl http://127.0.0.1:7892/api/metrics
-# ml_site_uptime_seconds 12345
-# ml_site_users_total 11
-# ml_site_chapter_progress_total 8
-# ml_site_memory_rss_bytes ...
-```
-
-### `scripts/monitor.sh` — cron 自动监控
-```bash
-# 5 分钟跑一次, 检查 systemd / health / db 大小 / journal 错误
-*/5 * * * * /opt/ml-learning/scripts/monitor.sh
-
-# 可选 webhook 推 Slack/钉钉/飞书 (env MONITOR_WEBHOOK)
-export MONITOR_WEBHOOK="https://hooks.slack.com/services/XXX"
-```
-
----
-
-## 📧 邮件简报 (v13.2)
-
-```bash
-# 订阅
-curl -X POST http://127.0.0.1:7892/api/newsletter/subscribe \
-  -d '{"enabled": true, "frequency": "weekly", "topics": ["new_chapters", "progress"]}'
-
-# admin 预览
-curl http://127.0.0.1:7892/api/newsletter/preview  # HTML
-
-# admin 发送 (SMTP 未配置则落本地 log)
-curl -X POST http://127.0.0.1:7892/api/newsletter/send \
-  -d '{"limit": 100}'
-
-# cron 每周一 9:00 自动发
-0 9 * * 1 /opt/ml-learning/scripts/newsletter-cron.sh
-```
-
-**SMTP 配置** (`.env`):
-```bash
-SMTP_HOST=smtp.resend.com
-SMTP_PORT=465
-SMTP_USER=resend
-SMTP_PASS=re_xxx
-SMTP_SECURE=true
-```
-
-未配置时, 邮件落到 `/opt/ml-learning/.next/standalone/ml-newsletter.log` 方便调试。
-
----
+| 版本 | 主题 | 关键特性 |
+|------|------|---------|
+| v14.3 | CI/CD | PR 模板 |
+| v14.2 | Admin 增强 | 平台概览仪表板 |
+| v14.1 | LLM 入门 | Transformer / 预训练 / Prompt / RAG |
+| v13.4 | 域名 + HTTPS | certbot 一键申请 |
+| v13.3 | 监控告警 | Prometheus 8 指标 + webhook |
+| v13.2 | 邮件简报 | 紫粉渐变 HTML 周报 |
+| v13.1 | 内容扩展 | NLP / 时间序列 / MLOps 3 门新课 |
+| v12.3 | 守护稳定 | systemd 5s 拉起 |
+| v12.2 | 邀请码 | 4 枚事件徽章 |
+| v12.1 | AI 讲解 | 错题三段解释 |
+| v11.3 | PWA | install prompt + 离线 |
+| v11.1 | 章节下载 | MD/Text/HTML |
+| v10.7 | 匿名 chat | 免登录 |
+| v10.4 | 资料编辑 | admin 改章节 |
+| v9.7 | 徽章系统 | 15+ 枚成就 |
+| v9.5 | Capstone | 6 个实战项目 |
+| v9.2 | 编程题 | 20+ 题 8 类型 |
+| v9.1 | Monaco | 浏览器 Python |
+| v8.7 | i18n | 中英双语 |
+| v8.6 | FTS5 | 全文搜索高亮 |
 
 ## 🤝 贡献
 
-虽然代码可以 fork, 但请记住:
-- 内容 (MDX) 引用了 **《基础统计学》第 14 版** (Mario F. Triola, 电子工业出版社), 仅用于教学
-- 代码采用 MIT 协议
+欢迎 PR! 请先看 [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
 
----
+## 📄 License
 
-## 📜 版本历史
-
-| 版本 | 主题 | 特性数 |
-|------|------|--------|
-| v8.x | 基础体验 (搜索/PWA/RAG/统计) | 12 |
-| v9.1-v9.7 | 学习引擎 (Monaco/编程题/AI答疑/路线图/Capstone/Glossary/Badge) | 8 |
-| v9.7.1 | 补齐 /login 路由 | 1 |
-| v10.1-v10.7 | 学习社区 (公开主页/评论/AI出题/资料编辑/通知/学习圈/chat-anon) | 7 |
-| v11.1-v11.3 | 学习闭环 (下载/质量报告/PWA) | 3 |
-| v12.1-v12.3 | 打磨稳定 (错题AI/邀请码/systemd) | 3 |
-| **v13.1** | **3 门新课 11 章 (NLP/时间序列/MLOps)** | **1** |
-| **v13.2** | **邮件简报周报** | **1** |
-| **v13.3** | **监控告警 (health + metrics + monitor.sh)** | **1** |
-| **v13.4** | **域名 + HTTPS 一键部署** | **1** |
-
-共 **38 个版本** / **24 个 tag** / **38 个特性** / **48 章节** / **14 门课**
-
----
-
-## 📜 致谢
-
-- **统计内容**: 来自 *《基础统计学》第 14 版* (Mario F. Triola, 钱辰江/潘文皓 译, 电子工业出版社)
-- **LLM 接入**: [MiniMax-Text-01](https://api.minimaxi.com)
-- **前端框架**: [Next.js 14](https://nextjs.org) + [Tailwind CSS](https://tailwindcss.com)
-- **部署**: Ubuntu 24.04 + systemd + nginx + Let's Encrypt
-- **作者**: [chenweishi](https://github.com/chenweishipro)
-
----
-
-🌟 如果这个项目对你有帮助, 给个 star 吧!
+MIT © 2026 ml-learning
