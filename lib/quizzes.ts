@@ -330,7 +330,65 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
     },
   ],
 
-  /* ============== v13.1 NLP 入门 ============== */
+  
+  /* ============== v14.1 LLM 入门 ============== */
+  "llm-basics/transformer": [
+    {
+      question: "Transformer 中 Self-Attention 的核心思想是?",
+      options: ["用 RNN 处理序列", "让任意两位置直接交互, 按相关性加权求和", "用卷积核扫描序列", "逐位置独立处理"],
+      correct: 1,
+      explanation: "Self-Attention 让序列中每个位置跟所有其他位置直接计算相关性, 然后按权重把它们的值加起来, 解决 RNN 长距离依赖和并行难的问题。",
+    },
+    {
+      question: "为什么 Transformer 需要位置编码?",
+      options: ["为了压缩参数", "Self-Attention 是排列不变的, 丢失了顺序信息", "为了加速训练", "为了多语言支持"],
+      correct: 1,
+      explanation: "Self-Attention 只看内容相关性, 不看位置。位置编码 (sin/cos 或 RoPE) 把位置信息塞回输入, 解决排列不变性问题。",
+    },
+  ],
+  "llm-basics/pretraining": [
+    {
+      question: "GPT 系列大模型的核心训练目标是?",
+      options: ["图像分类", "下一个 token 预测", "情感分析", "机器翻译"],
+      correct: 1,
+      explanation: "GPT 用 Next-token prediction (猜下一个 token) 训练, 这个简单的目标涌现出推理、写代码、对话等所有智能行为。",
+    },
+    {
+      question: "为什么 7B 模型是消费级 GPU 性价比最高的档位?",
+      options: ["7B 是黄金数字", "fp16 下 7B 只要 14GB 显存, 单张 RTX 3090/4090 就能跑, 质量够用", "不能选别的", "7B 比 13B 更快"],
+      correct: 1,
+      explanation: "7B 模型 fp16 占 14GB 显存, 单张消费级 GPU 就能跑, 推理 + LoRA 微调都可行。70B 需要多卡 A100, 成本 10x 但质量提升有限。",
+    },
+  ],
+  "llm-basics/prompt-engineering": [
+    {
+      question: "CoT (Chain-of-Thought) 的核心是?",
+      options: ["用更多 token", "让模型一步步推理, 而不是直接给答案", "调高 temperature", "换更大的模型"],
+      correct: 1,
+      explanation: "CoT = Chain of Thought, 加 让我们一步步思考 这类 prompt, 强制模型写出推理过程, 数学题准确率能提升 30-40%。",
+    },
+    {
+      question: "Function Calling 解决什么问题?",
+      options: ["加快推理", "让 LLM 输出结构化 JSON 来调用外部 API/工具", "降低显存", "改进翻译"],
+      correct: 1,
+      explanation: "Function Calling 让 LLM 输出结构化 JSON 描述要调用的函数 + 参数, 程序决定调什么 API、怎么用结果。这是 ReAct 模式的工程化。",
+    },
+  ],
+  "llm-basics/rag": [
+    {
+      question: "RAG 解决 LLM 哪两个核心痛点?",
+      options: ["训练太慢", "知识陈旧 + 幻觉编造", "GPU 不够", "中文不好"],
+      correct: 1,
+      explanation: "RAG 把 LLM 从闭卷考试变成开卷考试: 先检索相关文档, 再让模型基于文档回答, 解决知识陈旧 (训练数据截止) 和幻觉 (编造) 两个核心问题。",
+    },
+    {
+      question: "为什么 RAG 90% 场景先于微调?",
+      options: ["微调不能做", "RAG 更新成本低 (分钟级)、可解释、有据可查、幻觉低", "RAG 质量更好", "微调太贵"],
+      correct: 1,
+      explanation: "RAG 重新索引几分钟就生效, 微调要几小时-几天。RAG 答案可看到引用来源, 微调是黑盒。90% 企业问答场景 RAG 够用, 不够才微调。",
+    },
+  ],
+/* ============== v13.1 NLP 入门 ============== */
   "nlp-basics/text-preprocessing": [
     {
       question: "中文分词最常用的开源工具是?",

@@ -1,0 +1,186 @@
+# 预训练:从 GPT 到开源 LLM
+
+**预训练 (Pre-training)** 是大语言模型"涌现智能"的关键一步: 用万亿 token 文本, 让模型学会"下一个 token 是什么", 顺便学会了语法、推理、知识、代码。
+
+这一章讲清楚 GPT 是怎么训出来的, 为什么 7B-13B 是 sweet spot, 以及开源生态现状。
+
+## 一个惊人观察:Next-token prediction 够用
+
+2017 年, OpenAI 发现一件事: **只要足够大的 Transformer, 用"猜下一个 token"训练, 就能学会所有 NLP 任务**。
+
+```
+训练数据: 维基百科 + 书 + GitHub + 论坛 + ...
+训练目标: 给前 N 个 token, 预测第 N+1 个 token
+训练规模: 1750 亿参数, 3000 亿 token (GPT-3)
+```
+
+听起来简单到不可思议。但效果是: 这个模型能写代码、回答问题、翻译、写诗、推理…… 几乎所有"智能"任务。
+
+<Callout type="tip">
+"压缩即智能": 如果你能用前 N 个 token 完美预测第 N+1 个, 说明你"理解"了这些 token 的内在规律。这就是预测 = 理解 = 智能。
+</Callout>
+
+## 训练目标拆解
+
+### 1) 语言建模损失
+
+```python
+# 伪代码
+def gpt_loss(model, tokens):
+    inputs = tokens[:-1]   # 前 N-1 个
+    targets = tokens[1:]   # 后 N-1 个 (右移一位)
+    
+    logits = model(inputs)  # (B, T-1, vocab_size)
+    loss = F.cross_entropy(
+        logits.view(-1, vocab_size),
+        targets.view(-1)
+    )
+    return loss
+```
+
+每一步, 模型"看完"前面所有 token, 输出对下一个 token 的概率分布, 用交叉熵算 loss。
+
+### 2) 训练数据配比
+
+高质量数据是命脉。Llama 2 的配比 (公开了):
+
+| 类别 | 占比 | token 数 |
+|------|------|----------|
+| CommonCrawl | 67% | 1.4T |
+| GitHub | 10% | 0.2T |
+| ArXiv | 4.5% | 0.09T |
+| Books | 4.5% | 0.09T |
+| Wikipedia | 4.5% | 0.09T |
+| StackExchange | 2% | 0.04T |
+| 其他 | 8% | 0.16T |
+
+### 3) 训练硬件
+
+- **GPT-3 (175B)**: 1024 张 A100, 训练 14.8 天 ≈ 1 万张 GPU-day
+- **Llama 2 70B**: 2000 张 A100, 训练 12 天
+- **Llama 3 405B**: 16000 张 H100, 训练 30 天
+
+成本动辄几百万到几千万美元。
+
+## 三阶段训练流程
+
+现代开源 LLM (Llama / Qwen) 的标准流程:
+
+### 阶段 1:预训练 (Pre-training)
+- 数据: 数万亿 token 原始文本
+- 目标: 下一 token 预测
+- 规模: 7B-400B 参数
+- 成本: 数百万美元
+
+### 阶段 2:监督微调 SFT (Supervised Fine-Tuning)
+- 数据: 几百万条人类写的高质量 (指令, 答案) 对
+- 目标: 让模型学会"听指令做事"
+- 规模: 几千到几万个 (prompt, response) 对
+- 成本: 数千到几万美元
+
+```python
+# SFT 数据示例
+{"prompt": "解释 Transformer 的 self-attention", 
+ "response": "Self-Attention 是 Transformer 的核心..."}
+```
+
+### 阶段 3:RLHF / DPO
+- 让模型输出"人类更喜欢"的回答
+- **RLHF**: 用人类反馈训 reward model, 再 PPO 优化 LLM
+- **DPO**: 直接用偏好对训, 更简单
+
+```python
+# DPO 数据示例
+{"prompt": "Python 怎么读 CSV?",
+ "chosen": "用 pandas: pd.read_csv('file.csv')",
+ "rejected": "你试试点这里..."}
+```
+
+## 主流开源 LLM 对比
+
+| 模型 | 厂商 | 参数量 | 上下文 | 强项 |
+|------|------|--------|--------|------|
+| **Llama 3.1** | Meta | 8/70/405B | 128K | 全能,英文强 |
+| **Qwen 2.5** | 阿里 | 0.5/1.5/7/72B | 128K | 中文最强 |
+| **DeepSeek V3** | 深度求索 | 671B (MoE 37B 激活) | 64K | 代码 + 数学 SOTA |
+| **Mistral** | Mistral AI | 7/8x7/8x22 | 32-128K | 推理快 |
+| **Gemma 2** | Google | 2/9/27B | 8K | 学术 / 教学 |
+| **Phi-3.5** | Microsoft | 3.8B | 128K | 小而强 |
+
+## 7B / 13B / 70B 怎么选?
+
+经验法则 (2024):
+
+| 规模 | 显存需求 (fp16) | 适合场景 |
+|------|----------------|----------|
+| **0.5-3B** | 1-6 GB | 端侧 (手机 / 树莓派) |
+| **7-8B** | 14-16 GB | 个人 RTX 3090/4090, 性价比最高 |
+| **13-15B** | 26-30 GB | 专业玩家, 略好于 7B |
+| **70B** | 140 GB (需 2-4 张 A100) | 接近 GPT-4 质量 |
+| **400B+** | 800 GB+ (多卡 H100) | 接近 SOTA |
+
+<Callout type="tip">
+"7B 模型做对 80% 的事, 70B 模型做对 95% 的事, 但成本 10 倍。"
+如果你只是搭个客服 / 翻译 / 摘要, 7B 够用。
+</Callout>
+
+## 推理优化:让 7B 在消费 GPU 跑
+
+```bash
+# llama.cpp + GGUF 量化 (CPU 也能跑)
+./llama.cpp/main -m qwen2.5-7b-instruct-q4_k_m.gguf \
+  -p "你好" -n 200
+
+# vLLM (生产级推理服务, 吞吐量 24x)
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct
+
+# ollama (一键本地跑)
+ollama run qwen2.5:7b
+```
+
+## LoRA 微调:消费 GPU 也能 fine-tune
+
+不更新所有参数, 只更新低秩矩阵:
+
+```python
+from peft import LoraConfig, get_peft_model
+
+config = LoraConfig(
+    r=16,                  # 低秩维度
+    lora_alpha=32,
+    target_modules=["q_proj", "v_proj"],
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+)
+
+model = get_peft_model(base_model, config)
+# 7B 模型只训 0.1% 参数 (~10M), 单张 A100 即可
+```
+
+QLoRA = 4-bit 量化 + LoRA, **单张 RTX 3090 就能 fine-tune 65B 模型**。
+
+## 中文 LLM 推荐路径
+
+1. **入门**: ChatGLM-6B / Qwen-1.5B (本地能跑)
+2. **进阶**: Qwen2.5-7B-Instruct (中文 SOTA, 14GB 显存)
+3. **高阶**: Qwen2.5-72B / DeepSeek V3 (云端 API)
+4. **特殊场景**: 
+   - 代码: DeepSeek-Coder / CodeQwen
+   - 长文本: Qwen-1M / Gemini-1.5
+   - 多模态: Qwen-VL / GPT-4V
+
+## 小结
+
+- 预训练 = 用万亿 token 训练"猜下一个 token", 涌现智能
+- 三阶段: 预训练 → SFT → RLHF/DPO
+- 7B 是 sweet spot (单 GPU 能跑 + 质量够用)
+- LoRA / QLoRA 让消费 GPU 也能微调
+- 中文: Qwen2.5 系列基本是首选
+
+## 练习思考
+
+1. GPT-3 用 300B token 训 175B 参数, 训练多久? 你能在家里训一个 1B 模型吗?
+2. 推理时 KV cache 占显存大头, 7B 模型的 KV cache 多大?
+3. RLHF 和 DPO 哪个更适合小团队? 为什么?

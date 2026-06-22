@@ -1,0 +1,254 @@
+# Prompt 工程实战
+
+同一个模型, 写不同的 prompt, 输出质量能差 10 倍。**Prompt 工程** 是用 LLM 的核心技能, 学会能让你立刻变成"prompt 高手"。
+
+## 5 大基础技巧
+
+### 1) Zero-shot:直接问
+
+不给例子, 直接问:
+
+```
+把这段话翻译成英文: 机器学习是人工智能的一个分支。
+
+模型输出: Machine learning is a branch of artificial intelligence.
+```
+
+**适合**: 简单、模型训练时见过的任务 (翻译 / 总结 / 分类)。
+
+### 2) Few-shot:给几个例子
+
+```
+把中文翻译成英文:
+例子 1: 你好 → Hello
+例子 2: 谢谢 → Thank you
+例子 3: 机器学习 → Machine learning
+例子 4: 自然语言处理 →
+
+模型输出: Natural Language Processing
+```
+
+<Callout type="tip">
+Few-shot 的 3-5 个例子通常就够, 多了反而拖累 token 成本 + 让模型"过度模仿"。
+</Callout>
+
+### 3) 角色设定
+
+```
+你是一位经验丰富的 ML 工程师, 请用通俗易懂的语言解释过拟合。
+要求: 200 字以内, 配一个生活类比。
+```
+
+LLM 会"进入角色", 输出的语气和深度会调整。
+
+### 4) 思维链 (CoT): 一步步想
+
+```
+小红有 5 个苹果, 她给了小明 2 个, 又买了 4 个, 最后还剩多少个?
+让我们一步步思考:
+- 起始: 5
+- 给小明: 5 - 2 = 3
+- 买新: 3 + 4 = 7
+- 答案: 7
+```
+
+加了 "让我们一步步思考" 这句, **准确率能从 40% 提到 80%**。
+
+### 5) 输出格式约束
+
+让模型输出 JSON / 表格 / Markdown, 方便程序解析:
+
+```
+请分析以下评论的情感, 输出 JSON 格式:
+{"sentiment": "positive" | "negative" | "neutral", "score": 0-1, "keywords": [...]}
+
+评论: "这个产品真好用, 客服也很耐心, 强烈推荐!"
+```
+
+## 高级技巧
+
+### ReAct: 推理 + 行动交错
+
+让模型**先想, 再做, 再观察**, 多轮迭代:
+
+```
+任务: 计算 23 * 47
+
+Thought: 我需要计算 23 * 47
+Action: 调用 calculator(23, 47)
+Observation: 1081
+Thought: 得到了答案
+Final Answer: 23 * 47 = 1081
+```
+
+Function Calling 的雏形, 现在的 ChatGPT Plugins / GPTs 都基于这个。
+
+### 自一致性 (Self-Consistency)
+
+同个问题问 N 次, **投票选最常见的答案**:
+
+```python
+# 5 次独立 CoT 推理
+answers = [gpt(prompt + "\nLet's think step by step") for _ in range(5)]
+final = Counter(answers).most_common(1)[0][0]
+```
+
+数学题准确率能再 +5-10%。
+
+### Re-ranking
+
+先让模型生成多个候选, 再用更精细的 prompt 选最好的:
+
+```
+步骤 1: 生成 5 个候选答案
+步骤 2: 让模型根据准确性 / 创造性 / 简洁性排序
+步骤 3: 选第 1 名
+```
+
+质量提升 +30%, 但 token 成本 x5。
+
+## Function Call:让 LLM 操作工具
+
+2023 年起, OpenAI / Anthropic / 智谱都支持 **Function Calling**。模型输出**结构化 JSON**, 程序决定调什么 API。
+
+```python
+tools = [{
+    "name": "get_weather",
+    "description": "查询某城市天气",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "city": {"type": "string"}
+        }
+    }
+}]
+
+response = openai.ChatCompletion.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": "北京今天热吗?"}],
+    functions=tools,
+)
+
+# 模型输出: function_call = {name: "get_weather", args: {city: "北京"}}
+# 你的程序: 调 weather API, 把结果喂回给模型
+```
+
+## 实战模板
+
+### 模板 1: 代码生成
+
+```
+你是 Python 专家, 请实现 {功能描述}。
+
+要求:
+- 代码风格遵循 PEP 8
+- 包含类型注解
+- 关键逻辑有中文注释
+- 异常处理完整
+- 函数末尾写一个简短的使用示例
+
+# 你之前的代码:
+{之前代码, 可选}
+
+请输出完整代码, 不要省略。
+```
+
+### 模板 2: 文本分析
+
+```
+任务: 从以下文本提取关键信息, 输出 JSON。
+
+文本: {text}
+
+提取字段:
+- 主题: 一句话
+- 实体: 人名 / 地名 / 组织 / 产品
+- 情感: positive / negative / neutral
+- 关键数字: 列出 (上下文, 数字)
+- 行动项: [动词, 负责人?, 截止时间?]
+
+输出 JSON, 不要解释。
+```
+
+### 模板 3: 数据转换
+
+```
+把以下 CSV 数据转成 JSON 数组:
+
+{csv}
+
+要求:
+- 数字字段保持数字类型 (不要带引号)
+- 日期用 ISO 8601 格式 (YYYY-MM-DD)
+- 布尔值用 true/false
+- 只输出 JSON, 不要其他文字
+```
+
+## 5 个常见错误
+
+### ❌ 错误 1: 问题太模糊
+
+```
+差: 解释一下 ML
+好: 用 3 句话 + 1 个生活类比, 给高中生解释什么是机器学习
+```
+
+### ❌ 错误 2: 假设模型知道上下文
+
+```
+差: 修复这个 bug (附 200 行代码)
+好: 下面这段 Python 在解析大文件时报 MemoryError, 帮我改成流式处理: [代码]
+```
+
+### ❌ 错误 3: 输出格式不明确
+
+```
+差: 列一下北京景点
+好: 用 Markdown 表格列出北京 5 个 4A 以上景点, 列: 名称、地址、开放时间、票价
+```
+
+### ❌ 错误 4: 没给约束
+
+```
+差: 写一篇关于 AI 的文章
+好: 写一篇 800 字关于 AI 在医疗领域应用的科普文章, 面向普通读者, 用 3 个真实案例
+```
+
+### ❌ 错误 5: 一次问太多事
+
+```
+差: 对比 Python/JS/Java/Go/Rust 的并发模型, 性能, 生态, 学习曲线, 适合场景
+好: 用一个表格对比 Python 和 Go 在并发模型上的 3 个核心差异
+```
+
+## 评估 prompt 质量
+
+不要凭感觉! 写 5-10 个测试 case, 量化对比:
+
+```python
+test_cases = [
+    {"input": "...", "expected": "..."},
+    {"input": "...", "expected": "..."},
+]
+
+results = {
+    "prompt_v1": [score(gpt(prompt_v1.format(**c))) for c in test_cases],
+    "prompt_v2": [score(gpt(prompt_v2.format(**c))) for c in test_cases],
+}
+
+print(f"v1 平均分: {mean(results['prompt_v1']):.2f}")
+print(f"v2 平均分: {mean(results['prompt_v2']):.2f}")
+```
+
+## 小结
+
+- 5 基础: Zero-shot / Few-shot / 角色 / CoT / 格式约束
+- 5 高级: ReAct / Self-Consistency / Re-ranking / Function Call / 模板
+- 5 错误: 模糊 / 假设上下文 / 格式不明 / 无约束 / 一次问太多
+- **永远用测试集评估**, 别凭感觉
+
+## 练习思考
+
+1. 把以下模糊 prompt 改具体: "帮我写个 Python 脚本处理数据"
+2. 设计一个 Few-shot prompt 让模型做"中译英风格转换 (正式 ↔ 口语)"
+3. 什么时候用 Self-Consistency? 什么时候不值得用 (考虑成本)?

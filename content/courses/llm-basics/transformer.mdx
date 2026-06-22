@@ -1,0 +1,194 @@
+# Transformer 架构原理
+
+2017 年 Google 发了篇论文叫 **"Attention Is All You Need"**, 提出了 **Transformer** 架构。8 年过去了, 它统治了整个 NLP 领域, **GPT / BERT / Llama / Qwen / DeepSeek** 全是基于它。
+
+这一章我们拆开 Transformer, 看清每个零件。
+
+## 为什么需要 Transformer
+
+在 Transformer 出现之前 (2014-2017), NLP 主流是 **RNN / LSTM**:
+
+- ❌ **顺序计算**: 必须等上一个时间步跑完才能算下一个, **GPU 并行不了**
+- ❌ **长距离依赖**: 100 个词之前的上下文基本忘掉
+- ❌ **训练慢**: 50 层的 LSTM 训一次要几周
+
+Transformer 给出三个关键答案:
+- ✅ **Self-Attention**: 任意两个词直接相连, O(1) 距离
+- ✅ **完全并行**: 所有位置同时计算
+- ✅ **可堆叠**: 96 层 / 128 层都跑得动
+
+## Self-Attention:核心机制
+
+**Self-Attention** 让序列中每个位置"看"其他所有位置, 根据相关性分配不同权重。
+
+<Callout type="tip">
+一句话总结: Self-Attention = "我在读这句话时, 重点看哪些词"。
+</Callout>
+
+### Q / K / V 三兄弟
+
+每个输入向量 x 生成三个向量:
+- **Q (Query)**: 我在找什么
+- **K (Key)**: 我能提供什么
+- **V (Value)**: 我的实际内容
+
+```python
+# 伪代码
+Q = X @ W_Q   # (seq_len, d_k)
+K = X @ W_K   # (seq_len, d_k)
+V = X @ W_V   # (seq_len, d_v)
+
+# Attention 分数
+scores = Q @ K.T / sqrt(d_k)  # (seq_len, seq_len)
+weights = softmax(scores)      # 每行归一化
+output = weights @ V           # (seq_len, d_v)
+```
+
+直觉: "我(Q)跟每个位置(K)的相关性有多强, 然后按权重把它们的值(V) 加起来"。
+
+### 例子
+
+句子: "The animal didn't cross the street because **it** was too tired"
+
+"it" 指代 "animal"。Self-Attention 让 "it" 这个位置的权重分布:
+- animal: 0.6 (高)
+- street: 0.2
+- cross: 0.1
+- tired: 0.1
+
+模型自动学会 "it" 应该看 "animal"。
+
+## Multi-Head Attention:多角度关注
+
+一个 head 可能学"指代", 另一个学"语法", 第三个学"语义关系"。所以用**多个 head 并行**算, 最后拼接。
+
+```python
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, n_heads):
+        super().__init__()
+        self.n_heads = n_heads
+        self.d_k = d_model // n_heads
+        
+        # 每个 head 独立 W_Q, W_K, W_V
+        self.W_Q = nn.Linear(d_model, d_model)
+        self.W_K = nn.Linear(d_model, d_model)
+        self.W_V = nn.Linear(d_model, d_model)
+        self.W_O = nn.Linear(d_model, d_model)
+    
+    def forward(self, x):
+        B, T, D = x.shape
+        Q = self.W_Q(x).view(B, T, self.n_heads, self.d_k).transpose(1, 2)
+        K = self.W_K(x).view(B, T, self.n_heads, self.d_k).transpose(1, 2)
+        V = self.W_V(x).view(B, T, self.n_heads, self.d_k).transpose(1, 2)
+        
+        scores = Q @ K.transpose(-2, -1) / (self.d_k ** 0.5)
+        weights = F.softmax(scores, dim=-1)
+        attn = weights @ V
+        
+        return self.W_O(attn.transpose(1, 2).contiguous().view(B, T, D))
+```
+
+**典型配置**: GPT-3 用 96 层, 96 个 head, d_model=12288。BERT-base 12 层 12 head, d=768。
+
+## 位置编码:序列的灵魂
+
+Self-Attention 是 **排列不变** 的: 把 "我爱你" 换成 "你爱我", attention 输出一样。但语言有顺序!
+
+解决: 加一个**位置编码**到输入向量:
+
+```
+PE(pos, 2i)   = sin(pos / 10000^(2i/d))
+PE(pos, 2i+1) = cos(pos / 10000^(2i/d))
+```
+
+```python
+# 相对位置
+pos = torch.arange(0, max_len).unsqueeze(1)
+div = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+pe = torch.zeros(max_len, d_model)
+pe[:, 0::2] = torch.sin(pos * div)
+pe[:, 1::2] = torch.cos(pos * div)
+```
+
+现代 LLM (Llama / Qwen) 改用 **RoPE (Rotary Position Embedding)**, 相对位置更鲁棒。
+
+## 完整 Transformer Block
+
+```
+x → LayerNorm → Multi-Head Attention → + (残差)
+                                 ↓
+x → LayerNorm → Feed-Forward (4d 升维) → + (残差)
+                                 ↓
+                              输出
+```
+
+两个关键设计:
+- **残差连接**: x + sublayer(x), 让深层网络可训练
+- **LayerNorm**: 每个样本独立归一化, 比 BatchNorm 在序列上更稳
+
+## Encoder vs Decoder
+
+**Encoder-only** (BERT): 双向 attention, 适合"理解"任务 (分类 / NER / 检索)
+**Decoder-only** (GPT): 单向 (masked) attention, 适合"生成"任务 (对话 / 写作)
+**Encoder-Decoder** (T5 / BART): 编码再解码, 适合翻译 / 摘要
+
+现代 LLM 几乎都是 **Decoder-only**, 因为一个架构能搞定所有任务 (in-context learning)。
+
+## 规模效应:大就是好
+
+OpenAI 在 GPT-3 (2020) 论文里发现一个**经验规律**:
+
+```
+Loss ≈ a * N^(-α)  (α ≈ 0.076, N = 模型参数)
+```
+
+模型 / 数据 / 算力每翻 10 倍, loss 下降一点点。这就是 **Scaling Law**。
+
+| 模型 | 参数量 | 训练 token | 发布年 |
+|------|--------|------------|--------|
+| GPT-2 | 1.5B | 40B | 2019 |
+| GPT-3 | 175B | 300B | 2020 |
+| Llama 1 | 7-65B | 1-1.4T | 2023 |
+| Llama 2 | 7-70B | 2T | 2023 |
+| Llama 3 | 8-405B | 15T+ | 2024 |
+| Qwen 2.5 | 0.5B-72B | 18T | 2024 |
+| DeepSeek V3 | 671B (MoE 37B 激活) | 14.8T | 2024 |
+
+## 5 行手写 Self-Attention
+
+```python
+import torch
+import torch.nn.functional as F
+
+def self_attention(x, W_Q, W_K, W_V):
+    Q = x @ W_Q
+    K = x @ W_K
+    V = x @ W_V
+    scores = Q @ K.transpose(-2, -1) / (Q.size(-1) ** 0.5)
+    weights = F.softmax(scores, dim=-1)
+    return weights @ V
+
+# 测试
+x = torch.randn(1, 10, 64)  # (batch=1, seq=10, d=64)
+W_Q = torch.randn(64, 16)
+W_K = torch.randn(64, 16)
+W_V = torch.randn(64, 16)
+out = self_attention(x, W_Q, W_K, W_V)
+print(out.shape)  # (1, 10, 16)
+```
+
+## 小结
+
+- **Self-Attention**: 让任意两位置直接交互, O(1) 距离
+- **Q/K/V**: 三个投影, 把"我找什么"和"我能提供什么"分开
+- **Multi-Head**: 多角度并行算 attention, 拼接输出
+- **位置编码**: 解决 Self-Attention 的排列不变问题 (sin/cos 或 RoPE)
+- **残差 + LayerNorm**: 让深层 Transformer 可训练
+- **Decoder-only**: 现代 LLM 的主流架构
+- **Scaling Law**: 模型越大, loss 越低, 但边际收益递减
+
+## 练习思考
+
+1. Self-Attention 的时间复杂度是 O(n²), 10000 词的序列计算量多大? 怎么优化?
+2. Multi-Head 的 head 数越多越好吗? 太多会有什么副作用?
+3. RoPE 相比 sin/cos 位置编码, 核心优势是什么?

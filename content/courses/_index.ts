@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
- * 5 门机器学习课程 (23 章) + 6 门统计学课程 (14 章) + 3 门 v13.1 新课 (11 章) = 14 门课, 48 章
+ * 5 门机器学习课程 (23 章) + 6 门统计学课程 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) = 15 门课, 52 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -249,6 +249,23 @@ export const courses: CourseMeta[] = [
       { slug: "model-versioning", title: "实验追踪与模型版本管理", description: "MLflow 三件套: Tracking + Projects + Registry, 让实验可复现。", duration: "40 分钟" },
       { slug: "model-deployment", title: "模型部署:从 pickle 到 REST API", description: "FastAPI + Docker 包装模型, nginx 反向代理, 灰度发布。", duration: "50 分钟" },
       { slug: "monitoring-drift", title: "线上监控与数据漂移", description: "性能监控、数据漂移检测、PSI / KS 检验, 报警链路。", duration: "40 分钟" },
+    ],
+  },
+
+  /* ============== v14.1 新课: LLM 入门 ============== */
+  {
+    slug: "llm-basics",
+    title: "大语言模型入门",
+    description: "从 Transformer 原理到预训练、Prompt 工程与 RAG,掌握大模型时代的核心技术。",
+    level: "advanced",
+    duration: "约 5 小时",
+    tags: ["LLM", "Transformer", "GPT", "RAG"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "transformer", title: "Transformer 架构原理", description: "Self-Attention、Multi-Head、位置编码,从 0 理解现代 LLM 的基石。", duration: "45 分钟" },
+      { slug: "pretraining", title: "预训练:从 GPT 到开源 LLM", description: "Next-token prediction、GPT/Llama/Qwen, 万亿 token 训练简史。", duration: "40 分钟" },
+      { slug: "prompt-engineering", title: "Prompt 工程实战", description: "Zero/Few-shot、CoT、ReAct、Function Call, 5 大技巧让模型输出翻倍。", duration: "35 分钟" },
+      { slug: "rag", title: "RAG 检索增强生成", description: "向量检索 + LLM 答案生成, 用 LangChain 5 行搭建私有知识库问答。", duration: "45 分钟" },
     ],
   },
 ];

@@ -1,0 +1,283 @@
+# RAG 检索增强生成
+
+LLM 有两个核心痛点:
+1. **知识陈旧**: GPT-4 训练数据截止 2023.10, 你问 2024 年的事它不知道
+2. **幻觉 (Hallucination)**: 模型会"自信地编造"信息, 看起来对其实错
+
+**RAG (Retrieval-Augmented Generation)** 是工业界最常用的解法: **先检索相关文档, 再让模型基于文档回答**。这把 LLM 变成"开卷考试", 不再靠"闭卷记忆"。
+
+## RAG 核心思路
+
+```
+┌────────────────────────────────────────┐
+│ 用户问题: "2024 年阿里 Qwen3 有哪些改进?" │
+└─────────────┬──────────────────────────┘
+              ↓
+   ┌──────────────────────┐
+   │ 1. 向量检索 (top-k)   │
+   │  - 把问题编码成向量   │
+   │  - 在知识库找最相关 k 条 │
+   └──────────┬───────────┘
+              ↓
+   检索到的文档:
+   ┌─────────────────────────────────────┐
+   │ [1] Qwen3 技术报告 (2024)            │
+   │ [2] Qwen 团队博客                    │
+   │ [3] Hugging Face 评测                │
+   └──────────┬──────────────────────────┘
+              ↓
+   ┌──────────────────────┐
+   │ 2. Prompt 拼接        │
+   │  "请基于以下资料回答:  │
+   │   [1] ... [2] ... [3] │
+   │   问题: ..."          │
+   └──────────┬───────────┘
+              ↓
+   ┌──────────────────────┐
+   │ 3. LLM 生成答案       │
+   │  + 引用 [1] 标记出处  │
+   └──────────────────────┘
+```
+
+<Callout type="tip">
+RAG = "搜索引擎 + LLM"。不改变模型本身, 只在 prompt 里塞入相关文档, 让模型"看资料回答"。
+</Callout>
+
+## RAG vs 微调:什么时候用哪个?
+
+| 维度 | RAG | 微调 (Fine-tuning) |
+|------|-----|--------------------|
+| **更新成本** | 重新索引文档 (几分钟) | 重新训练 (几小时-几天) |
+| **数据要求** | 文档就行 | 需要 (input, output) 对 |
+| **可解释性** | 高 (看得到引用) | 低 (模型黑盒) |
+| **幻觉** | 低 (有据可查) | 中 (模型可能编) |
+| **适用场景** | 知识库问答、客服、文档检索 | 风格迁移、领域术语、特殊任务 |
+| **成本** | 低 | 高 (GPU + 数据标注) |
+
+**90% 的企业场景先试 RAG**, 不够再微调。
+
+## 5 步搭建 RAG 系统
+
+### 步骤 1: 文档加载
+
+```python
+from langchain.document_loaders import (
+    PyPDFLoader, TextLoader, DirectoryLoader
+)
+
+# 加载 PDF
+loader = PyPDFLoader("qwen3-report.pdf")
+docs = loader.load()
+
+# 批量加载目录
+loader = DirectoryLoader("./docs", glob="**/*.md")
+docs = loader.load()
+```
+
+### 步骤 2: 文档分块 (Chunking)
+
+LLM 上下文有限 (4K-128K tokens), 文档必须**切成小块**:
+
+```python
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,        # 每块 500 字符
+    chunk_overlap=50,      # 块之间重叠 50 字符 (避免切断上下文)
+    separators=["\n\n", "\n", "。", " ", ""]
+)
+
+chunks = splitter.split_documents(docs)
+# 1 篇 100 页 PDF → 约 200-400 块
+```
+
+<Callout type="warning">
+**Chunk size 是 RAG 质量的关键**。太小丢上下文, 太大检索不准。经验值: 300-800 字符 + 10-20% 重叠。
+</Callout>
+
+### 步骤 3: 向量化 (Embedding)
+
+用 Embedding 模型把文字转成向量:
+
+```python
+from langchain.embeddings import HuggingFaceEmbeddings
+
+# 中文推荐: BAAI/bge-small-zh-v1.5 (轻量, 效果很好)
+embedding_model = HuggingFaceEmbeddings(
+    model_name="BAAI/bge-small-zh-v1.5",
+    model_kwargs={"device": "cuda"},  # 或 cpu
+)
+
+# 文本 → 384 维向量
+vector = embedding_model.embed_query("机器学习是 AI 的分支")
+print(len(vector))  # 384
+```
+
+### 步骤 4: 存入向量数据库
+
+```python
+from langchain.vectorstores import Chroma
+
+# 本地存储 (Chroma 简单好用)
+vectorstore = Chroma.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    persist_directory="./chroma_db"
+)
+
+# 检索
+results = vectorstore.similarity_search("Qwen3 的改进", k=3)
+for doc in results:
+    print(doc.page_content[:200])
+```
+
+**生产推荐**: Milvus / Weaviate / Qdrant (亿级向量, 毫秒级检索)
+
+### 步骤 5: LLM 生成答案
+
+```python
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import RetrievalQA
+
+llm = ChatOpenAI(model="gpt-4", temperature=0)
+qa = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
+    return_source_documents=True,  # 返回引用
+)
+
+result = qa({"query": "Qwen3 相比 Qwen2 有什么改进?"})
+print(result["result"])
+# 打印引用的文档
+for i, doc in enumerate(result["source_documents"]):
+    print(f"[{i+1}] {doc.page_content[:100]}")
+```
+
+## 进阶技巧
+
+### Re-ranking:检索后再精排
+
+初检 100 个, 重排选 top 5, 准确率提升 20-30%:
+
+```python
+from sentence_transformers import CrossEncoder
+
+reranker = CrossEncoder("BAAI/bge-reranker-large")
+
+# 初检 100 个
+docs = vectorstore.similarity_search(query, k=100)
+
+# 重排
+scores = reranker.predict([(query, d.page_content) for d in docs])
+top_5 = sorted(zip(docs, scores), key=lambda x: -x[1])[:5]
+```
+
+### 查询改写 (Query Rewrite)
+
+用户问题往往模糊, LLM 改写一下检索更准:
+
+```python
+rewrite_prompt = """请把用户问题改写成 3 个不同的搜索查询, 涵盖不同角度。
+原问题: {query}
+输出 (每行一个):
+"""
+rewritten = gpt(rewrite_prompt.format(query=user_query))
+queries = rewritten.strip().split("\n")
+
+# 每个 query 检索后合并
+all_docs = []
+for q in queries:
+    all_docs.extend(vectorstore.similarity_search(q, k=3))
+```
+
+### HyDE (Hypothetical Document Embeddings)
+
+让 LLM 先**想象**答案, 用想象出的答案做检索, 比原问题更准:
+
+```python
+hyde_prompt = """请用一段话回答以下问题, 即使不确定也要给出最可能的答案。
+问题: {query}
+"""
+hypothetical_answer = gpt(hyde_prompt.format(query=query))
+
+# 用 hypothetical_answer 做 embedding 检索
+docs = vectorstore.similarity_search(hypothetical_answer, k=5)
+```
+
+### 引用标注 (Source Attribution)
+
+让 LLM 在答案中**标注引用**, 用户可点击验证:
+
+```python
+prompt = f"""请基于以下资料回答问题, 每个事实后面用 [1] [2] 标注引用。
+
+问题: {query}
+
+资料:
+[1] {doc1}
+[2] {doc2}
+[3] {doc3}
+
+答案:"""
+```
+
+输出:
+> Qwen3 相比 Qwen2 上下文从 128K 提升到 1M [1], 在数学评测 MATH 上从 68% 提升到 85% [2]。
+
+## 评估 RAG 质量
+
+### 关键指标
+
+| 指标 | 衡量 | 怎么算 |
+|------|------|--------|
+| **检索召回率** | 相关文档被检索到的比例 | 人工标 100 个 case, 看 top-k 命中率 |
+| **答案准确率** | LLM 答案是否基于资料 | LLM-as-judge 或人工评分 |
+| **幻觉率** | 编造内容的比例 | 检测答案中是否有资料没出现的"事实" |
+| **延迟** | 用户感受 | P50 / P99 毫秒数 |
+
+### Ragas 评估
+
+```python
+from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_recall
+
+result = evaluate(
+    dataset,
+    metrics=[faithfulness, answer_relevancy, context_recall]
+)
+print(result)
+# faithfulness: 0.85 (越高越好, 答案忠于资料)
+# answer_relevancy: 0.92
+# context_recall: 0.78
+```
+
+## 4 个真实应用
+
+1. **企业知识库问答**: 把内部 wiki / 飞书文档 / Notion 全部索引
+2. **客服机器人**: 接入产品手册 + 历史工单, 准确率从 60% → 90%
+3. **法律 / 医疗咨询**: 检索法律法规 + 病例库, 给出可引用答案
+4. **个人学习助手**: 索引你的笔记 / 教材, 问"我学过的强化学习里 Q-Learning 的公式是?"
+
+## 7 个 RAG 优化 checklist
+
+1. ✅ Chunk size 调到 300-800, overlap 10-20%
+2. ✅ Embedding 模型选对 (中文用 bge / moka)
+3. ✅ Top-k 不要太大 (3-5 够用, 多反而引入噪音)
+4. ✅ 加 Re-ranking 提升精度
+5. ✅ 让 LLM 输出引用, 方便验证
+6. ✅ 系统化评估 (Ragas / 人工)
+7. ✅ 缓存常见问题答案 (省 token)
+
+## 小结
+
+- RAG = 向量检索 + LLM 生成, 把"闭卷"变"开卷"
+- 5 步: 文档加载 → 分块 → 向量化 → 存向量库 → LLM 回答
+- 进阶: Re-ranking / Query 改写 / HyDE / 引用标注
+- 评估: 召回率 / 准确率 / 幻觉率
+- 90% 企业场景先 RAG 再微调
+
+## 练习思考
+
+1. 你有一个 1000 页的产品 PDF, 设计一个 RAG 系统, 关键参数怎么选?
+2. 为什么 Chunk 太大检索不准, 太小又丢上下文? 怎么权衡?
+3. 怎么让 RAG 系统输出"不知道" (而不是硬编), 避免幻觉?
