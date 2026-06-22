@@ -25,6 +25,8 @@ model InviteCode {
 model User {
   invites         InviteCode[] @relation("Invites")
   redeemedInvite  InviteCode[] @relation("Redeemed")
+  newsletters     NewsletterSubscription[]
+  newsletterLogs  NewsletterLog[]
   badges     UserBadge[]
   following  UserFollow[] @relation("UserFollowsFrom")
   followers  UserFollow[] @relation("UserFollowsTo")
@@ -546,4 +548,27 @@ model UserBadge {
   @@unique([userId, badgeId])
   @@index([userId])
   @@index([badgeId])
+}
+
+// ============== v13.2 邮件简报 ==============
+model NewsletterSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enabled   Boolean  @default(true)
+  frequency String   @default("weekly")  // weekly | monthly
+  topics    String   @default("[\"new_chapters\", \"progress\", \"achievements\"]")  // JSON array
+  lastSentAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model NewsletterLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  body      String   // HTML
+  status    String   // "sent" | "failed" | "skipped" | "logged"
+  error     String?
+  sentAt    DateTime @default(now())
 }
