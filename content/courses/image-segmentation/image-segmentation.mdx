@@ -1,0 +1,54 @@
+# 图像分割
+
+分割比检测更进一步: 给每个像素分类。三种粒度: 语义 / 实例 / 全景。
+
+## 1. 语义分割
+
+给每个像素打类别标签, 不区分个体。
+
+## 2. FCN (2015)
+
+Fully Convolutional Network: 把分类网络的全连接层换成卷积层, 输出空间热图。
+
+跳层连接: 融合浅层 (细节) + 深层 (语义), 提升分割精度。
+
+## 3. U-Net (2015)
+
+医学影像分割神器。Encoder-Decoder 完全对称, 跳层 concat 而非 add。
+
+参数少, 小数据集也能训, 至今仍是医学分割 baseline。
+
+## 4. SegNet (2017)
+
+Encoder 用 VGG16, Decoder 上采样用 max-pooling 索引, 省内存。
+
+## 5. 实例分割
+
+不光分像素, 还要区分不同个体 (每个人不同颜色)。
+
+### Mask R-CNN (2017)
+Faster R-CNN + FCN mask 分支。每个 RoI 输出类别 + bbox + mask。
+
+经典三输出: classification, regression, segmentation。
+
+## 6. 全景分割
+
+Panoptic Segmentation: 语义 + 实例合并。背景 (天空/路) 语义分割, 前景 (人/车) 实例分割。
+
+代表: Panoptic FPN, Mask2Former。
+
+## 7. 评估指标
+
+- Pixel Accuracy: 正确分类像素占比
+- mIoU: mean Intersection over Union, 最常用
+- Dice Coefficient: 医学影像常用, 2*|A∩B| / (|A|+|B|)
+
+## 8. 应用场景
+
+- 医学: 肿瘤 / 器官分割 (U-Net)
+- 自动驾驶: 道路 / 行人 / 车辆 (FCN/DeepLab)
+- 抠图: 人像分割 (MODNet)
+
+## 小结
+
+分割从粗到细: 语义 (类别) → 实例 (个体) → 全景 (合并)。U-Net 和 Mask R-CNN 是工业界最常用。

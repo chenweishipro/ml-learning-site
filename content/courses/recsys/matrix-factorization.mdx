@@ -1,0 +1,95 @@
+# 矩阵分解:协同过滤的数学心脏
+
+协同过滤的"用户-物品"矩阵有 99.99% 是空的, 我们怎么填上?**矩阵分解**给出了一个优雅答案。
+
+## 问题:稀疏矩阵如何预测
+
+设用户集合`U = (u1, u2, ..., um)``, 物品集合`I = (i1, i2, ..., in)``, 行为矩阵`R`是`m×n``:
+
+| | i1 | i2 | i3 | i4 | i5 |
+|---|---|---|---|---|---|
+| u1 | 5 | ? | 3 | ? | 2 |
+| u2 | ? | 4 | ? | 5 | ? |
+| u3 | 2 | ? | ? | ? | 4 |
+
+? 是未交互的部分, 怎么补全?
+
+## 核心思路:低秩假设
+
+**关键观察**: 真实用户偏好通常用几十个"隐主题"就能描述 (爱科幻 / 爱喜剧 / 偏好长片), 而不是上百万维度。
+
+- m 个用户 → k 维向量 (`k << m`)
+- n 个物品 → k 维向量
+- 用户 u 对物品 i 的预测评分 = 两个向量的内积
+
+`hat r_(ui) = p_u cdot q_i = sum_(k=1)^(K) p_uk cdot q_ki`
+
+## 三种经典方法
+
+### 1. SVD (奇异值分解)
+
+直接把 R 分解成 U·Σ·V^T, 取前 K 个奇异值重建:
+
+- 优点: 理论漂亮
+- 缺点: 实际矩阵 99% 是空, SVD 算不动; 不适合增量更新
+
+### 2. Funk SVD (2006)
+
+**Simon Funk** 提出: 不用真 SVD, 直接学两个小矩阵 P (m×k) 和 Q (k×n), 最小化预测误差:
+
+`min_(p,q) sum_((u, i) in K) (r_ui - p_u cdot q_i)^2 + lambda (||p_u||^2 + ||q_i||^2)`
+
+用 SGD / ALS 求解, 这就是后来 Netflix Prize 冠军方案的基石。
+
+### 3. NMF (非负矩阵分解)
+
+约束 P 和 Q 都 ≥ 0, 分解结果可解释为"加性组合"。
+
+适合场景: 用户行为是"加法"型 (听歌时长叠加), 不适合评分。
+
+## BiasSVD:加偏置更准
+
+实际评分受三类偏置影响:
+- **全局平均** μ (网站所有评分均值)
+- **用户偏置** bu (有的人打分严, 有的人宽松)
+- **物品偏置** bi (有的电影普遍高分)
+
+完整公式:
+`hat r_(ui) = mu + b_u + b_i + p_u cdot q_i`
+
+效果比纯 SVD 提升 5-10%。
+
+## SVD++:隐式反馈一起学
+
+SVD++ 把"用户看过哪些物品"也作为信号, 不管评分多少:
+
+`hat r_(ui) = mu + b_u + b_i + (p_u + |N(u)|^(-1/2) sum_(j_ N(u)) y_j) cdot q_i`
+
+N(u) 是用户 u 评分过的物品集合, y_j 是隐向量。隐式反馈免费拿, 提分明显。
+
+## 实战:Surprise 库 5 行上手
+
+````python
+from surprise import SVD, Dataset, Reader
+from surprise.model_selection import train_test_split
+
+data = Dataset.load_builtin('ml-100k')
+trainset, testset = train_test_split(data, test_size=0.2)
+
+model = SVD(n_factors=50, n_epochs=20, lr_all=0.005, reg_all=0.02)
+model.fit(trainset)
+
+# 给定用户和物品, 预测评分
+pred = model.predict(uid='196', iid='302')
+print(f"预测评分: (pred.est:.2f)")
+````
+
+## 优缺点总结
+
+| 优点 | 缺点 |
+|------|------|
+| 简单可解释 | 只能学线性交互 |
+| 训练快 | 难加 side info (用户画像 / 物品标签) |
+| 可扩展 | 稀疏 + 长尾仍难处理 |
+
+**下一章**: 矩阵分解只学"线性", 我们用**深度学习** (Two-Tower / NCF / DeepFM) 捕捉高阶特征交互。

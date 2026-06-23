@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
- * 5 门机器学习课程 (23 章) + 6 门统计学课程 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) = 15 门课, 52 章
+* 5 门 ML 课 (23 章) + 6 门统计课 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) + 1 门 v15.1 新课 (4 章) = 16 门课, 56 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -252,6 +252,23 @@ export const courses: CourseMeta[] = [
     ],
   },
 
+
+  /* ============== v15.1 新课: 推荐系统 ============== */
+  {
+    slug: "recsys",
+    title: "推荐系统入门",
+    description: "从协同过滤到矩阵分解、深度学习推荐、评估指标,理解抖音/淘宝背后的核心技术。",
+    level: "intermediate",
+    duration: "约 5 小时",
+    tags: ["推荐系统", "协同过滤", "矩阵分解", "深度学习", "NDCG"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "introduction", title: "推荐系统入门", description: "为什么需要推荐、典型应用、三种核心范式与工业链路。", duration: "30 分钟" },
+      { slug: "matrix-factorization", title: "矩阵分解:协同过滤的数学心脏", description: "Funk SVD / BiasSVD / SVD++, 5 行 Surprise 库上手。", duration: "40 分钟" },
+      { slug: "deep-learning", title: "深度学习推荐:Two-Tower / NCF / DeepFM", description: "召回双塔 / 精排 DeepFM / 阿里 DIN, 多阶段漏斗架构。", duration: "50 分钟" },
+      { slug: "evaluation", title: "推荐系统评估", description: "NDCG / MAP / Recall@k + 在线 A/B 测试, 避免指标陷阱。", duration: "40 分钟" },
+    ],
+  },
   /* ============== v14.1 新课: LLM 入门 ============== */
   {
     slug: "llm-basics",

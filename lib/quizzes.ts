@@ -388,6 +388,75 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       explanation: "RAG 重新索引几分钟就生效, 微调要几小时-几天。RAG 答案可看到引用来源, 微调是黑盒。90% 企业问答场景 RAG 够用, 不够才微调。",
     },
   ],
+/* ============== v15.1 推荐系统 ============== */
+  "recsys/introduction": [
+    {
+      question: "推荐系统要解决的核心矛盾是?",
+      options: ["GPU 不够", "信息供给 >> 用户消费能力, 需要主动筛选 + 个性化排序", "代码太多", "用户太懒"],
+      correct: 1,
+      explanation: "互联网从人找信息变成信息找人, 信息爆炸必须靠算法主动筛选 + 个性化排序, 否则用户淹没在数据里。",
+    },
+    {
+      question: "以下哪个不是推荐系统的典型应用场景?",
+      options: ["抖音视频流", "淘宝商品", "Spotify 歌单", "Linux 内核编译"],
+      correct: 3,
+      explanation: "推荐系统主要用在内容/商品/音乐/新闻/本地生活/招聘等 C 端场景, 编译器输出是确定性结果不需要推荐。",
+    },
+    {
+      question: "工业界推荐完整链路的'快-准'权衡中, 召回阶段用什么模型?",
+      options: ["DeepFM", "Two-Tower / 协同过滤", "DIN", "RNN"],
+      correct: 1,
+      explanation: "召回是亿级物品粗筛到 1k+, 速度优先, 用双塔 (可离线预计算 embedding + 向量检索) 或协同过滤; 精排才用 DeepFM/DIN。",
+    },
+  ],
+  "recsys/matrix-factorization": [
+    {
+      question: "Funk SVD 的核心思想是?",
+      options: ["用真正 SVD 分解稀疏矩阵", "直接学两个小矩阵 P 和 Q, 最小化预测误差平方和", "用 NMF 替代", "用神经网络"],
+      correct: 1,
+      explanation: "Funk SVD (2006) 不用真 SVD, 直接学 m×k 和 k×n 的小矩阵 P 和 Q, 最小化预测误差, 用 SGD/ALS 求解, 是 Netflix Prize 冠军方案基石。",
+    },
+    {
+      question: "BiasSVD 比纯 SVD 提升主要来自?",
+      options: ["用了更多参数", "加了全局平均 + 用户偏置 + 物品偏置, 反映打分习惯差异", "用 GPU 训练", "加了非线性"],
+      correct: 1,
+      explanation: "实际评分受三类偏置影响: 全局平均 μ、用户偏置 bu (严/宽) 、物品偏置 bi (普遍高分), 加偏置后比纯内积提升 5-10%。",
+    },
+  ],
+  "recsys/deep-learning": [
+    {
+      question: "Two-Tower (双塔) 模型最大的工业优势是?",
+      options: ["精度最高", "物品塔可离线预计算全部 embedding, 在线只算用户侧 + 向量检索, 毫秒级响应", "训练最快", "参数最少"],
+      correct: 1,
+      explanation: "双塔的核心工业价值是物品塔离线预计算所有 embedding 存向量库 (Faiss/Milvus), 在线只算用户 embedding + 向量检索, 真正做到亿级物品毫秒级召回。",
+    },
+    {
+      question: "DIN (Deep Interest Network) 用 Attention 解决的核心问题是?",
+      options: ["训练太慢", "用户兴趣是多样的, 不同候选物品激活的历史行为不同, 需用候选物品'查询'用户历史", "维度太高", "数据稀疏"],
+      correct: 1,
+      explanation: "DIN 用候选物品作 Query 去 Attention 用户历史行为, 给相关历史更高权重, 解决'买了篮球又推更多篮球'问题, 实际激活'运动装备'这个更广兴趣。",
+    },
+    {
+      question: "现代推荐系统的'召回-粗排-精排-重排'漏斗, 哪一阶段最'准'?",
+      options: ["召回", "粗排", "精排", "重排"],
+      correct: 2,
+      explanation: "精排用最复杂的模型 (DeepFM/DIN), 候选少 (50), 可以花更多算力追求精度; 召回追求快, 精排追求准, 重排加业务规则。",
+    },
+  ],
+  "recsys/evaluation": [
+    {
+      question: "为什么 NDCG@K 比 Precision@K 更受推荐系统青睐?",
+      options: ["计算快", "考虑位置权重 + 多档相关度, 排得越靠前的相关物品贡献越大", "只看 Top1", "只看准确率"],
+      correct: 1,
+      explanation: "NDCG 给位置靠前的相关物品更高权重 (分母 log2(k+1)), 且支持多档相关度 (评分 5 > 3), 比只看命中数的 Precision@K 更贴近用户真实体验。",
+    },
+    {
+      question: "推荐 A/B 测试关键陷阱中, '新奇效应'是指?",
+      options: ["用户因为'新'而点, 1 周后回归", "流量分桶不均", "作弊", "样本太少"],
+      correct: 0,
+      explanation: "新奇效应指用户因推荐结果'新鲜'而短期点击率上升, 1-2 周后回归正常。所以 A/B 至少跑 7 天才能下结论, 否则会高估新模型收益。",
+    },
+  ],
 /* ============== v13.1 NLP 入门 ============== */
   "nlp-basics/text-preprocessing": [
     {
@@ -545,6 +614,135 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       options: ["前向漂移 / 后向漂移 / 双向漂移", "Covariate shift / Label shift / Concept drift", "内部漂移 / 外部漂移 / 混合漂移", "季节漂移 / 趋势漂移 / 随机漂移"],
       correct: 1,
       explanation: "数据漂移 3 大类: Covariate shift (输入 P(X) 变) / Label shift (输出 P(Y) 变) / Concept drift (关系 P(Y|X) 变)。Concept drift 最难发现。",
+    },
+  ],
+
+  "cv-basics/cv-basics": [
+    {
+      question: "一张 RGB 彩色图像的三维张量 shape 是?",
+      options: ["[H, W]", "[H, W, 3]", "[3, H, W]", "[H*W*3]"],
+      correct: 1,
+      explanation: "彩色图像 shape [H, W, 3], 三通道 RGB",
+    },
+    {
+      question: "3x3 水平边缘检测卷积核, 中间行通常是什么?",
+      options: ["全 1", "全 0", "全 -1", "梯度值"],
+      correct: 1,
+      explanation: "中间行 0, 上下两行对比突出水平边缘",
+    },
+    {
+      question: "Sobel 算子用来检测什么?",
+      options: ["颜色", "纹理", "边缘/梯度", "形状"],
+      correct: 2,
+      explanation: "Sobel 是经典边缘检测算子",
+    },
+    {
+      question: "深度学习时代, 传统 SIFT/HOG 特征工程地位如何?",
+      options: ["主流", "退场", "更重要", "不可替代"],
+      correct: 1,
+      explanation: "深度 CNN 自动学特征, 手工特征基本退场",
+    },
+    {
+      question: "开运算 (opening) 的过程是?",
+      options: ["先膨胀后腐蚀", "先腐蚀后膨胀", "只腐蚀", "只膨胀"],
+      correct: 1,
+      explanation: "开运算先腐蚀去小点, 再膨胀恢复主体",
+    },
+  ],
+  "image-classification/image-classification": [
+    {
+      question: "LeNet-5 是哪一年提出的?",
+      options: ["1989", "1998", "2005", "2012"],
+      correct: 1,
+      explanation: "LeNet-5 1998 年 Yann LeCun 提出",
+    },
+    {
+      question: "AlexNet 在 ImageNet 2012 比赛的关键创新不包括?",
+      options: ["ReLU", "Dropout", "GPU 训练", "Transformer"],
+      correct: 3,
+      explanation: "Transformer 是 2017 才提出, 跟 AlexNet 无关",
+    },
+    {
+      question: "ResNet 的核心创新是?",
+      options: ["更大卷积核", "残差连接", "更多全连接", "更浅网络"],
+      correct: 1,
+      explanation: "y = F(x) + x 残差连接解决梯度消失",
+    },
+    {
+      question: "VGG-16 全部用多大卷积核?",
+      options: ["1x1", "3x3", "5x5", "7x7"],
+      correct: 1,
+      explanation: "VGG 全部 3x3 卷积, 证明小核堆叠更好",
+    },
+    {
+      question: "ResNet-152 在 ImageNet Top-5 错误率约多少?",
+      options: ["15%", "7%", "3.57%", "1%"],
+      correct: 2,
+      explanation: "ResNet-152 Top-5 错误率 3.57%, 超越人类",
+    },
+  ],
+  "object-detection/object-detection": [
+    {
+      question: "两阶段检测器典型流程是?",
+      options: ["直接回归", "先候选区再分类", "只看一次", "聚类"],
+      correct: 1,
+      explanation: "两阶段: 候选框 + 分类/回归",
+    },
+    {
+      question: "Faster R-CNN 的关键创新是?",
+      options: ["YOLO", "RPN", "SSD", "FCN"],
+      correct: 1,
+      explanation: "Faster R-CNN 用 RPN 端到端生成候选框",
+    },
+    {
+      question: "YOLO 的核心思想?",
+      options: ["两阶段", "只看一次", "三阶段", "分块"],
+      correct: 1,
+      explanation: "YOLO = You Only Look Once, 一次 CNN 搞定",
+    },
+    {
+      question: "IoU 是指?",
+      options: ["分类置信度", "预测框与真实框交并比", "像素准确率", "mAP"],
+      correct: 1,
+      explanation: "IoU = 交集 / 并集, 检测框重合度",
+    },
+    {
+      question: "实时场景最适合哪个?",
+      options: ["R-CNN", "Faster R-CNN", "YOLOv8", "Mask R-CNN"],
+      correct: 2,
+      explanation: "YOLOv8 实时性好, 工业首选",
+    },
+  ],
+  "image-segmentation/image-segmentation": [
+    {
+      question: "语义分割给每个像素输出什么?",
+      options: ["bbox", "类别", "mask", "深度"],
+      correct: 1,
+      explanation: "语义分割给每个像素分类, 不区分个体",
+    },
+    {
+      question: "U-Net 跳跃连接是?",
+      options: ["Add", "Concat", "Multiply", "无"],
+      correct: 1,
+      explanation: "U-Net 用 Concat 融合浅深层特征",
+    },
+    {
+      question: "Mask R-CNN 加了什么分支?",
+      options: ["分类", "bbox", "FCN mask", "深度"],
+      correct: 2,
+      explanation: "Mask R-CNN = Faster R-CNN + FCN mask 分支",
+    },
+    {
+      question: "mIoU 是?",
+      options: ["平均交并比", "最大 IOU", "最小 IOU", "标准差"],
+      correct: 0,
+      explanation: "mIoU = mean IoU, 多类 IoU 平均",
+    },
+    {
+      question: "医学影像分割最常用?",
+      options: ["YOLO", "ResNet", "U-Net", "R-CNN"],
+      correct: 2,
+      explanation: "U-Net 小数据集也能训, 医学分割首选",
     },
   ],
 };

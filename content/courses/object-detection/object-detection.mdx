@@ -1,0 +1,58 @@
+# 目标检测
+
+目标检测 = 分类 + 定位。不仅要识别物体, 还要用 bounding box 标出位置。
+
+## 1. 两阶段检测器
+
+先生成候选区域 (region proposals), 再分类 + 回归。
+
+### R-CNN (2014)
+1. Selective Search 提 ~2000 候选框
+2. 每个框 CNN 提特征
+3. SVM 分类 + 回归调位置
+
+慢: 一张图 47 秒。
+
+### Fast R-CNN (2015)
+改进: 先整图 CNN 提特征, 再候选框 RoI Pooling。速度提升 9 倍, 训练从 84h 降到 8.7h。
+
+### Faster R-CNN (2015)
+引入 RPN (Region Proposal Network), 候选框也由网络生成。端到端, 5 fps。
+
+## 2. 单阶段检测器
+
+直接回归类别 + 位置, 不分阶段, 速度快。
+
+### YOLO (2016)
+"You Only Look Once": 输入图直接输出 `S x S x (5B + C)` 张量。45 fps, 实时。
+
+把检测当作回归问题, 一个 CNN 解决。
+
+### SSD (2016)
+多尺度特征图检测, 兼顾大小物体。比 YOLO v1 更准。
+
+## 3. 评估指标
+
+IoU: 预测框与真实框的交并比, 阈值 0.5。
+
+mAP: mean Average Precision, 多类 AP 平均。COCO 用 mAP@0.5:0.95。
+
+## 4. 主流网络对比
+
+| 网络 | 阶段 | 速度 | 精度 |
+|------|------|------|------|
+| R-CNN | 2 | 极慢 | 中 |
+| Fast R-CNN | 2 | 慢 | 中 |
+| Faster R-CNN | 2 | 中 | 高 |
+| YOLO | 1 | 快 | 中 |
+| SSD | 1 | 快 | 中高 |
+
+## 5. 实战建议
+
+实时场景: YOLOv5/v8
+高精度场景: Faster R-CNN, Cascade R-CNN
+移动端: YOLO-NAS, MobileNet-SSD
+
+## 小结
+
+检测分两阶段 (准) 和单阶段 (快)。YOLO 系列是工业界主流。下章讲像素级分割。
