@@ -1,0 +1,192 @@
+# 图像分割:像素级理解
+
+检测给出"框", 分类给出"标签", **分割**更进一步: **每个像素一个类别**。
+
+这一章拆解语义分割、实例分割、全景分割三大任务。
+
+## 1. 三大分割任务
+
+### 语义分割 (Semantic Segmentation)
+
+**每个像素一个类别**, 不区分个体:
+- 输出: H×W 矩阵, 每个值是类别 ID
+- 应用: 医学影像 (肿瘤区域) / 卫星图像 (地形分类) / 自动驾驶 (可行驶区域)
+
+### 实例分割 (Instance Segmentation)
+
+**每个目标实例一个 mask + 类别**:
+- 输出: N 个 (类别, mask, 置信度)
+- 应用: 图像编辑 (抠图) / 视频会议背景替换
+
+### 全景分割 (Panoptic Segmentation)
+
+**语义 + 实例合并**: 每个像素既知道类别, 也知道实例 ID (背景除外)。
+
+## 2. 评估指标
+
+### 语义分割: mIoU
+
+**mean Intersection over Union**, 最常用:
+
+```
+mIoU = (1/C) × Σ (TP_c / (TP_c + FP_c + FN_c))
+```
+
+C 是类别数。Cityscapes 数据集 19 类, mIoU 70%+ 是 SOTA。
+
+### 实例分割: mAP (类似检测)
+
+mask IoU > 0.5 算正确, 然后算 mAP, 类似 COCO 检测。
+
+## 3. 经典架构
+
+### FCN (Fully Convolutional Network, 2015)
+
+**语义分割的开山之作**, 核心思想:
+- 把分类网络的 FC 层换成 1×1 Conv
+- 加**反卷积 (Transposed Conv)** 上采样到原图尺寸
+- 跳跃连接融合浅层细节
+
+缺点: 反卷积上采样产生棋盘格 (checkerboard artifacts)。
+
+### U-Net (2015, 医学影像专用)
+
+**编码器-解码器 + 跳跃连接**, 至今仍是医学分割 baseline:
+
+```
+Encoder (下采样):  Conv→Pool→Conv→Pool→...
+                     ↓ 跳跃连接
+Decoder (上采样):  UpConv→Concat→Conv→UpConv→...
+```
+
+特点:
+- 对称结构, 编码器提取语义, 解码器恢复细节
+- 跳跃连接把编码器的高分辨率特征直接拼接到解码器
+- 医学影像 (细胞 / 器官) 小数据上特别强
+
+### SegNet (2016)
+
+类似 U-Net, 但用 max-pooling indices 上采样 (节省内存)。
+
+### DeepLab v3+ (2018)
+
+Google 提出, 多个改进:
+- **ASPP (Atrous Spatial Pyramid Pooling)**: 多个 dilation rate 并行, 捕获多尺度
+- **Encoder-Decoder**: 兼顾精度和细节
+- Cityscapes mIoU 82%
+
+### PSPNet (2017)
+
+**金字塔池化模块 (PPM)**: 不同尺度池化后 concat, 捕获全局上下文。
+
+## 4. 实例分割
+
+### Mask R-CNN (2017, 何恺明)
+
+**Faster R-CNN + mask 分支**:
+
+```
+Faster R-CNN:
+  image → backbone → RPN → RoI Align → [cls, box]
+                              ↓
+                         + Mask head (FCN, 输出 m×m mask)
+```
+
+- 类别 + 边界框 + mask 三个任务联合训练
+- mAP mask ~37% on COCO
+
+### YOLACT / YOLACT++ (2019)
+
+**单阶段实例分割**, 实时性好:
+- 每个 instance 生成 k 个 prototype mask + 每实例 N 个系数
+- mask = prototype × 系数线性组合
+
+### SOLO / SOLOv2 (2020)
+
+把实例分割当作"位置分类":
+- 划网格, 每个格子预测 instance mask
+- 完全 anchor-free, 简单优雅
+
+## 5. 损失函数
+
+### 语义分割: Cross-Entropy + Dice Loss
+
+```python
+CE = CrossEntropyLoss()(logits, labels)  # 像素级分类
+Dice = 1 - (2 × |pred ∩ gt| + smooth) / (|pred| + |gt| + smooth)
+Total = CE + Dice
+```
+
+Dice Loss 对小目标 / 类别不平衡更友好。
+
+### 实例分割: L_cls + L_box + L_mask
+
+mask 分支用 per-pixel sigmoid + binary CE, 平均成 m×m 输出。
+
+## 6. 实战:U-Net 训练医学影像
+
+```python
+import segmentation_models_pytorch as smp
+
+model = smp.Unet(
+    encoder_name="resnet50",        # backbone
+    encoder_weights="imagenet",     # 预训练
+    in_channels=3,                  # RGB
+    classes=1,                      # 2 类分割 (肿瘤/背景)
+)
+
+loss = smp.losses.DiceLoss(smp.losses.BCEWithLogitsLoss(), mode='binary')
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+
+for img, mask in train_loader:
+    pred = model(img)
+    l = loss(pred, mask)
+    optimizer.zero_grad()
+    l.backward()
+    optimizer.step()
+```
+
+10 分钟训完一个器官分割模型, Dice > 0.9。
+
+## 7. 数据集
+
+| 数据集 | 任务 | 类别 | 规模 |
+|--------|------|------|------|
+| Pascal VOC 2012 | 语义 | 21 | 10K |
+| Cityscapes | 语义 | 19 | 5K (街景) |
+| COCO | 实例 | 80 | 118K |
+| LVIS | 实例 | 1203 | 100K |
+| ADE20K | 全景 | 150 | 20K |
+| Medical Segmentation Decathlon | 语义 | 多 | 数千 |
+
+## 8. 进阶话题
+
+- **数据增强**: RandomCrop / Flip / Elastic Deformation (医学) / Mosaic
+- **半监督**: 仅 10% 标注也能量产 (Mean Teacher / FixMatch)
+- **域适应**: CT 模型迁移到 MRI (CycleGAN / DANN)
+- **交互式分割**: 用户点几下, 模型实时调整 (SAM / SAM2)
+- **SAM (Segment Anything, Meta 2023)**: 基础模型, 零样本分割任意物体
+- **3D 分割**: 点云 (PointNet++) / 体素 (3D U-Net) / 视频 (TubeR)
+
+## 9. 模型选择
+
+| 场景 | 推荐模型 |
+|------|----------|
+| 通用语义分割 | SegFormer / Mask2Former |
+| 医学影像 | nnU-Net (auto-config) / U-Net++ |
+| 实例分割 | Mask2Former / YOLOv8-seg |
+| 实时分割 | STDC / PP-LiteSeg |
+| 零样本 / 提示式 | SAM / SAM2 |
+| 街景 | Panoptic-DeepLab |
+
+## 总结
+
+分割 = **像素级分类**, 三大任务 (语义 / 实例 / 全景) 各有应用。从 U-Net 到 SAM, 模型越来越通用。
+
+整个 CV 入门 4 章走完, 你应该掌握:
+- CNN 基础 (卷积 / 池化 / ResNet)
+- 迁移学习 (预训练 + 微调)
+- 目标检测 (R-CNN / YOLO)
+- 图像分割 (U-Net / Mask R-CNN)
+
+下一步看 GNN (图神经网络) 还是 AutoML?

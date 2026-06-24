@@ -1,0 +1,129 @@
+# CNN 基础:从卷积到 ResNet
+
+计算机视觉的 80% 模型都是**卷积神经网络 (CNN)**。这一章我们从最基础的卷积开始, 一直走到现代 ResNet。
+
+## 1. 为什么 CNN 适合图像
+
+全连接层把图像展平成一维向量, 完全丢失了**空间结构**。两个像素 (i,j) 和 (i,j+1) 在向量里隔 1 个位置, 在图像里紧挨着, 关系丢失。
+
+CNN 解决三个问题:
+- **局部连接**: 每个神经元只看一小块 (感受野), 不看全图
+- **权值共享**: 同一个卷积核扫遍整张图, 大幅减少参数
+- **平移不变**: 猫在图片左边还是右边, 都能识别
+
+## 2. 卷积 (Convolution) 核心
+
+### 卷积 vs 互相关
+
+深度学习里说的"卷积"其实是**互相关** (没有翻转), 数学上叫 cross-correlation:
+
+```
+output[i,j] = sum_m sum_n input[i+m, j+n] * kernel[m, n]
+```
+
+一个 3×3 卷积核在 5×5 图像上扫, 输出 3×3 特征图 (无 padding)。
+
+### 关键参数
+
+- **kernel size**: 卷积核大小, 常用 1×1 / 3×3 / 5×5 / 7×7
+- **stride**: 步长, 默认 1, 设 2 输出尺寸减半 (下采样)
+- **padding**: 边缘填充 0, 保持输出尺寸不变
+- **channels**: 输入/输出通道数
+- **dilation**: 空洞卷积, 扩大感受野不增加参数
+
+### 输出尺寸公式
+
+` H_{out} = \lfloor \frac{H_{in} + 2P - K}{S} \rfloor + 1 `
+
+P = padding, K = kernel, S = stride。
+
+## 3. 池化 (Pooling)
+
+降采样, 减少计算 + 增强平移不变性:
+
+- **Max Pooling**: 取窗口最大值 (最常用)
+- **Avg Pooling**: 取窗口平均值
+- **Global Avg Pooling**: 一张特征图取一个均值 (替代全连接)
+
+2×2 max-pooling stride=2 把特征图尺寸减半。
+
+## 4. 感受野 (Receptive Field)
+
+第 n 层一个神经元看到的输入图像区域大小。
+
+- 单层 3×3 卷积: 感受野 3×3
+- 两层 3×3 卷积: 感受野 5×5
+- 三层 3×3 卷积: 感受野 7×7
+
+**设计原则**: 深层网络靠堆叠小卷积核 (3×3) 获得大感受野, 比单层大卷积核**参数更少 + 非线性更强**。
+
+## 5. 经典架构演进
+
+### LeNet-5 (1998, Yann LeCun)
+
+第一个商用 CNN, 手写数字识别:
+- 2× (Conv + Pool) + 2× FC
+- 60K 参数
+
+### AlexNet (2012, ImageNet 冠军)
+
+里程碑, 深度学习爆发起点:
+- 5× Conv + 3× FC, 60M 参数
+- 关键创新: ReLU + Dropout + GPU 训练 + Data Augmentation
+- Top-5 错误率从 26% 降到 15%
+
+### VGG-16 (2014)
+
+简单暴力, 全用 3×3 卷积:
+- 13× Conv (3×3) + 3× FC, 138M 参数
+- 优点: 结构清晰, 容易理解
+- 缺点: 参数多, 训练慢
+
+### GoogLeNet / Inception (2014)
+
+**Inception 模块**: 同一输入并行用 1×1, 3×3, 5×5, pool, 然后 concat。
+
+- 1×1 卷积先降维, 大幅减少参数
+- V1 用了 6.8M 参数 (比 VGG 少 20 倍)
+
+### ResNet (2015, 何恺明)
+
+**残差学习** 解决"网络越深越难训练":
+
+```
+y = F(x) + x
+```
+
+F(x) 学的是**残差** (输出 - 输入), 而不是直接映射。
+
+- ResNet-50: 25.6M 参数
+- ResNet-152: 60M 参数, 152 层
+- ImageNet Top-5 错误率 3.57% (首次低于人类 5.1%)
+
+**为什么残差有效**:
+- 反向传播时梯度可以走 shortcut 直达浅层, 缓解梯度消失
+- 学残差比学恒等映射容易 (F(x)=0 就是恒等, 网络"什么都不做"很容易)
+
+## 6. 现代实践
+
+- **BatchNorm**: 每个 conv 后加 BN, 加速收敛
+- **数据增强**: RandomCrop / Flip / ColorJitter / MixUp / CutMix
+- **学习率**: CosineAnnealing + Warmup
+- **优化器**: SGD+momentum (经典) 或 AdamW (transformer 时代)
+- **预训练**: ImageNet 预训练 backbone, 下游任务微调
+
+## 7. PyTorch 5 行上手
+
+```python
+import torchvision.models as models
+model = models.resnet50(weights="IMAGENET1K_V2")
+model.eval()
+# 输入: (B, 3, 224, 224) 预处理后的 tensor
+output = model(input_tensor)  # (B, 1000) ImageNet 类别 logits
+```
+
+## 总结
+
+CNN 演进路线: **LeNet → AlexNet → VGG → GoogLeNet → ResNet**, 每一代解决前一代的问题 (深度 / 效率 / 训练难度)。
+
+下一章我们看**迁移学习**, 如何用预训练模型解决自定义数据集。

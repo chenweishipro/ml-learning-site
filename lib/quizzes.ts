@@ -457,6 +457,81 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       explanation: "新奇效应指用户因推荐结果'新鲜'而短期点击率上升, 1-2 周后回归正常。所以 A/B 至少跑 7 天才能下结论, 否则会高估新模型收益。",
     },
   ],
+/* ============== v15.2 CV 入门 ============== */
+  "cv-basics/cnn-fundamentals": [
+    {
+      question: "CNN 比全连接网络在图像任务上最大的优势是?",
+      options: ["训练更快", "局部连接 + 权值共享, 保留空间结构且大幅减少参数", "用更少数据", "支持彩色图"],
+      correct: 1,
+      explanation: "CNN 通过局部连接 (感受野) + 权值共享 (同一卷积核扫遍全图) + 平移不变性, 既保留图像空间结构, 又比全连接大幅减少参数。",
+    },
+    {
+      question: "ResNet 的核心创新 '残差学习' 解决了什么?",
+      options: ["过拟合", "网络越深越难训练, 梯度消失", "数据不够", "推理慢"],
+      correct: 1,
+      explanation: "ResNet 学 F(x)+x 而非 H(x), 让网络'什么都不做'很容易 (F(x)=0), 反向传播时梯度可走 shortcut 直达浅层, 缓解深度网络梯度消失。",
+    },
+    {
+      question: "ImageNet Top-5 错误率首次低于人类 5.1% 是哪年哪个模型?",
+      options: ["AlexNet 2012", "VGG 2014", "GoogLeNet 2014", "ResNet 2015"],
+      correct: 3,
+      explanation: "ResNet-152 (2015) 在 ImageNet 上 Top-5 错误率 3.57%, 首次低于人类水平 5.1%, 标志着深度学习超越人类。",
+    },
+  ],
+  "cv-basics/transfer-learning": [
+    {
+      question: "迁移学习中, '特征提取' 与 '微调' 的关键区别是?",
+      options: ["用不用预训练权重", "特征提取冻结 backbone 只训分类头, 微调全模型解冻并用更小学习率", "数据量要求不同", "只能用 ResNet"],
+      correct: 1,
+      explanation: "特征提取冻结 backbone 参数只训新分类头 (适合数据极少), 微调解冻全模型但 backbone 用更小学习率 1e-5 (适合数据中等)。",
+    },
+    {
+      question: "微调 backbone 时学习率太大, 最可能发生什么?",
+      options: ["训练变快", "backbone 预训练权重被破坏, 效果反而比冻结差", "显存爆", "不支持"],
+      correct: 1,
+      explanation: "学习率太大会破坏预训练权重 (浅层通用特征被覆盖), 效果反而比冻结 backbone + 只训 head 差。这是微调最常见的坑。",
+    },
+  ],
+  "cv-basics/object-detection": [
+    {
+      question: "Faster R-CNN 相比 Fast R-CNN 的核心改进是?",
+      options: ["用了更大的 backbone", "RPN (Region Proposal Network) 替代 Selective Search, 端到端训练", "支持视频", "用 Transformer"],
+      correct: 1,
+      explanation: "Faster R-CNN (2015) 用 RPN 在 feature map 上滑窗提议候选框, 替代耗时的 Selective Search, 真正端到端训练, 速度从 0.3s 降到 0.2s/图。",
+    },
+    {
+      question: "YOLO 系列最核心的创新是?",
+      options: ["用 Transformer", "单次 CNN 前向直接出所有检测结果, 把检测当回归问题", "支持 3D", "更高 mAP"],
+      correct: 1,
+      explanation: "YOLO (2016) 把图分 S×S 网格, 每个格子直接预测 B 个边界框 + 类别, 单次 CNN 前向出所有结果, 速度 45 FPS 实时检测。",
+    },
+    {
+      question: "目标检测中的 NMS (Non-Max Suppression) 作用是?",
+      options: ["提升 mAP", "对重叠框去重, 保留分数最高的, 减少冗余检测", "加速训练", "平衡类别"],
+      correct: 1,
+      explanation: "NMS 按置信度排序, 抑制 IoU > 阈值 (e.g. 0.5) 的低分框, 解决同一物体被多次检测的冗余问题。",
+    },
+  ],
+  "cv-basics/image-segmentation": [
+    {
+      question: "语义分割、实例分割、全景分割的核心区别是?",
+      options: ["用的网络不同", "语义给每像素类别, 实例给每目标 mask, 全景 = 语义 + 实例", "数据集不同", "评估指标不同"],
+      correct: 1,
+      explanation: "语义分割: 每像素一个类别不区分个体。实例分割: 每个目标实例一个 mask + 类别。全景: 二者合并, 背景给语义, 前景给实例。",
+    },
+    {
+      question: "U-Net 的核心创新是?",
+      options: ["用了 Transformer", "对称编码器-解码器 + 跳跃连接, 把浅层细节拼接到解码器", "加了注意力", "用 GAN 训练"],
+      correct: 1,
+      explanation: "U-Net (2015) 对称的 Encoder-Decoder 结构 + 跳跃连接 (skip connection), 把编码器的高分辨率特征直接拼接到解码器, 兼顾语义和细节, 至今仍是医学影像分割 baseline。",
+    },
+    {
+      question: "SAM (Segment Anything, Meta 2023) 的核心创新是?",
+      options: ["更快", "基础模型 + 提示式 (点/框/mask) 零样本分割任意物体, 无需训练", "更高 mIoU", "3D 支持"],
+      correct: 1,
+      explanation: "SAM 是基础模型 + 提示式分割, 用户给点/框/mask 提示, 模型实时输出高质量分割, 零样本适用任意物体, 是 CV 基础模型的里程碑。",
+    },
+  ],
 /* ============== v13.1 NLP 入门 ============== */
   "nlp-basics/text-preprocessing": [
     {

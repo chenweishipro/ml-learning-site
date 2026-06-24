@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
-* 5 门 ML 课 (23 章) + 6 门统计课 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) + 1 门 v15.1 新课 (4 章) = 16 门课, 56 章
+* 5 门 ML 课 (23 章) + 6 门统计课 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) + 1 门 v15.1 新课 (4 章) + 1 门 v15.2 新课 (4 章) = 17 门课, 60 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -253,6 +253,23 @@ export const courses: CourseMeta[] = [
   },
 
 
+
+  /* ============== v15.2 新课: CV 入门 ============== */
+  {
+    slug: "cv-basics",
+    title: "计算机视觉入门",
+    description: "从 CNN / ResNet 到迁移学习、目标检测、图像分割,看懂抖音/自动驾驶背后的视觉技术。",
+    level: "intermediate",
+    duration: "约 5 小时",
+    tags: ["CV", "CNN", "ResNet", "YOLO", "U-Net"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "cnn-fundamentals", title: "CNN 基础:从卷积到 ResNet", description: "卷积/池化/感受野, LeNet→AlexNet→VGG→ResNet 演进史。", duration: "40 分钟" },
+      { slug: "transfer-learning", title: "迁移学习:站在巨人肩膀上", description: "特征提取 vs 微调 vs 渐进解冻, 实战花卉分类。", duration: "35 分钟" },
+      { slug: "object-detection", title: "目标检测:从 R-CNN 到 YOLO", description: "双阶段 vs 单阶段, anchor 机制, YOLOv8 5 行上手。", duration: "50 分钟" },
+      { slug: "image-segmentation", title: "图像分割:像素级理解", description: "语义/实例/全景分割, U-Net / Mask R-CNN / SAM。", duration: "45 分钟" },
+    ],
+  },
   /* ============== v15.1 新课: 推荐系统 ============== */
   {
     slug: "recsys",
