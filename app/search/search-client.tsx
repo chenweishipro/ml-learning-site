@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, BookOpen, Clock, Search as SearchIcon, Sparkles, X } from "lucide-react";
-import { Card } from "@/components/ui/Card";
+import { ArrowRight, BookOpen, Clock, History as HistoryIcon, Search as SearchIcon, Sparkles, Wifi, WifiOff, X } from "lucide-react";
 import { SEARCH_INDEX, type SearchEntry } from "@/lib/search";
 import { LEVEL_META, cn } from "@/lib/utils";
+import { getHistory, isOnline, recordSearch, clearHistory } from "@/lib/offline-search";
 
 interface FullHit {
   courseSlug: string;
@@ -16,7 +16,7 @@ interface FullHit {
   duration: string;
   count: number;
   score: number;
-  snippet: string; // 已经含 <mark> 标签
+  snippet: string;
 }
 
 const SUGGESTIONS = [
@@ -30,6 +30,32 @@ const SUGGESTIONS = [
   "激活函数",
 ];
 
+/** 离线时本地搜索 (基于 SEARCH_INDEX, 与 lib/search.searchIndex 一致) */
+function offlineSearch(query: string, limit = 30): SearchEntry[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const scored: { entry: SearchEntry; score: number }[] = [];
+  for (const entry of SEARCH_INDEX) {
+    let score = 0;
+    if (entry.chapterTitle.toLowerCase().includes(q)) score += 10;
+    if (entry.courseTitle.toLowerCase().includes(q)) score += 5;
+    if (entry.description.toLowerCase().includes(q)) score += 3;
+    if (entry.tags?.some((t) => t.toLowerCase().includes(q))) score += 4;
+    const words = q.split(/\s+/);
+    if (words.length > 1) {
+      let wordHits = 0;
+      for (const w of words) {
+        if (entry.chapterTitle.toLowerCase().includes(w)) wordHits += 2;
+        if (entry.description.toLowerCase().includes(w)) wordHits += 1;
+      }
+      score += wordHits;
+    }
+    if (score > 0) scored.push({ entry, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit).map((s) => s.entry);
+}
+
 export function SearchClient() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<"all" | "beginner" | "intermediate" | "advanced">("all");
@@ -37,114 +63,183 @@ export function SearchClient() {
   const [hits, setHits] = useState<FullHit[]>([]);
   const [total, setTotal] = useState(0);
   const [searching, setSearching] = useState(false);
-  const [mode, setMode] = useState<"fulltext" | "semantic">("fulltext");
-  const [semanticResults, setSemanticResults] = useState<FullHit[]>([]);
-  const [semanticTotal, setSemanticTotal] = useState(0);
-  const [providerName, setProviderName] = useState("");
+  const [online, setOnline] = useState(true);
+  const [history, setHistory] = useState<{ q: string; ts: number }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // 检测在线状态
+  useEffect(() => {
+    setOnline(isOnline());
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+
+  // 加载搜索历史
+  useEffect(() => {
+    (async () => setHistory(await getHistory()))();
+  }, []);
 
   // 防抖
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query), 120);
+    const t = setTimeout(() => setDebounced(query), 150);
     return () => clearTimeout(t);
   }, [query]);
 
+  // 搜索: 在线 → 服务端 FTS5, 离线 → 本地 SEARCH_INDEX
   useEffect(() => {
     if (!debounced.trim()) {
       setHits([]);
       setTotal(0);
-      setSemanticResults([]);
-      setSemanticTotal(0);
       return;
     }
     let cancelled = false;
     setSearching(true);
-    const endpoint = mode === "semantic" ? "/api/semantic/" : "/api/search/";
-    fetch(`${endpoint}?q=${encodeURIComponent(debounced)}&limit=30&level=${level}`, {
-      cache: "no-store",
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.ok) {
-          if (mode === "semantic") {
-            setSemanticResults(data.data.hits);
-            setSemanticTotal(data.data.total);
-            setProviderName(data.data.provider ?? "");
-            setHits([]);
-            setTotal(0);
-          } else {
+
+    const runSearch = async () => {
+      if (online) {
+        try {
+          const r = await fetch(`/api/search/?q=${encodeURIComponent(debounced)}&limit=30&level=${level}`, { cache: "no-store" });
+          const data = await r.json();
+          if (cancelled) return;
+          if (data.ok) {
             setHits(data.data.hits);
             setTotal(data.data.total);
-            setSemanticResults([]);
-            setSemanticTotal(0);
-            setProviderName("");
+            await recordSearch(debounced);
+            setHistory(await getHistory());
           }
+        } catch {
+          // 网络失败, 退回离线
+          if (cancelled) return;
+          const local = offlineSearch(debounced, 30);
+          setHits(
+            local.map((e) => ({
+              courseSlug: e.courseSlug,
+              courseTitle: e.courseTitle,
+              chapterSlug: e.chapterSlug,
+              chapterTitle: e.chapterTitle,
+              level: e.level as string,
+              duration: e.duration,
+              count: 0,
+              score: 0,
+              snippet: e.description,
+            }))
+          );
+          setTotal(local.length);
         }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setSearching(false);
-      });
+      } else {
+        // 离线
+        if (cancelled) return;
+        const local = offlineSearch(debounced, 30);
+        setHits(
+          local.map((e) => ({
+            courseSlug: e.courseSlug,
+            courseTitle: e.courseTitle,
+            chapterSlug: e.chapterSlug,
+            chapterTitle: e.chapterTitle,
+            level: e.level as string,
+            duration: e.duration,
+            count: 0,
+            score: 0,
+            snippet: e.description,
+          }))
+        );
+        setTotal(local.length);
+        await recordSearch(debounced);
+        setHistory(await getHistory());
+      }
+      if (!cancelled) setSearching(false);
+    };
+
+    runSearch();
     return () => {
       cancelled = true;
     };
-  }, [debounced, level, mode]);
-
-  const results = mode === "semantic" ? semanticResults : hits;
+  }, [debounced, level, online]);
 
   const popular = useMemo(() => SEARCH_INDEX.slice(0, 6), []);
 
+  const handleClearHistory = async () => {
+    await clearHistory();
+    setHistory([]);
+  };
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-      <header className="mb-8 text-center">
+      <header className="mb-6 text-center">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           🔍 搜索课程
         </h1>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
           {debounced
-            ? mode === "semantic"
-              ? <>🧠 语义搜索: {semanticTotal} 个相关章节, 显示 {semanticResults.length} 个</>
-              : <>找到 {total} 个章节, 显示 {hits.length} 个</>
+            ? <>找到 {total} 个章节, 显示 {hits.length} 个</>
             : <>在 {SEARCH_INDEX.length} 个章节中搜索</>}
         </p>
       </header>
 
-      {/* 搜索框 + 模式切换 */}
-      <div className="mb-2 flex flex-wrap items-center gap-1.5">
-        <span className="text-xs text-neutral-500">搜索方式:</span>
-        <div className="inline-flex rounded-md border border-neutral-200 p-0.5 dark:border-neutral-700">
-          {([
-            { v: "fulltext", label: "🔍 关键词" },
-            { v: "semantic", label: "🧠 AI 语义" },
-          ] as const).map((tab) => (
-            <button
-              key={tab.v}
-              onClick={() => setMode(tab.v)}
-              className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition",
-                mode === tab.v
-                  ? "bg-primary-600 text-white"
-                  : "text-neutral-600 hover:text-primary-700 dark:text-neutral-400"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        {mode === "semantic" && providerName && (
-          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-purple-700 ring-1 ring-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:ring-purple-800/50">
-            provider: {providerName}
-          </span>
+      {/* 离线 / 在线状态 */}
+      <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1",
+            online
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-800/50"
+              : "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-800/50"
+          )}
+        >
+          {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          {online ? "在线 · 全文搜索" : "离线 · 仅本地标题/描述搜索"}
+        </span>
+        {history.length > 0 && (
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-700"
+          >
+            <HistoryIcon className="h-3 w-3" />
+            历史 ({history.length})
+          </button>
         )}
       </div>
 
-      <div className="relative">
+      {/* 历史下拉 */}
+      {showHistory && history.length > 0 && (
+        <div className="mx-auto mb-4 max-w-2xl rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="mb-2 flex items-center justify-between text-xs text-neutral-500">
+            <span>最近搜索</span>
+            <button onClick={handleClearHistory} className="text-[10px] text-neutral-400 hover:text-red-500">
+              清空
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {history.map((h) => (
+              <button
+                key={h.q + h.ts}
+                onClick={() => {
+                  setQuery(h.q);
+                  setShowHistory(false);
+                }}
+                className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-xs text-neutral-600 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-400"
+              >
+                {h.q}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 搜索框 */}
+      <div className="relative mx-auto max-w-2xl">
         <SearchIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" />
         <input
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="输入关键字, 如 “线性回归”、“梯度下降”..."
+          placeholder={online ? "输入关键字, 如 “线性回归”、“梯度下降”..." : "离线模式 · 搜索标题/描述"}
           className="w-full rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 py-3.5 pl-12 pr-12 text-base shadow-soft transition focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-primary-700 dark:focus:ring-primary-900"
         />
         {query && (
@@ -159,7 +254,7 @@ export function SearchClient() {
       </div>
 
       {/* 难度筛选 */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
         <span className="text-xs text-neutral-500 dark:text-neutral-400">难度:</span>
         {(["all", "beginner", "intermediate", "advanced"] as const).map((lv) => (
           <button
@@ -184,7 +279,7 @@ export function SearchClient() {
             <Sparkles className="h-4 w-4" />
             <span>试试这些关键字</span>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             {SUGGESTIONS.map((s) => (
               <button
                 key={s}
@@ -221,7 +316,7 @@ export function SearchClient() {
       {/* 搜索结果 */}
       {debounced.trim() && (
         <div className="mt-8">
-          {results.length === 0 ? (
+          {hits.length === 0 && !searching ? (
             <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
               <p className="text-sm text-neutral-500 dark:text-neutral-400">
                 没有找到 “<span className="font-mono">{debounced}</span>” 相关的内容。
@@ -231,15 +326,12 @@ export function SearchClient() {
           ) : (
             <>
               <div className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
-                找到 <strong className="text-neutral-900 dark:text-neutral-100">{results.length}</strong> 个结果
+                {searching ? "搜索中..." : <>找到 <strong className="text-neutral-900 dark:text-neutral-100">{hits.length}</strong> 个结果</>}
               </div>
               <ul className="space-y-3">
-                {results.map((h) => (
+                {hits.map((h) => (
                   <li key={`${h.courseSlug}/${h.chapterSlug}`}>
-                    <SearchResultCard
-                      hit={h}
-                      query={debounced}
-                    />
+                    <SearchResultCard hit={h} query={debounced} />
                   </li>
                 ))}
               </ul>
