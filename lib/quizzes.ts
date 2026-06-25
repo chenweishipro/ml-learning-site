@@ -532,6 +532,81 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       explanation: "SAM 是基础模型 + 提示式分割, 用户给点/框/mask 提示, 模型实时输出高质量分割, 零样本适用任意物体, 是 CV 基础模型的里程碑。",
     },
   ],
+/* ============== v15.3 GNN 入门 ============== */
+  "gnn-basics/graph-basics": [
+    {
+      question: "图的邻接矩阵表示中, 节点数 n 时矩阵是?",
+      options: ["1×n", "n×n", "n×1", "稀疏 n×n"],
+      correct: 1,
+      explanation: "邻接矩阵是 n×n 方阵, A[i][j]=1 表示 i 和 j 之间有边。大图稀疏时实际用稀疏矩阵存, 节省空间。",
+    },
+    {
+      question: "BFS 和 DFS 的核心区别是?",
+      options: ["BFS 用栈, DFS 用队列", "BFS 求最短路径, DFS 用拓扑排序; BFS 用队列一层层扩散, DFS 一条路走到底", "都一样", "BFS 只能有向图"],
+      correct: 1,
+      explanation: "BFS 用队列一层层往外扩散, 适合求无权图最短路径。DFS 用栈/递归一条路走到底再回溯, 适合拓扑排序/环检测。",
+    },
+    {
+      question: "PageRank 的核心思想是?",
+      options: ["页面越大越重要", "被重要节点链接的节点更重要, 迭代到收敛", "随机点击", "按时间排序"],
+      correct: 1,
+      explanation: "PageRank: 节点重要性 = 被重要节点链接, 公式 PR(v) = (1-d)/N + d × Σ PR(u)/L(u), 迭代计算直到收敛, Google 用来排网页。",
+    },
+  ],
+  "gnn-basics/gnn-fundamentals": [
+    {
+      question: "GNN 中 Message Passing 的三步是?",
+      options: ["编码 / 解码 / 输出", "聚合 (Aggregate) / 更新 (Update) / 循环 (Iterate)", "前向 / 反向 / 优化", "采样 / 训练 / 测试"],
+      correct: 1,
+      explanation: "所有 GNN 都可以抽象成三步: 1) 聚合邻居消息 2) 更新自身表示 3) 循环 K 次让信息传到 K-hop 外。",
+    },
+    {
+      question: "GCN / GraphSAGE / GAT 三者核心区别是?",
+      options: ["层数不同", "GCN 均值聚合 (等权邻居), GraphSAGE 邻居采样支持大图, GAT 用 Attention 学邻居权重", "用不同损失", "用不同激活"],
+      correct: 1,
+      explanation: "GCN 用均值聚合所有邻居 (简单但等权); GraphSAGE 采样固定数量邻居 (大图可扩展); GAT 用 Attention 自动学邻居重要性 (解释性好但慢)。",
+    },
+    {
+      question: "GNN 深层后'过平滑'现象是指?",
+      options: ["训练变慢", "所有节点表示趋于相同, 节点不可区分", "梯度爆炸", "欠拟合"],
+      correct: 1,
+      explanation: "GNN 深层反复平均后, 所有节点表示趋于相同 (过平滑), 节点失去区分度。解法: 残差连接 / DropEdge / PairNorm / APPNP。",
+    },
+  ],
+  "gnn-basics/gnn-applications": [
+    {
+      question: "链接预测的核心目标是?",
+      options: ["给节点分类", "预测两个节点之间是否会有边", "给整图分类", "生成新节点"],
+      correct: 1,
+      explanation: "链接预测 (Link Prediction) 预测两个节点之间是否会有边, 是推荐系统核心 (好友推荐 / 物品推荐 / KG 补全)。",
+    },
+    {
+      question: "图分类任务中 Readout 操作用来?",
+      options: ["节点分类", "把节点 embedding 聚合成一个图 embedding", "生成新图", "边预测"],
+      correct: 1,
+      explanation: "Readout 把图中所有节点 embedding 聚合成一个图级向量, 用于整图分类。常用 global_mean_pool / global_max_pool / global_add_pool / Set2Set。",
+    },
+    {
+      question: "TransE 的核心思想是?",
+      options: ["拼接头尾", "h + r ≈ t, 关系 r 是头尾之间的平移向量", "注意力", "全连接"],
+      correct: 1,
+      explanation: "TransE (2013) 把关系 r 当作头向量 h 到尾向量 t 的平移: h + r ≈ t, 评分函数 f = -||h + r - t||。几何直观, 适合知识图谱补全。",
+    },
+  ],
+  "gnn-basics/graph-transformers": [
+    {
+      question: "Graph Transformer 相比传统 GNN 的核心优势是?",
+      options: ["更快", "全局 Attention 让任意两节点直接相连, 解决长距离依赖与过平滑", "参数更少", "不用训练"],
+      correct: 1,
+      explanation: "Graph Transformer 用全局 Attention, 任意两节点直接相连, 不受距离限制, 解决 GNN 的过平滑 + 过压缩 + 长距离依赖三大局限。",
+    },
+    {
+      question: "Graphormer 的核心创新是?",
+      options: ["用 ReLU", "用图结构当 Attention 偏置 (空间编码 + 边编码 + 度编码)", "并行训练", "更大模型"],
+      correct: 1,
+      explanation: "Graphormer (Microsoft 2021) 把图结构编码成 Attention 偏置矩阵 B: 节点度编码 + 最短路径空间编码 + 边特征编码, OGB-LSC 分子预测冠军。",
+    },
+  ],
 /* ============== v13.1 NLP 入门 ============== */
   "nlp-basics/text-preprocessing": [
     {

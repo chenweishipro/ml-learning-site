@@ -1,0 +1,205 @@
+# 图基础:从社交网络到分子结构
+
+世界不是表格, 而是**图**。社交网络是图 (人 + 好友关系), 分子是图 (原子 + 化学键), 推荐系统是图 (用户 + 物品 + 交互)。
+
+这一章打牢图的数学基础, 为后面的 GNN 做准备。
+
+## 1. 什么是图
+
+**图 (Graph)** = 顶点 (Vertex) + 边 (Edge):
+
+```
+G = (V, E)
+```
+
+- V = 顶点集合 (人 / 原子 / 节点)
+- E = 边集合 (关系 / 连接)
+
+图分两类:
+- **无向图**: 边无方向 (好友关系 / 化学键)
+- **有向图**: 边有方向 (关注关系 / 网页链接)
+
+## 2. 图的表示
+
+### 邻接矩阵 (Adjacency Matrix)
+
+n 个节点的图, 用 n×n 矩阵 A 表示:
+
+```
+     A   B   C   D
+A  [ 0   1   1   0 ]
+B  [ 1   0   0   1 ]
+C  [ 1   0   0   1 ]
+D  [ 0   1   1   0 ]
+```
+
+A[i][j] = 1 表示 i 和 j 之间有边。
+
+**缺点**: 大图 (亿节点) 矩阵太大, 实际图很稀疏 (99% 是 0), 用稀疏矩阵存。
+
+### 邻接表 (Adjacency List)
+
+每个节点存邻居列表:
+
+```
+A: [B, C]
+B: [A, D]
+C: [A, D]
+D: [B, C]
+```
+
+**优点**: 节省空间 O(V+E) vs 邻接矩阵 O(V²)。
+
+### 边表 (Edge List)
+
+直接存所有边:
+
+```
+(A, B), (A, C), (B, D), (C, D)
+```
+
+最简洁, 适合流式处理。
+
+## 3. 关键概念
+
+### 度 (Degree)
+
+节点的邻居数:
+- 无向图: deg(v) = 邻居数量
+- 有向图: 分**入度** (in-degree) 和**出度** (out-degree)
+
+**度数分布**: 很多图遵循**幂律分布** (少数节点度数极高, 多数很低), 比如社交网络的 KOL。
+
+### 路径与连通性
+
+- **路径**: v0 → v1 → ... → vk 的边序列
+- **最短路径**: 路径中边数最少
+- **连通图**: 任意两节点都有路径相连
+- **连通分量**: 最大连通子图
+
+### 子图与同构
+
+- **子图 (Subgraph)**: 节点和边的子集
+- **同构 (Isomorphism)**: 两个图结构相同, 只是节点标号不同
+
+### 邻域与 k-hop
+
+- **1-hop 邻居**: 直接相连的节点
+- **2-hop 邻居**: 邻居的邻居
+- **k-hop**: 走 k 步能到的节点
+
+## 4. 经典算法
+
+### BFS (广度优先搜索)
+
+从源点出发, 一层层往外扩散, 求**最短路径** (无权图):
+
+```python
+from collections import deque
+
+def bfs(graph, start):
+    visited = {start}
+    queue = deque([start])
+    while queue:
+        node = queue.popleft()
+        for neighbor in graph[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+    return visited
+```
+
+时间复杂度 O(V+E)。
+
+### DFS (深度优先搜索)
+
+递归 / 栈实现, 一条路走到底再回溯, 用于**拓扑排序 / 环检测**:
+
+```python
+def dfs(graph, node, visited):
+    visited.add(node)
+    for neighbor in graph[node]:
+        if neighbor not in visited:
+            dfs(graph, neighbor, visited)
+```
+
+时间复杂度 O(V+E)。
+
+### 最短路径 (Dijkstra)
+
+加权图最短路径, 优先队列:
+
+```python
+import heapq
+
+def dijkstra(graph, start):
+    dist = {node: float('inf') for node in graph}
+    dist[start] = 0
+    pq = [(0, start)]
+    while pq:
+        d, u = heapq.heappop(pq)
+        if d > dist[u]: continue
+        for v, w in graph[u].items():
+            if d + w < dist[v]:
+                dist[v] = d + w
+                heapq.heappush(pq, (dist[v], v))
+    return dist
+```
+
+时间复杂度 O((V+E) log V)。
+
+### PageRank
+
+Google 用来排网页的算法, 节点**重要性** ≈ 被重要节点链接:
+
+```
+PR(v) = (1-d)/N + d × Σ PR(u) / L(u)
+```
+
+u 是 v 的入链节点, L(u) 是 u 的出链数, d 是阻尼系数 (通常 0.85)。
+
+迭代计算直到收敛。
+
+## 5. 图的种类
+
+- **同质图 (Homogeneous)**: 一种节点 + 一种边 (纯社交网络)
+- **异质图 (Heterogeneous)**: 多种节点 / 多种边 (用户-物品-评论)
+- **二部图 (Bipartite)**: 节点分两类, 边只在类间 (用户-物品推荐)
+- **属性图 (Attributed)**: 节点 / 边带特征向量
+- **动态图 (Dynamic)**: 边 / 节点随时间变化
+- **知识图谱 (Knowledge Graph)**: 节点是实体, 边是关系 (头-关系-尾三元组)
+
+## 6. 图的现实例子
+
+| 应用 | 节点 | 边 |
+|------|------|-----|
+| 社交网络 | 用户 | 好友 |
+| 推荐系统 | 用户 + 物品 | 交互 |
+| 分子 | 原子 | 化学键 |
+| 交通 | 路口 | 道路 |
+| 论文引用 | 论文 | 引用 |
+| 知识图谱 | 实体 | 关系 |
+| 3D 网格 | 顶点 | 面 |
+| 互联网 | 网页 | 超链接 |
+
+## 7. 工具库
+
+- **NetworkX** (Python): 经典图算法库, 教学 / 小图
+- **igraph**: 跨语言, 性能更好
+- **DGL (Deep Graph Library)**: 工业级 GNN 框架, 多 backend
+- **PyTorch Geometric (PyG)**: 学术界最常用, 100+ GNN 模型
+- **GraphScope**: 阿里开源, 大规模图计算
+- **Neo4j / TigerGraph**: 图数据库, OLTP 场景
+
+```python
+import networkx as nx
+G = nx.karate_club_graph()
+print(nx.shortest_path(G, 0, 33))
+# [0, 8, 33] (中间经过 8)
+```
+
+## 总结
+
+图 = 节点 + 边, 邻接矩阵 / 邻接表 / 边表三种表示。基础算法 (BFS / DFS / Dijkstra / PageRank) 是理解 GNN 的前提。
+
+下一章**GNN 基础**, 我们看怎么把神经网络用到图上。

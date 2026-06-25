@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
-* 5 门 ML 课 (23 章) + 6 门统计课 (14 章) + 3 门 v13.1 新课 (11 章) + 1 门 v14.1 新课 (4 章) + 1 门 v15.1 新课 (4 章) + 1 门 v15.2 新课 (4 章) = 17 门课, 60 章
+* 1 门 v15.1 新课 (4 章) + 1 门 v15.2 新课 (4 章) + 1 门 v15.3 新课 (4 章) = 18 门课, 64 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -254,6 +254,23 @@ export const courses: CourseMeta[] = [
 
 
 
+
+  /* ============== v15.3 新课: GNN 入门 ============== */
+  {
+    slug: "gnn-basics",
+    title: "图神经网络入门",
+    description: "从图基础到 GCN/GraphSAGE/GAT, 看社交网络/分子/推荐背后的图神经网络技术。",
+    level: "advanced",
+    duration: "约 6 小时",
+    tags: ["GNN", "图", "GCN", "GraphSAGE", "GAT", "Graph Transformer"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "graph-basics", title: "图基础:从社交网络到分子结构", description: "图表示 / 度 / BFS/DFS / Dijkstra / PageRank。", duration: "35 分钟" },
+      { slug: "gnn-fundamentals", title: "GNN 基础:GCN / GraphSAGE / GAT", description: "Message Passing 框架, 三大经典 GNN 与实战。", duration: "50 分钟" },
+      { slug: "gnn-applications", title: "GNN 应用:节点 / 边 / 图三大任务", description: "节点分类 / 链接预测 / 图分类 + 工业案例 (推荐/药物/交通)。", duration: "55 分钟" },
+      { slug: "graph-transformers", title: "Graph Transformer:把 Transformer 搬到图上", description: "Graphormer / GATv2 / GPS, 大规模 + LLM 结合。", duration: "45 分钟" },
+    ],
+  },
   /* ============== v15.2 新课: CV 入门 ============== */
   {
     slug: "cv-basics",
