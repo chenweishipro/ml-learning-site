@@ -58,6 +58,8 @@ model User {
   certificates Certificate[]
   quizWrongs  QuizWrong[]
   quizAttempts QuizAttempt[]
+  assignments Assignment[] @relation("AssignmentCreator")
+  submissions Submission[]
   codingSubs  CodingSubmission[]
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
@@ -441,6 +443,48 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@index([createdAt])
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  courseSlug  String
+  chapterSlug String?
+  maxScore    Int      @default(100)
+  dueDate     DateTime?
+  /// JSON 字符串, 自动评分关键词列表 ["sklearn", "fit", "predict"]
+  keywords    String   @default("[]")
+  /// AI 评分 prompt (可选)
+  gradingPrompt String?
+  createdById String
+  createdBy   User     @relation("AssignmentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions Submission[]
+
+  @@index([courseSlug, createdAt])
+  @@index([dueDate])
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content      String
+  status       String   @default("submitted") /// submitted / auto-graded / reviewed
+  score        Int?
+  feedback     String?
+  /// 关键词命中详情 (JSON)
+  matchDetail  String?
+  submittedAt  DateTime @default(now())
+  gradedAt     DateTime?
+
+  @@unique([assignmentId, userId])
+  @@index([userId, status])
 }
 
 model QuizAttempt {
