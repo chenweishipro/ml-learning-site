@@ -18,6 +18,7 @@ function useNavItems(): NavItem[] {
     { label: t("nav.qa"), href: "/qa" },
     { label: t("nav.ai"), href: "/chat" },
     { label: t("nav.about"), href: "/about" },
+    { label: "🧠 知识图谱", href: "/knowledge-graph" },
   ];
 }
 
