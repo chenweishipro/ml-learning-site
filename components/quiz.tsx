@@ -40,10 +40,32 @@ export function Quiz({ title = "章末小测验", description, questions, chapte
   // 提交错题到后端 (useAuth 是 conditional, 但 React hook 必须在顶层)
   const { user } = useAuth();
   // 上次提交的错题集合 (避免重复存)
-  const submitWrong = async () => {
+  const submitAttempt = async () => {
     if (!user || !chapterId) return;
     const [courseSlug, chapterSlug] = chapterId.split("/");
     if (!courseSlug || !chapterSlug) return;
+
+    const correctCount = questions.reduce((s, q, i) => s + (answers[i] === q.correct ? 1 : 0), 0);
+
+    // 1) 提交 attempt
+    try {
+      await fetch("/api/quiz/attempt", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courseSlug,
+          chapterSlug,
+          totalCorrect: correctCount,
+          totalQuestions: questions.length,
+          timeSpent: 0,
+        }),
+      });
+    } catch (e) {
+      // 静默失败
+    }
+
+    // 2) 提交错题
     const wrongItems = questions
       .map((q, i) => ({ q, i, answer: answers[i] }))
       .filter(({ q, i, answer }) => answer !== undefined && answer !== q.correct)
@@ -136,7 +158,7 @@ export function Quiz({ title = "章末小测验", description, questions, chapte
           <div className="ml-8 flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 dark:border-neutral-800">
             {!submitted ? (
               <Button
-                onClick={() => { setSubmitted(true); submitWrong(); }}
+                onClick={() => { setSubmitted(true); submitAttempt(); }}
                 disabled={!allAnswered}
                 size="md"
               >

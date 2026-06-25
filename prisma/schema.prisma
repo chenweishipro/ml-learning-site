@@ -57,6 +57,7 @@ model User {
   studyPlans   StudyPlan[]
   certificates Certificate[]
   quizWrongs  QuizWrong[]
+  quizAttempts QuizAttempt[]
   codingSubs  CodingSubmission[]
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
@@ -440,6 +441,22 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@index([createdAt])
+}
+
+model QuizAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseSlug    String
+  chapterSlug   String
+  totalCorrect  Int
+  totalQuestions Int
+  score         Int
+  timeSpent     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([courseSlug, chapterSlug, score])
 }
 
 model QuizWrong {
