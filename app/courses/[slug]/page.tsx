@@ -7,6 +7,7 @@ import { getCourseWithOverrides } from "@/lib/content-overrides";
 import { LEVEL_META, cn } from "@/lib/utils";
 import { Card, CardDescription, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { ShareButton } from "@/components/share-button";
 
 interface Params {
   params: { slug: string };
@@ -78,7 +79,11 @@ export default async function CourseDetailPage({ params }: Params) {
                 {course.description}
               </p>
 
-              <div className="mt-7 flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
+              <div className="mt-5">
+                <ShareButton title={course.title} text={course.description} variant="primary" />
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-primary-500" />
                   总时长 {course.duration}

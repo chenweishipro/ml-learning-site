@@ -6,9 +6,9 @@ import {
   ArrowLeft,
   Download,
   Loader2,
-  Share2,
   Sparkles,
 } from "lucide-react";
+import { ShareButton } from "@/components/share-button";
 
 interface CertificateData {
   id: string;
@@ -247,23 +247,11 @@ export function CertificateView({ serialNo }: { serialNo: string }) {
           返回个人中心
         </Link>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: `我的 ML 学习证书 — ${cert.courseTitle}`,
-                  url: shareUrl,
-                }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(shareUrl);
-                alert("链接已复制到剪贴板");
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            分享
-          </button>
+          <ShareButton
+            title={`我的 ML 学习证书 — ${cert.courseTitle}`}
+            text={`我刚完成 ${cert.courseTitle} 课程, 获得 ${cert.finalScore} 分!`}
+            variant="outline"
+          />
           <button
             onClick={downloadPng}
             disabled={downloading}

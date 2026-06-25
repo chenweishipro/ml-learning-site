@@ -21,6 +21,7 @@ import { MDXContent } from "./MDXContent";
 import { ChapterProgressButton } from "@/components/progress-tracker";
 import { ChapterPDFExport } from "@/components/chapter-pdf-export";
 import { ChapterDownload } from "@/components/chapter-download";
+import { ShareButton } from "@/components/share-button";
 import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
 import { NotesPanel } from "@/components/notes/NotesPanel";
@@ -170,6 +171,7 @@ export default async function ChapterPage({ params }: Params) {
             chapterTitle={data.meta.title}
           />
                 <ChapterDownload courseSlug={params.slug} chapterSlug={params.chapter} chapterTitle={data.meta.title} />
+                <ShareButton title={data.meta.title} text={data.meta.description ?? ""} variant="outline" />
           {canEdit && (
             <Link
               href={`/admin/courses/${params.slug}/chapters/${params.chapter}/`}
