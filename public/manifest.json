@@ -1,13 +1,13 @@
 {
   "name": "ML 学习站",
   "short_name": "ML 学习",
-  "description": "中文 ML 教程 · 5 门课 23 章 · AI 答疑 · 错题本 · 成就",
+  "description": "中文 ML 教程 · 18 门课 64 章 · AI 答疑 · 错题本 · 成就 · PWA",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0ea5e9",
   "lang": "zh-CN",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -30,8 +30,8 @@
   ],
   "categories": [
     "education",
-    "books",
-    "productivity"
+    "productivity",
+    "books"
   ],
   "shortcuts": [
     {
@@ -67,5 +67,10 @@
         }
       ]
     }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
   ]
 }
