@@ -60,6 +60,8 @@ model User {
   quizAttempts QuizAttempt[]
   assignments Assignment[] @relation("AssignmentCreator")
   submissions Submission[]
+  experiments Experiment[] @relation("ExperimentCreator")
+  experimentEvents ExperimentEvent[]
   codingSubs  CodingSubmission[]
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
@@ -443,6 +445,44 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@index([createdAt])
+}
+
+model Experiment {
+  id          String   @id @default(cuid())
+  /// 唯一 key, 客户端用 key 拉取
+  key         String   @unique
+  name        String
+  description String?
+  /// variants JSON 字符串: [{"id": "a", "name": "A", "value": "...", "weight": 50}, ...]
+  variants    String   @default("[]")
+  status      String   @default("draft") /// draft / running / paused / completed
+  createdById String
+  createdBy   User     @relation("ExperimentCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events      ExperimentEvent[]
+
+  @@index([status])
+}
+
+model ExperimentEvent {
+  id            String   @id @default(cuid())
+  experimentId  String
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  /// variant id (与 Experiment.variants 数组中的 id 对应)
+  variantId     String
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// impression / click / conversion
+  type          String
+  metadata      String?  /// JSON
+  createdAt     DateTime @default(now())
+
+  @@index([experimentId, variantId, type])
+  @@index([userId, type])
 }
 
 model Assignment {
