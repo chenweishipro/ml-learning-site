@@ -24,12 +24,26 @@ sed "s/your-domain.com/$DOMAIN/g" "$SCRIPT_DIR/nginx/ml-learning.conf" > "$NGINX
 ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/ml-learning
 
 # 3) nginx 配置测试
+echo "==> 写入 limit_req_zone (http context) 到 conf.d"
+mkdir -p /etc/nginx/snippets
+cp "$SCRIPT_DIR/nginx/snippets/limit_req_zone.conf" /etc/nginx/snippets/
+if ! grep -q "include /etc/nginx/snippets/limit_req_zone.conf;" /etc/nginx/nginx.conf; then
+    sed -i 's|include /etc/nginx/conf.d/\*.conf;|include /etc/nginx/conf.d/*.conf;\n    include /etc/nginx/snippets/limit_req_zone.conf;|' /etc/nginx/nginx.conf
+fi
 echo "==> nginx -t"
 nginx -t
 
-# 4) 申请证书 (certbot --nginx 自动改 443 + 重定向)
+# 4) 申请证书 (IDN 需要先转 Punycode, 因 certbot 不支持中文域名)
 echo "==> 申请证书"
-certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
+# 检测是否为中文/非 ASCII 域名, 转为 Punycode
+if echo "$DOMAIN" | grep -qP '[^\x00-\x7F]'; then
+    DOMAIN_PC=$(python3 -c "import sys; print(sys.argv[1].encode('idna').decode('ascii'))" "$DOMAIN")
+    WWW_PC=$(python3 -c "import sys; print(('www.' + sys.argv[1]).encode('idna').decode('ascii'))" "$DOMAIN")
+    echo "==> 检测到中文 IDN 域名, 申请 Punycode: $DOMAIN_PC + $WWW_PC"
+    certbot --nginx -d "$DOMAIN_PC" -d "$WWW_PC" --non-interactive --agree-tos -m "$EMAIL"
+else
+    certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos -m "$EMAIL"
+fi
 
 # 5) reload
 systemctl reload nginx

@@ -178,6 +178,27 @@ sudo systemctl start ml-learning
 - ✅ **nginx 80 兜底** —— `http://SERVER_IP` (server_name _)
 - ✅ **HTTPS** —— `https://DOMAIN` (用 setup-https.sh 一键申请)
 
+### HTTPS 已启用 (本项目)
+
+| URL | 状态 | 说明 |
+|---|---|---|
+| `https://珍惜时间.website/` | ✅ 200 | 中文 IDN 域名 + Let's Encrypt 证书 |
+| `https://www.珍惜时间.website/` | ✅ 200 | www 子域 |
+| `https://珍惜时间.website/api/health/` | ✅ 200 | 健康检查 |
+| HTTP | ✅ 301 → HTTPS | 强制跳转 |
+
+**证书信息**:
+- 颁发机构: Let's Encrypt (R10)
+- 过期: 2026-09-25 (89 天有效期)
+- 自动续期: `0 3 * * * certbot renew --quiet --post-hook "systemctl reload nginx"`
+- Punycode: `xn--2eun7iw4njj7a.website` (证书里的 SAN 字段)
+
+**TLS 配置**:
+- TLSv1.2 / TLSv1.3
+- HSTS `max-age=63072000` (2 年)
+- 强密码套件 (ECDHE-ECDSA-AES256-GCM-SHA384 等)
+- X-Frame-Options SAMEORIGIN
+
 ## 📊 监控
 
 ```bash
