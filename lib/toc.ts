@@ -43,7 +43,11 @@ export async function extractToc(mdx: string): Promise<TocItem[]> {
 
       if (!text) return;
 
-      const id = slugger.slug(text);
+      let id = slugger.slug(text);
+      // acorn JSX 解析器不允许 id 以数字开头: 加 's-' 前缀
+      if (/^[0-9]/.test(id)) {
+        id = 's-' + id;
+      }
       items.push({
         id,
         text,

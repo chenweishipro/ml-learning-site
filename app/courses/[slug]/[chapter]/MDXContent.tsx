@@ -69,7 +69,14 @@ export function MDXContent({ source }: { source: string }) {
           mdxOptions: {
             remarkPlugins: [remarkGfm],
             rehypePlugins: [
-              rehypeSlug,
+              [
+                rehypeSlug,
+                {
+                  // 自定义 slug: 数字开头加 's-' 前缀 (acorn JSX 不允许 id 以数字开头)
+                  slug: (s: string) =>
+                    /^[0-9]/.test(s) ? 's-' + s : s,
+                },
+              ],
               [
                 rehypeAutolinkHeadings,
                 {

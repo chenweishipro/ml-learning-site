@@ -1,0 +1,112 @@
+# AutoML 入门:让机器自己设计机器学习
+
+传统 ML 项目, 数据科学家要花 80% 时间调超参、试模型、做特征工程。**AutoML** 目标: 把这些都自动化, 让人专注业务问题。
+
+这一章理清 AutoML 的三大方向 + 适用场景。
+
+## 1. 什么是 AutoML
+
+**Automated Machine Learning** = 把 ML pipeline 中的手动步骤自动化:
+
+```
+传统流程:                          AutoML 后:
+数据 → 清洗 → 特征工程 → 模型选择    数据 → [自动清洗] → [自动特征] → [自动模型]
+     → 超参调优 → 集成 → 部署                → [自动调参] → [自动集成] → [部署]
+                     ↑
+              数据科学家 80% 时间
+```
+
+## 2. AutoML 的三大方向
+
+### A. 超参优化 (HPO)
+
+**Hyperparameter Optimization** —— 找最优超参组合。
+
+| 算法 | 复杂度 | 适用 |
+|------|--------|------|
+| Grid Search | O(K^n) | 超参少 (<3 个), 范围小 |
+| Random Search | O(K) | 超参多 (>5 个) |
+| Bayesian Optimization | O(K log n) | 黑盒函数, 评估昂贵 |
+| Hyperband / BOHB | O(K log n) | 多保真度 (early stopping) |
+
+### B. 神经架构搜索 (NAS)
+
+**Neural Architecture Search** —— 自动设计神经网络结构。
+
+- **搜索空间**: RNN / CNN / Transformer 单元
+- **搜索策略**: 强化学习 / 进化算法 / 梯度 (DARTS)
+- **代表模型**: NASNet / EfficientNet / DARTS / Once-for-All
+
+### C. 自动化特征工程 + Pipeline
+
+**Automated Feature Engineering** —— 自动生成/选择特征。
+
+- **特征生成**: Featuretools (深度特征合成)
+- **特征选择**: 互信息 / Lasso / SHAP
+- **自动 Pipeline**: Auto-sklearn / FLAML / AutoGluon / H2O
+
+## 3. AutoML 适用场景
+
+### ✅ 适合用
+
+- **结构化数据** (表格) —— AutoML 优势最大
+- **业务 KPI 驱动** —— 快速出 baseline, 然后调优
+- **资源有限** —— 小团队没时间调参
+- **重复性任务** —— 多个相似数据集
+
+### ❌ 不适合
+
+- **前沿研究** —— AutoML 探索空间有限, 出不了 SOTA
+- **超大规模数据** —— 自动 pipeline 难以 scale
+- **可解释性要求极高** —— 黑盒模型难以解释
+- **非标准任务** —— AutoML 假设标准表格/分类回归
+
+## 4. AutoML 主流工具盘点
+
+### 开源框架
+
+| 框架 | 厂商 | 特色 |
+|------|------|------|
+| **Auto-sklearn** | 学术 | scikit-learn 自动化, 强 baseline |
+| **FLAML** | 微软 | 轻量 + 速度快 + 多框架 |
+| **AutoGluon** | AWS | 多模态 (tabular / 图像 / 文本) |
+| **H2O.ai** | H2O | 企业级, AutoML + Driverless AI |
+| **PyCaret** | 社区 | 低代码, 一行 train |
+| **AutoKeras** | 学术 (Texas A&M) | NAS + AutoML |
+
+### 云服务
+
+- **Google Vertex AI** —— AutoML + 自定义模型
+- **AWS SageMaker Autopilot** —— 表格数据
+- **Azure AutoML** —— Azure ML 集成
+- **阿里云 PAI** —— 国内 AutoML 服务
+
+## 5. AutoML 实战示例 (五行)
+
+```python
+from flaml import AutoML
+
+model = AutoML()
+model.fit(
+    X_train, y_train,
+    task="classification",
+    time_budget=60,  # 60 秒
+    n_jobs=-1,
+)
+print("Best model:", model.best_estimator)
+print("Best config:", model.best_config)
+print("Best score:", model.best_loss)
+```
+
+## 6. AutoML 的局限
+
+1. **黑盒**: 难以解释为什么选了这个模型
+2. **算力消耗**: 内部跑了成百上千次训练
+3. **定制受限**: 想加自定义特征/损失函数很麻烦
+4. **数据假设**: 默认假设 I.I.D. + 干净数据
+
+## 总结
+
+AutoML = HPO + NAS + Auto-Feature, 适合结构化数据 + 业务 baseline。
+
+下一章我们深入 **超参优化 (HPO)**, 看 Grid / Random / Bayesian 怎么权衡精度与算力。

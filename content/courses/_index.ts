@@ -1,7 +1,7 @@
 /**
  * 课程元数据集中索引
  *
-* 1 门 v15.1 新课 (4 章) + 1 门 v15.2 新课 (4 章) + 1 门 v15.3 新课 (4 章) = 18 门课, 64 章
+* 1 门 v15.3 新课 (4 章) + 1 门 v15.4 新课 (4 章) = 19 门课, 64 章
  *
  * 数据来源:
  * - 5 门 ML 课: 自研内容
@@ -255,6 +255,23 @@ export const courses: CourseMeta[] = [
 
 
 
+
+  /* ============== v15.4 新课: AutoML 入门 ============== */
+  {
+    slug: "automl-basics",
+    title: "AutoML 入门",
+    description: "从 HPO 到 NAS, 让机器自动设计机器学习, 5 大方向课程封顶。",
+    level: "advanced",
+    duration: "约 5 小时",
+    tags: ["AutoML", "HPO", "Optuna", "NAS", "Auto-sklearn", "FLAML"],
+    author: "ML 学习站",
+    chapters: [
+      { slug: "introduction", title: "AutoML 入门", description: "HPO + NAS + 自动特征工程, 主流工具盘点。", duration: "30 分钟" },
+      { slug: "hyperparameter-optimization", title: "超参优化:Grid / Random / Bayesian / Optuna", description: "Grid/Random/Bayesian 权衡, Optuna + Hyperband 实战。", duration: "40 分钟" },
+      { slug: "neural-architecture-search", title: "神经架构搜索 (NAS)", description: "DARTS / Once-for-All / EfficientNet, 让 AI 设计网络。", duration: "50 分钟" },
+      { slug: "automl-platforms", title: "AutoML 平台实战", description: "Auto-sklearn / FLAML / AutoGluon / H2O / PyCaret 上手。", duration: "55 分钟" },
+    ],
+  },
   /* ============== v15.3 新课: GNN 入门 ============== */
   {
     slug: "gnn-basics",

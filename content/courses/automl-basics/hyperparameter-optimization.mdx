@@ -1,0 +1,146 @@
+# 超参优化:Grid / Random / Bayesian / Optuna
+
+模型训练完, **超参**才决定能不能上 90% → 95%。这一章拆解 4 大主流 HPO 方法。
+
+## 1. 超参的分类
+
+- **模型超参**: 学习率 / 批量大小 / 优化器 / 层数
+- **算法超参**: 树的深度 / 正则化系数 / dropout
+- **Pipeline 超参**: 特征工程方法 / 预处理顺序
+
+## 2. Grid Search (网格搜索)
+
+最简单的暴力方法:
+
+```python
+from sklearn.model_selection import GridSearchCV
+params = {
+    "n_estimators": [100, 200, 500],
+    "max_depth": [3, 5, 10, None],
+    "learning_rate": [0.01, 0.1, 0.3],
+}
+grid = GridSearchCV(model, params, cv=5, n_jobs=-1)
+grid.fit(X, y)
+print(grid.best_params_)
+```
+
+**问题**: 参数组合爆炸, 3×4×3 = 36 个组合 × 5 折 = **180 次训练**。
+
+## 3. Random Search (随机搜索)
+
+[Bergstra & Bengio 2012] 证明: 随机采样通常比网格更高效。
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import randint, uniform
+
+params = {
+    "n_estimators": randint(50, 500),
+    "max_depth": randint(3, 15),
+    "learning_rate": uniform(0.001, 0.5),
+}
+random_search = RandomizedSearchCV(model, params, n_iter=50, cv=5, n_jobs=-1)
+random_search.fit(X, y)
+```
+
+**优点**:
+- 不会重复评估同样组合
+- 高维参数空间里覆盖更广
+- 可预算固定 (n_iter)
+
+## 4. Bayesian Optimization (贝叶斯优化)
+
+**核心思想**: 用一个"代理模型" (高斯过程 / Tree-Parzen) 建模"超参→性能" 函数, 智能选下一个评估点。
+
+```
+历史评估点 → 更新代理模型 → 选下一个最有潜力的点 → 评估 → 重复
+```
+
+**代表库**: Optuna, Hyperopt, scikit-optimize, BayesianOptimization
+
+### Optuna 实战
+
+```python
+import optuna
+
+def objective(trial):
+    params = {
+        "n_estimators": trial.suggest_int("n_estimators", 50, 500),
+        "max_depth": trial.suggest_int("max_depth", 3, 15),
+        "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.5, log=True),
+        "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
+    }
+    model = XGBClassifier(**params)
+    scores = cross_val_score(model, X, y, cv=5, scoring="f1")
+    return scores.mean()
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=100, timeout=600)
+
+print("Best params:", study.best_params)
+print("Best F1:", study.best_value)
+```
+
+### 4 个核心概念
+
+- **Trial**: 一次超参评估
+- **Study**: 整个优化过程 (一组 trial)
+- **Sampler**: 选下一个 trial 的策略 (TPE / GP / Random)
+- **Pruner**: 提前终止表现差的 trial (MedianPruner)
+
+### 优势 vs 网格/随机
+
+| 维度 | Grid | Random | Bayesian |
+|------|------|--------|----------|
+| 收敛速度 | 慢 | 中 | **快** |
+| 计算成本 | 高 | 中 | 低 |
+| 全局最优 | 可能错过 | 可能错过 | 概率大 |
+| 实现复杂度 | 低 | 低 | 中 |
+
+## 5. 多保真度方法 (Hyperband / BOHB)
+
+**核心思想**: 大部分超参组合一眼就差, 用小预算快速淘汰, 只给 promising 的加大预算。
+
+```
+随机 N 个配置 → 各跑少量 epoch → 砍掉表现差的 → 给剩下的更多 epoch → 重复
+```
+
+**Hyperband**: SuccessiveHalving + 多 bracket
+**BOHB**: Bayesian + Hyperband 混合 (2018 SOTA)
+
+```python
+import optuna
+
+# 带剪枝的 Optuna
+study = optuna.create_study(
+    direction="maximize",
+    pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
+)
+study.optimize(objective, n_trials=100, timeout=600)
+```
+
+## 6. NAS 友好的 HPO
+
+神经网络训练昂贵, 需要更聪明的搜索:
+
+- **Population Based Training (PBT)**: 训练中持续调参, 借鉴遗传算法
+- **Hypergradient**: 反向传播同时学学习率
+- **Population Based Augmentation (PBA)**: 调数据增强策略
+
+## 7. 实战选择指南
+
+```
+小数据集 (<1k 样本) → Grid Search 即可 (36 组合 5 分钟)
+中等数据集 (1k-100k) → Random Search 或 Bayesian (n_trials=50-200)
+大模型 (LLM/深度学习) → Hyperband / BOHB + 剪枝
+神经网络结构 → NAS (下一章)
+```
+
+## 总结
+
+- **Grid**: 暴力但慢, 适合小空间
+- **Random**: 简单高效, 默认选择
+- **Bayesian (Optuna)**: 收敛快, 中等预算首选
+- **Hyperband/BOHB**: 大模型训练必备
+
+下一章 **神经架构搜索 (NAS)**, 看怎么自动设计 CNN/Transformer 结构。

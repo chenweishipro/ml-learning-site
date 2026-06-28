@@ -1,0 +1,189 @@
+# 神经架构搜索 (NAS):让 AI 设计神经网络
+
+传统 CNN / Transformer 结构是**人工设计**的 (ResNet, EfficientNet, BERT)。**NAS** 让算法自动搜索最优结构, 这一章拆解三大流派。
+
+## 1. 为什么需要 NAS
+
+- **人工设计耗时**: ResNet 论文作者试了几十种结构
+- **结构差异巨大**: 不同任务最优结构不同
+- **硬件感知**: 同一结构在 GPU / 移动端 / FPGA 上效率差 100x
+- **数据驱动**: 让模型自己适配数据分布
+
+## 2. NAS 三要素
+
+```
+1. 搜索空间 (Search Space)
+   ↓
+2. 搜索策略 (Search Strategy)
+   ↓
+3. 性能评估 (Performance Estimation)
+```
+
+### 2.1 搜索空间
+
+**Cell-based**: 整个网络由若干 cell 堆叠 (NASNet, DARTS)
+
+```
+Cell 内部: N 个节点, 边是候选操作
+候选操作集: {3x3 conv, 5x5 conv, 3x3 depthwise, identity, ...}
+```
+
+**优势**: 搜索空间小, 可迁移到大网络
+
+### 2.2 搜索策略
+
+| 流派 | 方法 | 代表 |
+|------|------|------|
+| 强化学习 | 用 RNN 生成架构字符串, 训练后 reward | NAS-RL (Zoph & Le 2017) |
+| 进化算法 | 群体 mutation + selection | AmoebaNet (Real et al. 2019) |
+| 梯度 (可微) | 把离散选择变成 softmax over ops | **DARTS** (Liu et al. 2019) |
+| 一次性 | 超网训练一次, 子网采样 | **Once-for-All** (Cai et al. 2020) |
+
+### 2.3 性能评估
+
+不能每次重新训练 → 用代理指标:
+- 训练少量 epoch 的精度
+- 在小数据集上训练
+- 用 predictor model 预测精度
+
+## 3. DARTS (Differentiable ARchiTecture Search)
+
+**Liu et al. 2019**, NAS 里程碑。
+
+**核心思想**: 把"选哪个 op"变成 softmax over candidate ops, 联合训练网络权重 + 架构 α。
+
+```
+output = Σ_{op ∈ O} (softmax(α)_op × op(input))
+```
+
+**两类参数**:
+- **w**: 网络权重 (常规梯度下降)
+- **α**: 架构参数 (梯度上升)
+
+```
+min_α  L_val(w*(α), α)
+s.t.  w*(α) = argmin_w L_train(w, α)
+```
+
+### 实战示例 (PyTorch)
+
+```python
+from darts import DARTS
+
+# 搜索
+searcher = DARTS(
+    search_space="nas-bench-101",
+    epochs=50,
+    output_dir="./darts",
+)
+best_genotype = searcher.search()
+
+# 评估
+model = build_from_genotype(best_genotype)
+model.fit(X_train, y_train, epochs=300)
+```
+
+## 4. Once-for-All (OFA)
+
+**Cai et al. 2020, MIT**, 工业级 NAS。
+
+**核心**: 训练一个 **超网** (支持所有子网), 然后采样子网部署到不同硬件。
+
+```
+Phase 1: 训练超网 (一次, 占 GPU 几天)
+Phase 2: 采样子网 (几秒, 无需训练)
+  → 移动端: 小子网, 推理 <10ms
+  → 服务器: 大子网, 精度 85%+
+```
+
+**优势**:
+- 训练一次, 部署多个硬件
+- 子网采样用进化算法, 不需再训练
+- 节省 90%+ 算力
+
+## 5. EfficientNet (复合缩放)
+
+虽然不是严格 NAS, 但代表"自动化设计"的另一思路:
+
+```
+深度 (d) × 宽度 (w) × 分辨率 (r) = const
+φ = 复合系数
+```
+
+作者用 grid search 找最优 compound coefficient, 然后按比例缩放。
+
+```
+EfficientNet-B0 → B7 (从小到大)
+精度  84%   →  87%
+FLOPs  0.4G → 66G
+```
+
+## 6. 实战: 用 Optuna 搜 RNN 结构
+
+```python
+import optuna
+import torch.nn as nn
+
+def objective(trial):
+    # 搜索超参
+    n_layers = trial.suggest_int("n_layers", 2, 6)
+    hidden_size = trial.suggest_categorical("hidden_size", [64, 128, 256])
+    dropout = trial.suggest_float("dropout", 0.1, 0.5)
+    
+    # 动态建模型
+    model = build_rnn(n_layers, hidden_size, dropout)
+    acc = train_and_eval(model)
+    return acc
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective, n_trials=50)
+```
+
+## 7. NAS 应用案例
+
+| 任务 | NAS 模型 | 效果 |
+|------|----------|------|
+| 图像分类 | NASNet, AmoebaNet, DARTS | SOTA on ImageNet |
+| 检测 | NAS-FPN, DetNAS | COCO mAP 提升 |
+| 分割 | Auto-DeepLab | Cityscapes SOTA |
+| 翻译 | Evolved Transformer | WMT BLEU +1 |
+| 架构搜索 | **AutoML-Zero** (Google 2020) | 从零发现 ML 算法 |
+
+## 8. NAS 的局限
+
+1. **算力惊人**: 一次搜索要 100-1000 GPU days
+2. **搜索空间设计**: 人工先验决定上限
+3. **可解释性差**: 搜出来的结构难以理解为什么好
+4. **泛化性**: 跨数据集效果未必好
+
+## 9. 工业化 NAS 实践
+
+- **Google AutoML-Zero**: 从数学运算开始搜索 (2020, NAS 前沿)
+- **Microsoft NNI**: 开源 AutoML 工具包, 集成 NAS
+- **Microsoft Archai**: 离散 NAS 框架
+- **Google Model Search**: 子网搜索
+- **Huawei MindSpore**: 端到端 NAS
+
+```python
+# NNI 实战
+from nni.algorithms.nas.pytorch.darts import DartsTrainer
+
+trainer = DartsTrainer(
+    model=model_space,
+    loss=nn.CrossEntropyLoss(),
+    metrics=lambda output, target: accuracy(output, target),
+    optimizer= torch.optim.Adam,
+    num_epochs=50,
+)
+trainer.train()
+trainer.export()
+```
+
+## 总结
+
+- **NAS**: 让算法自动设计网络结构
+- **DARTS**: 梯度可微, 主流方法
+- **Once-for-All**: 训练一次, 部署多次, 工业首选
+- **EfficientNet**: 复合缩放, 实用的非 NAS 思路
+
+下一章 **AutoML 平台实战**, 看 Auto-sklearn / FLAML / AutoGluon 怎么用。

@@ -532,6 +532,63 @@ export const QUIZZES: Record<string, QuizQuestion[]> = {
       explanation: "SAM 是基础模型 + 提示式分割, 用户给点/框/mask 提示, 模型实时输出高质量分割, 零样本适用任意物体, 是 CV 基础模型的里程碑。",
     },
   ],
+/* ============== v15.4 AutoML 入门 ============== */
+  "automl-basics/introduction": [
+    {
+      question: "AutoML 三大方向不包括下列哪项?",
+      options: ["超参优化 (HPO)", "神经架构搜索 (NAS)", "自动化特征工程", "人工调参 + 模型集成"],
+      correct: 3,
+      explanation: "AutoML 三大方向: HPO (超参优化) + NAS (神经架构搜索) + 自动化特征工程/Pipeline, 人工调参不是 AutoML。",
+    },
+    {
+      question: "AutoML 最不适合的应用场景是?",
+      options: ["结构化表格数据快速 baseline", "业务 KPI 驱动的快速实验", "前沿 SOTA 探索", "资源有限的小团队"],
+      correct: 2,
+      explanation: "AutoML 搜索空间有限, 出不了 SOTA, 但能快速出强 baseline, 适合业务而非前沿研究。",
+    },
+  ],
+  "automl-basics/hyperparameter-optimization": [
+    {
+      question: "Bengio 2012 证明哪种搜索策略通常比 Grid Search 更高效?",
+      options: ["Grid Search", "Random Search", "Bayesian Optimization", "Hyperband"],
+      correct: 1,
+      explanation: "Bergstra & Bengio 2012 证明 Random Search 在高维参数空间通常比 Grid Search 更高效, 因为不会重复评估同样组合, 覆盖更广。",
+    },
+    {
+      question: "Optuna 的核心 4 概念不包括?",
+      options: ["Trial / Study", "Sampler", "Pruner", "Backpropagator"],
+      correct: 3,
+      explanation: "Optuna 4 概念: Trial (一次评估) / Study (整个优化) / Sampler (选下个 trial) / Pruner (提前终止), 没有 Backpropagator。",
+    },
+  ],
+  "automl-basics/neural-architecture-search": [
+    {
+      question: "DARTS 核心思想是把离散搜索变成什么?",
+      options: ["连续 softmax over candidate ops, 联合训练权重 + 架构 α", "强化学习生成架构字符串", "进化算法 mutation", "随机采样子网"],
+      correct: 0,
+      explanation: "DARTS (2019) 把 '选哪个 op' 变成 softmax over candidate ops, 联合训练网络权重 w + 架构参数 α, 可微搜索。",
+    },
+    {
+      question: "Once-for-All (OFA) 核心优势是什么?",
+      options: ["比 DARTS 精度更高", "训练一次超网, 部署多个子网到不同硬件", "不用 GPU 也能跑", "支持 LLM"],
+      correct: 1,
+      explanation: "OFA (MIT 2020) 训练一个超网 (支持所有子网), 然后采样子网部署到不同硬件 (移动端/服务器), 训练一次部署多次。",
+    },
+  ],
+  "automl-basics/automl-platforms": [
+    {
+      question: "以下哪个 AutoML 框架速度最快, 资源最少?",
+      options: ["Auto-sklearn", "FLAML", "AutoGluon", "H2O"],
+      correct: 1,
+      explanation: "FLAML (微软) 用 CFO + BlendSearch 自研搜索算法, 比 Bayesian 快 10-100x, 1 CPU 也能跑, 速度王。",
+    },
+    {
+      question: "AutoGluon 相比其他 AutoML 框架的最大优势是?",
+      options: ["更简单易用", "支持多模态 (tabular / 图像 / 文本 / 时序)", "开源更早", "支持 LLM"],
+      correct: 1,
+      explanation: "AutoGluon (AWS) 多模态全覆盖: tabular / image / text / time series 统一接口, 工业级稳定, ensemble 强。",
+    },
+  ],
 /* ============== v15.3 GNN 入门 ============== */
   "gnn-basics/graph-basics": [
     {
