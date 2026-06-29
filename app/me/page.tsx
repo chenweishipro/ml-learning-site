@@ -239,6 +239,23 @@ export default function MePage() {
           {/* 快捷入口 */}
           <div className="grid gap-3 sm:grid-cols-3">
             <Link
+              href="/me/analytics/"
+              className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-indigo-700"
+            >
+              <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium text-neutral-900 group-hover:text-indigo-700 dark:text-neutral-50 dark:group-hover:text-indigo-300">
+                  学习分析
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  热力图、曲线、个性化建议
+                </p>
+              </div>
+            </Link>
+
+            <Link
               href="/me/wrong-answers/"
               className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-red-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-red-700"
             >
