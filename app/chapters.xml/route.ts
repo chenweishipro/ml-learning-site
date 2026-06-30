@@ -16,7 +16,7 @@ function escapeXml(s: string): string {
 }
 
 export async function GET() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://122.51.221.63:7892";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://珍惜时间.website";
   const allCourses = getAllCoursesSync();
 
   // 拿所有 override 更新

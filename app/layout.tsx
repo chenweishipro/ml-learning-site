@@ -13,9 +13,12 @@ import { InstallPrompt } from "@/components/install-prompt";
 import { MobileDetector } from "@/components/mobile-detector";
 import { I18nProvider } from "@/lib/i18n";
 import { getAllCourses } from "@/lib/content";
+import { JsonLd, WebSiteJsonLd, SoftwareAppJsonLd } from "@/components/seo/JsonLd";
+import { WebVitals } from "@/components/perf/WebVitals";
+import { PushPrompt } from "@/components/pwa/PushPrompt";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://122.51.221.63"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://珍惜时间.website"),
   title: {
     default: "ML 学习站 · 中文机器学习教程",
     template: "%s · ML 学习站",
@@ -97,6 +100,8 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* JSON-LD 结构化数据 (WebSite + SoftwareApplication) */}
+        <JsonLd data={[WebSiteJsonLd(), SoftwareAppJsonLd()]} />
         {/* iOS PWA 启动画面 (多尺寸适配) */}
         <link rel="apple-touch-startup-image" href="/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
         <link rel="apple-touch-startup-image" href="/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
@@ -108,6 +113,7 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body className="min-h-screen flex flex-col antialiased">
+        <WebVitals />
         <MobileDetector />
         <I18nProvider>
         <ThemeProvider>
@@ -129,6 +135,7 @@ export default function RootLayout({
               <Footer />
               <AuthModal />
             </ProgressProvider>
+            <PushPrompt />
           </AuthProvider>
         </ThemeProvider>
         </I18nProvider>

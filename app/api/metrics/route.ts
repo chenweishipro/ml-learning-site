@@ -1,62 +1,50 @@
-/** Prometheus 风格 metrics — 监控用 */
+/** Web Vitals 接收端 — 记录 LCP/CLS/INP 等核心指标 */
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-let requestCount = 0;
-let errorCount = 0;
-const start = Date.now();
+// 内存中缓存 (最多 1000 条, ring buffer)
+const buffer: any[] = [];
+const MAX = 1000;
 
-export async function GET() {
-  // 计数
-  requestCount++;
+export async function POST(req: Request) {
+  try {
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") return NextResponse.json({ ok: false }, { status: 400 });
 
-  const [userCount, chapterCount, commentCount, inviteCount] = await Promise.all([
-    prisma.user.count().catch(() => 0),
-    prisma.chapterProgress.count().catch(() => 0),
-    prisma.comment.count().catch(() => 0),
-    prisma.newsletterSubscription.count().catch(() => 0),
-  ]);
+    const entry = {
+      ...body,
+      receivedAt: new Date().toISOString(),
+      ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "",
+    };
 
-  const mem = process.memoryUsage();
-  const metrics = [
-    `# HELP ml_site_uptime_seconds Service uptime`,
-    `# TYPE ml_site_uptime_seconds gauge`,
-    `ml_site_uptime_seconds ${Math.floor((Date.now() - start) / 1000)}`,
-    ``,
-    `# HELP ml_site_requests_total Total requests handled`,
-    `# TYPE ml_site_requests_total counter`,
-    `ml_site_requests_total ${requestCount}`,
-    ``,
-    `# HELP ml_site_users_total Total registered users`,
-    `# TYPE ml_site_users_total gauge`,
-    `ml_site_users_total ${userCount}`,
-    ``,
-    `# HELP ml_site_chapter_progress_total Total chapter progress records`,
-    `# TYPE ml_site_chapter_progress_total gauge`,
-    `ml_site_chapter_progress_total ${chapterCount}`,
-    ``,
-    `# HELP ml_site_comments_total Total comments`,
-    `# TYPE ml_site_comments_total gauge`,
-    `ml_site_comments_total ${commentCount}`,
-    ``,
-    `# HELP ml_site_newsletter_total Total newsletter subscribers`,
-    `# TYPE ml_site_newsletter_total gauge`,
-    `ml_site_newsletter_total ${inviteCount}`,
-    ``,
-    `# HELP ml_site_memory_rss_bytes Resident set size`,
-    `# TYPE ml_site_memory_rss_bytes gauge`,
-    `ml_site_memory_rss_bytes ${mem.rss}`,
-    ``,
-    `# HELP ml_site_memory_heap_bytes Heap used`,
-    `# TYPE ml_site_memory_heap_bytes gauge`,
-    `ml_site_memory_heap_bytes ${mem.heapUsed}`,
-  ].join("\n");
+    if (buffer.length >= MAX) buffer.shift();
+    buffer.push(entry);
 
-  return new NextResponse(metrics, {
-    status: 200,
-    headers: { "Content-Type": "text/plain; version=0.0.4" },
+    // 服务端日志 (生产可以转发到日志系统 / Prometheus / ClickHouse)
+    if (process.env.NODE_ENV === "production") {
+      // eslint-disable-next-line no-console
+      console.log(`[metric] ${entry.name}=${entry.value} path=${entry.path}`);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}
+
+/** GET: 拉取最近 N 条 (调试用, 不暴露给公网) */
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), MAX);
+  // 简单鉴权: header 含 secret 才行
+  if (req.headers.get("x-admin-secret") !== process.env.METRICS_SECRET) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+  return NextResponse.json({
+    ok: true,
+    count: buffer.length,
+    items: buffer.slice(-limit).reverse(),
   });
 }

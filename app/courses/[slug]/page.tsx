@@ -8,6 +8,7 @@ import { LEVEL_META, cn } from "@/lib/utils";
 import { Card, CardDescription, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ShareButton } from "@/components/share-button";
+import { JsonLd, CourseJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 interface Params {
   params: { slug: string };
@@ -34,8 +35,26 @@ export default async function CourseDetailPage({ params }: Params) {
 
   const firstChapter = course.chapters[0];
 
+  // 计算在课程目录中的位置 (用于 SEO ItemList)
+  const allCourses = getAllCoursesSync();
+  const position = allCourses.findIndex((c) => c.slug === course.slug) + 1 || undefined;
+
   return (
-    <div>
+    <>
+      {/* JSON-LD: Course + Breadcrumb */}
+      <JsonLd
+        data={[
+          CourseJsonLd({ course, position }),
+          BreadcrumbJsonLd({
+            items: [
+              { name: "首页", url: "/" },
+              { name: "课程", url: "/courses/" },
+              { name: course.title, url: `/courses/${course.slug}/` },
+            ],
+          }),
+        ]}
+      />
+      <div>
       {/* 课程头部 */}
       <section className="relative overflow-hidden border-b border-neutral-200 dark:border-neutral-800/60 bg-gradient-hero">
         <div
@@ -186,6 +205,7 @@ export default async function CourseDetailPage({ params }: Params) {
         )}
       </section>
     </div>
+    </>
   );
 }
 

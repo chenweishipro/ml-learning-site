@@ -26,6 +26,7 @@ import { Quiz } from "@/components/quiz";
 import { ChapterToc } from "@/components/chapter-toc";
 import { NotesPanel } from "@/components/notes/NotesPanel";
 import { CommentSection } from "@/components/comments/CommentSection";
+import { JsonLd, ChapterJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -111,6 +112,20 @@ export default async function ChapterPage({ params }: Params) {
 
   return (
     <div className="container py-8 lg:py-10">
+      {/* JSON-LD: Chapter (LearningResource) + Breadcrumb */}
+      <JsonLd
+        data={[
+          ChapterJsonLd({ course, chapter: data.meta }),
+          BreadcrumbJsonLd({
+            items: [
+              { name: "首页", url: "/" },
+              { name: "课程", url: "/courses/" },
+              { name: course.title, url: `/courses/${course.slug}/` },
+              { name: data.meta.title, url: `/courses/${course.slug}/${data.meta.slug}/` },
+            ],
+          }),
+        ]}
+      />
       {/* 面包屑 */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
         <Link href="/courses" className="hover:text-primary-700 dark:text-primary-300">
