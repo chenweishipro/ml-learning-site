@@ -17,6 +17,12 @@ interface ChatRequest {
   query: string;
   topK?: number;
   stream?: boolean;
+  /** v19.5: 限定为当前章节的上下文 hint, 让 LLM 优先回答该章节相关 */
+  chapterHint?: {
+    courseSlug: string;
+    chapterSlug: string;
+    chapterTitle: string;
+  };
 }
 
 export async function POST(req: Request) {
@@ -37,7 +43,7 @@ export async function POST(req: Request) {
   // 未登录: 强制 mock 模式 (不持久化 session)
   // 避免滥用真实 LLM 配额
   if (!user) {
-    return await ragAnonymousStream(body.query, body.topK ?? 3);
+    return await ragAnonymousStream(body.query, body.topK ?? 3, body.chapterHint);
   }
 
   // 拿/建 session
@@ -74,6 +80,7 @@ export async function POST(req: Request) {
             query: body.query,
             history,
             topK: body.topK ?? 3,
+            chapterHint: body.chapterHint,
           })) {
             if (event.type === "chunk") {
               fullAnswer += String(event.data);
@@ -114,6 +121,7 @@ export async function POST(req: Request) {
       query: body.query,
       history,
       topK: body.topK ?? 3,
+      chapterHint: body.chapterHint,
     });
     const citations = result.sources.map((s) => ({
       courseSlug: s.courseSlug,
@@ -146,7 +154,7 @@ export async function GET() {
 }
 
 /** 未登录流式答疑: 强制 mock provider + 不持久化 */
-async function ragAnonymousStream(query: string, topK: number) {
+async function ragAnonymousStream(query: string, topK: number, chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string }) {
   // 临时覆盖 LLM_PROVIDER
   const originalProvider = process.env.LLM_PROVIDER;
   process.env.LLM_PROVIDER = "mock";
@@ -161,7 +169,7 @@ async function ragAnonymousStream(query: string, topK: number) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       };
       try {
-        for await (const event of ragChatStream({ query, history: [], topK })) {
+        for await (const event of ragChatStream({ query, history: [], topK, chapterHint })) {
           send({ type: event.type, data: event.data, sessionId: null, anonymous: true });
         }
       } catch (e) {

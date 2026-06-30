@@ -67,6 +67,7 @@ model User {
   codingSubs  CodingSubmission[]
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
+  ragFeedbacks RagFeedback[]
   comments     Comment[]
   commentLikes CommentLike[]
   notes        Note[]
@@ -620,6 +621,7 @@ model ChatMessage {
 
   session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedback   RagFeedback?
 
   @@index([sessionId, createdAt])
 }
@@ -742,4 +744,22 @@ model LearningPathStep {
 
   @@index([pathId])
   @@index([order])
+}
+
+/// RAG 回答反馈 (v19.5) — 用户对 AI 答案 👍/👎
+model RagFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String   @unique
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  // 1 = 👎 不满意, 5 = 👍 满意
+  rating    Int
+  // 可选评论
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([rating])
 }

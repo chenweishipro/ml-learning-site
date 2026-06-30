@@ -50,12 +50,12 @@ function makeExcerpt(text: string, query: string, maxLen = 400): string {
   return excerpt;
 }
 
-export async function ragChat(opts: { query: string; history?: LLMMessage[]; topK?: number }): Promise<ChatResult> {
+export async function ragChat(opts: { query: string; history?: LLMMessage[]; topK?: number; chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string } }): Promise<ChatResult> {
   return ragChatInternal(opts);
 }
 
 /** 准备 RAG 上下文 (检索 + 拼 prompt)。返回 sources 和给 LLM 的 messages, 可复用。 */
-export async function prepareRag(opts: { query: string; topK?: number }) {
+export async function prepareRag(opts: { query: string; topK?: number; chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string } }) {
   const q = opts.query.trim();
   const topK = opts.topK ?? 3;
   const searchResult = await semanticSearch({ query: q, limit: topK, level: "all" });
@@ -75,11 +75,15 @@ export async function prepareRag(opts: { query: string; topK?: number }) {
     });
     contextParts.push(`[${hit.courseTitle} / ${hit.chapterTitle}]\n${excerpt}`);
   }
+  let hintLine = "";
+  if (opts.chapterHint) {
+    hintLine = `\n当前用户正在阅读章节: 「${opts.chapterHint.chapterTitle}」, 优先回答与此章节相关的内容, 但也可以引用其他章节做对比。`;
+  }
   const systemPrompt = `你是 ML 学习站的 AI 助教。根据下面 [参考资料] 回答用户的问题。要求:
 1. 回答简洁, 用中文
 2. 必须基于参考资料, 不要编造内容
 3. 如果参考资料不足, 明确说"参考资料中没有提到", 并给出建议
-4. 末尾用 [1][2] 这样的标记引用来源
+4. 末尾用 [1][2] 这样的标记引用来源${hintLine}
 
 [参考资料]
 ${contextParts.join("\n\n")}
@@ -88,7 +92,7 @@ ${contextParts.join("\n\n")}
 }
 
 /** RAG 实现 (内部使用) */
-async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; topK?: number }): Promise<ChatResult> {
+async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; topK?: number; chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string } }): Promise<ChatResult> {
   const q = opts.query.trim();
   if (!q) {
     return {
@@ -100,7 +104,7 @@ async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; to
     };
   }
 
-  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3 });
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3, chapterHint: opts.chapterHint });
   const provider = getLLMProvider();
   const messages: LLMMessage[] = [{ role: "system", content: systemPrompt }];
   if (opts.history) messages.push(...opts.history);
@@ -119,7 +123,7 @@ async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; to
 
 /** 流式 RAG — yield 每个 token chunk + 最后 yield sources */
 export async function* ragChatStream(
-  opts: { query: string; history?: LLMMessage[]; topK?: number }
+  opts: { query: string; history?: LLMMessage[]; topK?: number; chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string } }
 ): AsyncGenerator<{ type: "sources" | "chunk" | "done"; data: any }, void, void> {
   const q = opts.query.trim();
   if (!q) {
@@ -127,7 +131,7 @@ export async function* ragChatStream(
     return;
   }
 
-  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3 });
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3, chapterHint: opts.chapterHint });
   // 先送出 sources (客户端可以马上渲染参考资料)
   yield { type: "sources", data: sources };
 

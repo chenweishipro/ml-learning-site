@@ -28,6 +28,7 @@ import { NotesPanel } from "@/components/notes/NotesPanel";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { JsonLd, ChapterJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { LearningPathSuggestion } from "@/components/learning-path/LearningPathSuggestion";
+import { ChapterAskBox } from "@/components/rag/ChapterAskBox";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -290,6 +291,13 @@ export default async function ChapterPage({ params }: Params) {
 
           {/* 推荐学习路径 (v19.4) */}
           <LearningPathSuggestion courseSlug={params.slug} />
+
+          {/* 问问 AI (v19.5) */}
+          <ChapterAskBox
+            courseSlug={params.slug}
+            chapterSlug={params.chapter}
+            chapterTitle={data.meta.title || params.chapter}
+          />
 
           {/* 评论区 */}
           <CommentSection

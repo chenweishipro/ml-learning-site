@@ -34,12 +34,36 @@ interface Session {
 }
 
 const SUGGESTIONS = [
-  "什么是过拟合?",
+  "什么是过拟合? 怎么避免?",
+  "机器学习和深度学习的区别是什么?",
+  "贝叶斯定理在 ML 里怎么用?",
   "梯度下降怎么工作的?",
   "反向传播的数学原理",
   "强化学习跟监督学习有什么区别?",
   "CNN 为什么适合图像?",
   "决策树怎么剪枝?",
+  "如何选择模型评估指标?",
+  "RNN 和 Transformer 的核心区别?",
+  "中心极限定理为什么重要?",
+  "如何用 Python 调通一个最小神经网络?",
+];
+
+const SUGGESTION_GROUPS = [
+  {
+    emoji: "💡",
+    label: "基础概念",
+    items: ["什么是过拟合? 怎么避免?", "机器学习和深度学习的区别是什么?", "贝叶斯定理在 ML 里怎么用?"],
+  },
+  {
+    emoji: "🧮",
+    label: "算法原理",
+    items: ["梯度下降怎么工作的?", "反向传播的数学原理", "决策树怎么剪枝?"],
+  },
+  {
+    emoji: "🚀",
+    label: "架构 / 实战",
+    items: ["CNN 为什么适合图像?", "RNN 和 Transformer 的核心区别?", "如何用 Python 调通一个最小神经网络?"],
+  },
 ];
 
 export default function ChatPage() {
@@ -282,18 +306,38 @@ export default function ChatPage() {
 
         <div className="h-[480px] overflow-y-auto px-4 py-4">
           {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <MessageCircle className="mb-3 h-10 w-10 text-neutral-300 dark:text-neutral-700" />
-              <p className="mb-4 text-sm text-neutral-500">试着问点什么:</p>
-              <div className="flex max-w-md flex-wrap justify-center gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => ask(s)}
-                    className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-xs text-neutral-700 transition hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:border-purple-700 dark:hover:bg-purple-950/30 dark:hover:text-purple-300"
+            <div className="flex h-full flex-col items-center justify-center px-4 py-8 text-center">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-purple-50 text-purple-600 ring-1 ring-purple-100 dark:bg-purple-950/30 dark:text-purple-400 dark:ring-purple-800/50">
+                <Sparkles className="h-6 w-6" />
+              </div>
+              <h3 className="mb-1 text-base font-semibold text-neutral-900 dark:text-neutral-50">
+                AI 智能问答 (v19.5)
+              </h3>
+              <p className="mb-5 text-xs text-neutral-500 dark:text-neutral-400">
+                基于全站 19 门课 68 章内容检索 + LLM 总结, 回答会引用具体出处
+              </p>
+              <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-3">
+                {SUGGESTION_GROUPS.map((g) => (
+                  <div
+                    key={g.label}
+                    className="rounded-xl border border-neutral-200 bg-white p-3 text-left dark:border-neutral-800 dark:bg-neutral-900"
                   >
-                    {s}
-                  </button>
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                      <span className="text-base">{g.emoji}</span>
+                      {g.label}
+                    </div>
+                    <div className="space-y-1.5">
+                      {g.items.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => ask(s)}
+                          className="block w-full rounded-md px-2 py-1 text-left text-xs text-neutral-700 transition hover:bg-purple-50 hover:text-purple-700 dark:text-neutral-300 dark:hover:bg-purple-950/30 dark:hover:text-purple-300"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -409,9 +453,114 @@ function MessageBubble({ m }: { m: Message }) {
                 </ul>
               </div>
             )}
+
+            {/* 反馈按钮 (v19.5) */}
+            {m.role === "assistant" && !m.pending && !m.error && (
+              <FeedbackButtons messageId={m.id} />
+            )}
           </>
         )}
       </div>
     </li>
+  );
+}
+
+/** 👍/👎 反馈按钮 (v19.5) */
+function FeedbackButtons({ messageId }: { messageId: string }) {
+  const [rating, setRating] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [showComment, setShowComment] = useState(false);
+  const [comment, setComment] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/rag/feedback/?messageId=${messageId}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!cancelled && j?.ok && j.feedback) {
+          setRating(j.feedback.rating);
+          setComment(j.feedback.comment || "");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [messageId]);
+
+  async function submit(r: number) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/rag/feedback/", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, rating: r, comment }),
+      });
+      const j = await res.json();
+      if (j.ok) {
+        setRating(r);
+        if (r === 1 && !comment) setShowComment(true);
+      }
+    } catch {
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (rating !== null) {
+    return (
+      <div className="mt-2 flex items-center gap-2 text-[10px] text-neutral-400">
+        <span>已反馈: {rating === 5 ? "👍 有用" : "👎 没帮助"}</span>
+        {comment && <span className="line-clamp-1 italic">"{comment}"</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => submit(5)}
+        disabled={busy}
+        title="这个回答有用"
+        className="rounded-md border border-neutral-200 bg-white px-1.5 py-0.5 text-xs text-neutral-500 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-emerald-700 dark:hover:bg-emerald-950/30"
+      >
+        👍 有用
+      </button>
+      <button
+        type="button"
+        onClick={() => submit(1)}
+        disabled={busy}
+        title="这个回答没帮助"
+        className="rounded-md border border-neutral-200 bg-white px-1.5 py-0.5 text-xs text-neutral-500 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-rose-700 dark:hover:bg-rose-950/30"
+      >
+        👎 没帮助
+      </button>
+      {showComment && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(1);
+          }}
+          className="ml-2 flex items-center gap-1"
+        >
+          <input
+            type="text"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="哪里不对? (可选)"
+            className="h-6 w-40 rounded border border-neutral-200 bg-white px-2 text-[10px] dark:border-neutral-700 dark:bg-neutral-900"
+          />
+          <button
+            type="submit"
+            className="h-6 rounded bg-rose-600 px-2 text-[10px] font-medium text-white hover:bg-rose-700"
+          >
+            提交
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
