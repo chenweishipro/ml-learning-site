@@ -27,6 +27,7 @@ import { ChapterToc } from "@/components/chapter-toc";
 import { NotesPanel } from "@/components/notes/NotesPanel";
 import { CommentSection } from "@/components/comments/CommentSection";
 import { JsonLd, ChapterJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
+import { LearningPathSuggestion } from "@/components/learning-path/LearningPathSuggestion";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -286,6 +287,9 @@ export default async function ChapterPage({ params }: Params) {
 
           {/* 学完这章, 你可能想看 — 关联章节推荐 */}
           <RelatedChaptersCard items={suggestRelated(params.slug, params.chapter, 3)} />
+
+          {/* 推荐学习路径 (v19.4) */}
+          <LearningPathSuggestion courseSlug={params.slug} />
 
           {/* 评论区 */}
           <CommentSection

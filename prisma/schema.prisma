@@ -63,6 +63,7 @@ model User {
   experiments Experiment[] @relation("ExperimentCreator")
   experimentEvents ExperimentEvent[]
   pushSubscriptions PushSubscription[]
+  learningPaths LearningPath[]
   codingSubs  CodingSubmission[]
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
@@ -688,4 +689,57 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// 学习路径推荐 (v19.4)
+model LearningPath {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 用户目标: "ml-engineer" | "data-analyst" | "researcher" | "general"
+  goal          String
+  // 标题
+  title         String
+  // 总体描述 (LLM 生成或模板)
+  description   String   @default("")
+  // 总预计时长 (小时)
+  totalHours    Float    @default(0)
+  // 状态: "active" | "completed" | "abandoned"
+  status        String   @default("active")
+  // 是否是当前 active 路径 (1 个用户最多 1 个 active)
+  isActive      Boolean  @default(true)
+  // 步骤 (有序, 通过 order 字段)
+  steps         LearningPathStep[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
+
+// 学习路径步骤 (每步是一个课程子集)
+model LearningPathStep {
+  id            String   @id @default(cuid())
+  pathId        String
+  path          LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  // 顺序 (0-based)
+  order         Int
+  // 课程 slug
+  courseSlug    String
+  // 课程标题 (快照, 课程重命名不影响)
+  courseTitle   String
+  // 要学的章节 slugs (JSON array; [] 表示整门课)
+  chapterSlugs  String   @default("[]")
+  // 推荐理由
+  reason        String   @default("")
+  // 预计耗时 (小时)
+  estHours      Float    @default(0)
+  // 完成状态
+  completed     Boolean  @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([pathId])
+  @@index([order])
 }

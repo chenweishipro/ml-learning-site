@@ -237,7 +237,24 @@ export default function MePage() {
           </Card>
 
           {/* 快捷入口 */}
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Link
+              href="/me/learning-path/"
+              className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-indigo-700"
+            >
+              <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400">
+                <Target className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium text-neutral-900 group-hover:text-indigo-700 dark:text-neutral-50 dark:group-hover:text-indigo-300">
+                  学习路径
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-xs text-neutral-600 dark:text-neutral-400">
+                  定制路线 · 智能裁剪已完成
+                </p>
+              </div>
+            </Link>
+
             <Link
               href="/me/analytics/"
               className="group flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-indigo-700"
