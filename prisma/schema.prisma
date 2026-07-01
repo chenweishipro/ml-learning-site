@@ -68,6 +68,7 @@ model User {
   chatSessions ChatSession[]
   chatMessages ChatMessage[]
   ragFeedbacks RagFeedback[]
+  weeklySchedules WeeklySchedule[]
   comments     Comment[]
   commentLikes CommentLike[]
   notes        Note[]
@@ -762,4 +763,64 @@ model RagFeedback {
 
   @@index([userId])
   @@index([rating])
+}
+
+// 学习日历周计划 (v19.6)
+model WeeklySchedule {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // 关联的 LearningPath (可空)
+  pathId          String?
+  // 周开始日期 (周一 00:00 UTC)
+  weekStart       DateTime
+  // 总周数 (默认 8 周)
+  totalWeeks      Int          @default(8)
+  // 每周学习天数 (默认 5)
+  daysPerWeek     Int          @default(5)
+  // 每天学习章节数 (默认 2)
+  chaptersPerDay  Int          @default(2)
+  // 状态: "active" | "completed" | "abandoned"
+  status          String       @default("active")
+  isActive        Boolean      @default(true)
+  // 标题 (默认或自定义)
+  title           String       @default("学习周历")
+  // 任务
+  tasks           WeeklyTask[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  completedAt     DateTime?
+
+  @@index([userId])
+  @@index([weekStart])
+  @@index([status])
+}
+
+// 周计划每日任务 (v19.6)
+model WeeklyTask {
+  id            String   @id @default(cuid())
+  scheduleId    String
+  schedule      WeeklySchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  // 第几周 (0-based)
+  weekIndex     Int
+  // 周几 (0=周一 ... 6=周日)
+  dayOfWeek     Int
+  // 学习日期
+  studyDate     DateTime
+  // 课程 slug
+  courseSlug    String
+  courseTitle   String
+  // 章节 slug
+  chapterSlug   String
+  chapterTitle  String
+  // 预估时长 (小时)
+  estHours      Float    @default(1)
+  // 完成状态
+  completed     Boolean  @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([scheduleId])
+  @@index([studyDate])
+  @@index([completed])
 }
