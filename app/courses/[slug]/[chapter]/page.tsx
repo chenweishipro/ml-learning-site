@@ -29,6 +29,7 @@ import { CommentSection } from "@/components/comments/CommentSection";
 import { JsonLd, ChapterJsonLd, BreadcrumbJsonLd } from "@/components/seo/JsonLd";
 import { LearningPathSuggestion } from "@/components/learning-path/LearningPathSuggestion";
 import { ChapterAskBox } from "@/components/rag/ChapterAskBox";
+import { AskOnSelect } from "@/components/ai-inline/AskOnSelect";
 
 interface Params {
   params: { slug: string; chapter: string };
@@ -222,6 +223,16 @@ export default async function ChapterPage({ params }: Params) {
             initial={aiSummary}
           />
           <MDXContent source={data.content} />
+
+          {/* 选中文字问 AI (v19.7) — 浮在文章上, 不打断阅读 */}
+          <AskOnSelect
+            scopeSelector="article"
+            chapterHint={{
+              courseSlug: params.slug,
+              chapterSlug: params.chapter,
+              chapterTitle: data.meta.title || params.chapter,
+            }}
+          />
 
           {/* 章末小测验 (静态题库优先, 无则 AI 生成) */}
           {quizQuestions.length > 0 && (
