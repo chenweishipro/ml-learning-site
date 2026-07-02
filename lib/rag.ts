@@ -57,7 +57,7 @@ export async function ragChat(opts: { query: string; history?: LLMMessage[]; top
 /** 准备 RAG 上下文 (检索 + 拼 prompt)。返回 sources 和给 LLM 的 messages, 可复用。 */
 export async function prepareRag(opts: { query: string; topK?: number; chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string } }) {
   const q = opts.query.trim();
-  const topK = opts.topK ?? 3;
+  const topK = opts.topK ?? 5;
   const searchResult = await semanticSearch({ query: q, limit: topK, level: "all" });
   const sources: ChatSource[] = [];
   const contextParts: string[] = [];
@@ -104,7 +104,7 @@ async function ragChatInternal(opts: { query: string; history?: LLMMessage[]; to
     };
   }
 
-  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3, chapterHint: opts.chapterHint });
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 5, chapterHint: opts.chapterHint });
   const provider = getLLMProvider();
   const messages: LLMMessage[] = [{ role: "system", content: systemPrompt }];
   if (opts.history) messages.push(...opts.history);
@@ -131,7 +131,7 @@ export async function* ragChatStream(
     return;
   }
 
-  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 3, chapterHint: opts.chapterHint });
+  const { sources, systemPrompt } = await prepareRag({ query: q, topK: opts.topK ?? 5, chapterHint: opts.chapterHint });
   // 先送出 sources (客户端可以马上渲染参考资料)
   yield { type: "sources", data: sources };
 

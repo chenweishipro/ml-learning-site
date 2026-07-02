@@ -16,7 +16,7 @@ interface IndexedChapter {
   vector: number[];
 }
 
-const CACHE_TTL = 30 * 60 * 1000;
+const CACHE_TTL = 60 * 1000;
 let cache: { at: number; providerName: string; entries: IndexedChapter[] } | null = null;
 
 async function buildIndex(provider: EmbeddingProvider): Promise<IndexedChapter[]> {
@@ -42,8 +42,10 @@ async function buildIndex(provider: EmbeddingProvider): Promise<IndexedChapter[]
         .slice(0, 2000); // 限长, 避免 embed 太大
       const title = ch.title ?? "";
       const desc = ch.description ?? "";
-      // 标题 + 描述 + 正文首段 (加权重: 标题提到多次)
-      const toEmbed = `${title} ${title} ${desc} ${text}`;
+      // 标题 + 描述 + 正文首段 (标题重复 5 次, 描述重复 2 次, 让标题在 hash 空间里占更多 density)
+      const titleBoost = `${title} `.repeat(5).trim();
+      const descBoost = `${desc} `.repeat(2).trim();
+      const toEmbed = `${titleBoost} ${descBoost} ${text}`;
       const vector = await provider.embed(toEmbed);
       entries.push({
         courseSlug: c.slug,
@@ -118,14 +120,29 @@ export async function semanticSearch(opts: { query: string; limit?: number; leve
 
   const scored = entries.map((e) => {
     const sim = cosine(qvec, e.vector);
-    return { entry: e, sim };
+    // v19.8.3 keyword boost: 如果 query 中途的核心词出现在 chapter title 或描述里, 加 0.5 (emu back)
+    // 这是在 mock-tfidf embedding 召回不够时的兑底机制
+    const queryWords = q.split(/\s+/).filter((w) => w.length >= 2);
+    let keywordBoost = 0;
+    for (const w of queryWords) {
+      // 双向匹配: query 词在 title, 或 query 词 同时出现在 title 里的子串
+      if (e.chapterTitle.includes(w)) keywordBoost = Math.max(keywordBoost, 0.5);
+      else if (e.description && e.description.includes(w)) keywordBoost = Math.max(keywordBoost, 0.2);
+    }
+    // 扩展: query 中途的多字词 (>=3) 子串在 title 里出现 (正面 boost)
+    for (const w of queryWords) {
+      if (w.length >= 3 && e.chapterTitle.includes(w.substring(0, Math.max(2, w.length - 1)))) {
+        keywordBoost = Math.max(keywordBoost, 0.3);
+      }
+    }
+    return { entry: e, score: sim + keywordBoost };
   });
   // 过滤
   let filtered = scored;
   if (opts.level && opts.level !== "all") {
     filtered = filtered.filter((s) => s.entry.level === opts.level);
   }
-  filtered.sort((a, b) => b.sim - a.sim);
+  filtered.sort((a, b) => b.score - a.score);
   const result = filtered.slice(0, opts.limit ?? 20);
 
   const hits: SemanticHit[] = result.map((s) => ({
@@ -135,7 +152,7 @@ export async function semanticSearch(opts: { query: string; limit?: number; leve
     chapterTitle: s.entry.chapterTitle,
     level: s.entry.level,
     duration: s.entry.duration,
-    score: s.sim,
+    score: s.score,
     snippet: makeSnippet(s.entry.body, q),
   }));
 
