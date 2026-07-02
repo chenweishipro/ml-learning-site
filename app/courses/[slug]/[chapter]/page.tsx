@@ -10,6 +10,7 @@ import {
 import { getChapterNeighbors } from "@/lib/content";
 import { suggestRelated } from "@/lib/recommend";
 import { RelatedChaptersCard } from "@/components/RelatedChaptersCard";
+import { ContinueLearningCta } from "./_components/ContinueLearningCta";
 import { AISummaryCard } from "@/components/AISummaryCard";
 import { getAISummary } from "@/lib/ai-summary";
 import { getQuiz, getOrGenerateQuiz } from "@/lib/quizzes";
@@ -296,6 +297,15 @@ export default async function ChapterPage({ params }: Params) {
               </Link>
             )}
           </nav>
+
+          {/* v20.5: 标记完成 + 跳下一章 */}
+          <ContinueLearningCta
+            courseSlug={params.slug}
+            chapterSlug={params.chapter}
+            nextHref={next ? `/courses/${course.slug}/${next.slug}/` : undefined}
+            nextTitle={next?.title}
+            isLastChapter={!next}
+          />
 
           {/* 学完这章, 你可能想看 — 关联章节推荐 */}
           <RelatedChaptersCard items={suggestRelated(params.slug, params.chapter, 3)} />

@@ -42,6 +42,8 @@ export async function POST(req: Request) {
       displayName: user.displayName,
       role: user.role,
       createdAt: user.createdAt,
+      onboardingStep: user.onboardingStep,
+      onboardingDoneAt: user.onboardingDoneAt,
     },
     role: user.role,
     isAdmin: isAdmin(user.role),

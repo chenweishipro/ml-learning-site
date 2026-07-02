@@ -3,6 +3,7 @@ import { Features } from "@/components/home/Features";
 import { CoursePreviewServer } from "@/components/home/CoursePreviewServer";
 import { Stats } from "@/components/home/Stats";
 import { CTA } from "@/components/home/CTA";
+import { TodayStudyBanner } from "@/components/home/TodayStudyBanner";
 import { JsonLd, FaqJsonLd } from "@/components/seo/JsonLd";
 
 export default function HomePage() {
@@ -30,6 +31,7 @@ export default function HomePage() {
       {/* 首页 FAQ 结构化数据 */}
       <JsonLd data={FaqJsonLd({ faqs })} />
       <Hero />
+      <TodayStudyBanner />
       <Features />
       <CoursePreviewServer />
       <Stats />

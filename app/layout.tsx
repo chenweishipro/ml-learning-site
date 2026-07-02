@@ -16,6 +16,7 @@ import { getAllCourses } from "@/lib/content";
 import { JsonLd, WebSiteJsonLd, SoftwareAppJsonLd } from "@/components/seo/JsonLd";
 import { WebVitals } from "@/components/perf/WebVitals";
 import { PushPrompt } from "@/components/pwa/PushPrompt";
+import { OnboardingMount } from "@/components/onboarding/OnboardingMount";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://珍惜时间.website"),
@@ -136,6 +137,7 @@ export default function RootLayout({
               <AuthModal />
             </ProgressProvider>
             <PushPrompt />
+            <OnboardingMount />
           </AuthProvider>
         </ThemeProvider>
         </I18nProvider>

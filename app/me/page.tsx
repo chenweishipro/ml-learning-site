@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { NextStepsCard } from "@/components/NextStepsCard";
 import { YearHeatmap } from "@/components/YearHeatmap";
 import type { Recommendation } from "@/lib/recommend";
+import { TodayTodoCard } from "./_components/TodayTodoCard";
 
 interface CourseProgress {
   slug: string;
@@ -235,6 +236,9 @@ export default function MePage() {
               <span className="ml-3">近 30 天 · 共 {summary.totalStudyMinutes} 分钟</span>
             </div>
           </Card>
+
+          {/* v20.3: 今日学习大卡片 (前置) */}
+          <TodayTodoCard />
 
           {/* 快捷入口 */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

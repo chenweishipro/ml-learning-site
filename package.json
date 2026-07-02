@@ -27,6 +27,7 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.42.2",
     "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "hast": "^0.0.2",

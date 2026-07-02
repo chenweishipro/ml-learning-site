@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
     data: { email, passwordHash, displayName },
-    select: { id: true, email: true, displayName: true, role: true, createdAt: true },
+    select: { id: true, email: true, displayName: true, role: true, createdAt: true, onboardingStep: true, onboardingDoneAt: true },
   });
 
   // 兑换邀请码 (双方都得徽章)

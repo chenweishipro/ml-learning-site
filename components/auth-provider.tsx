@@ -10,6 +10,9 @@ export interface AuthUser {
   displayName: string | null;
   role: Role;
   createdAt: string;
+  // v20.1: Onboarding 引导进度 (0 = 未开始, 5 = 完成)
+  onboardingStep: number;
+  onboardingDoneAt: string | null;
 }
 
 interface AuthContextValue {

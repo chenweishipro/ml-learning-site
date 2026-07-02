@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bot, Loader2, MessageCircle, Plus, Send, Sparkles, Trash2, User as UserIcon, MessageSquarePlus } from "lucide-react";
+import { FallbackCard } from "./_components/FallbackCard";
 import { cn } from "@/lib/utils";
 
 interface Source {
@@ -481,6 +482,11 @@ function MessageBubble({ m }: { m: Message }) {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {/* v20.4: 召回失败兜底卡片 */}
+            {!m.pending && !m.error && m.sources && m.sources.length > 0 && m.sources.every(s => s.score < 0.3) && (
+              <FallbackCard query={m.content} />
             )}
 
             {/* 反馈按钮 (v19.5) */}
