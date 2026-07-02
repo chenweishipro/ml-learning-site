@@ -72,7 +72,26 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // v19.8.4: 动态获取 LLM provider, 提示文案根据实际状态变化
+  const [llmProvider, setLlmProvider] = useState<string>("loading");
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/health/");
+        if (r.ok) {
+          const j = await r.json();
+          // j.data.checks.llm.ok = true 表示 LLM 已配置
+          setLlmProvider(j?.data?.checks?.llm?.ok ? "ready" : "mock");
+        } else {
+          setLlmProvider("unknown");
+        }
+      } catch {
+        setLlmProvider("unknown");
+      }
+    })();
+  }, []);
 
   // 加载 session 列表
   useEffect(() => {
@@ -384,7 +403,17 @@ export default function ChatPage() {
       </div>
 
       <p className="mt-3 text-center text-[11px] text-neutral-500">
-        💡 默认本地 mock 模式 (无 API key 也能用)。配置 <code className="rounded bg-neutral-100 px-1 py-0.5 dark:bg-neutral-800">LLM_PROVIDER=openai OPENAI_API_KEY=sk-xxx</code> 启用真实 LLM
+        {llmProvider === "ready" ? (
+          <span className="inline-flex items-center gap-1">
+            ✨ 真实 LLM 已启用 (DeepSeek / OpenAI 兼容)
+          </span>
+        ) : llmProvider === "loading" ? (
+          <span>检查 LLM 状态中...</span>
+        ) : (
+          <span>
+            💡 默认本地 mock 模式 (无 API key 也能用)。配置 <code className="rounded bg-neutral-100 px-1 py-0.5 dark:bg-neutral-800">LLM_PROVIDER=openai OPENAI_API_KEY=sk-xxx</code> 启用真实 LLM
+          </span>
+        )}
       </p>
     </div>
   );
