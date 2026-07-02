@@ -27,7 +27,7 @@ export async function GET(req: Request) {
     const list = await getAllSchedules(user.id);
     return NextResponse.json({
       ok: true,
-      schedules: list.map((s) => ({
+      schedules: list.map((s: any) => ({
         id: s.id,
         title: s.title,
         weekStart: s.weekStart.toISOString(),
