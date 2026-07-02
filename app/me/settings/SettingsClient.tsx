@@ -55,7 +55,7 @@ export function SettingsClient({ initial }: { initial: Sub }) {
 
   return (
     <div className="container max-w-2xl py-10">
-      <Link href="/me" className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-primary-700 dark:text-neutral-400">
+      <Link href="/me/" className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-primary-700 dark:text-neutral-400">
         <ArrowLeft className="h-3.5 w-3.5" /> 回到个人中心
       </Link>
       <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">账号设置</h1>

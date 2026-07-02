@@ -27,7 +27,7 @@ export function ChapterSidebar({
   return (
     <div className="rounded-lg border border-neutral-200 bg-white dark:bg-neutral-900 p-5 shadow-soft dark:border-neutral-800 dark:bg-neutral-900">
       <Link
-        href={`/courses/${courseSlug}`}
+        href={`/courses/${courseSlug}/`}
         className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-primary-700 dark:text-neutral-400 dark:hover:text-primary-300"
       >
         <ListTree className="h-3.5 w-3.5" />
@@ -56,7 +56,7 @@ export function ChapterSidebar({
           return (
             <li key={chapter.slug}>
               <Link
-                href={`/courses/${courseSlug}/${chapter.slug}`}
+                href={`/courses/${courseSlug}/${chapter.slug}/`}
                 className={cn(
                   "group flex items-start gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
                   active

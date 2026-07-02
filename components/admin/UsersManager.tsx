@@ -148,7 +148,7 @@ export function UsersManager() {
             用户管理仅对超级管理员开放。当前账号 <code>{currentUser?.email}</code> 权限不足。
           </p>
           <Link
-            href="/admin"
+            href="/admin/"
             className="mt-5 inline-block rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
           >
             返回管理首页
@@ -284,7 +284,7 @@ export function UsersManager() {
       {/* 面包屑 */}
       <div className="mb-4 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
         <Link
-          href="/admin"
+          href="/admin/"
           className="inline-flex items-center gap-1 hover:text-primary-700 dark:hover:text-primary-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

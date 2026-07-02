@@ -27,7 +27,7 @@ export function CoursePreview({ courses }: { courses: CourseMeta[] }) {
             </p>
           </div>
           <Link
-            href="/courses"
+            href="/courses/"
             className="group inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:text-primary-800 dark:text-primary-300 dark:hover:text-primary-200"
           >
             查看全部课程
@@ -47,7 +47,7 @@ export function CoursePreview({ courses }: { courses: CourseMeta[] }) {
 
 function CourseCard({ course }: { course: CourseMeta }) {
   return (
-    <Link href={`/courses/${course.slug}`} className="group block">
+    <Link href={`/courses/${course.slug}/`} className="group block">
       <Card hoverable className="flex h-full flex-col p-6">
         <div className="flex items-center justify-between">
           <span
@@ -116,7 +116,7 @@ function CoursePreviewEmpty() {
               <Badge>响应式</Badge>
             </div>
             <Link
-              href="/courses"
+              href="/courses/"
               className="group mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary-700 hover:text-primary-800"
             >
               前往课程页

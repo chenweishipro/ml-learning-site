@@ -139,7 +139,7 @@ export function CourseExplorer({ courses, tags }: CourseExplorerProps) {
 
 function CourseGridCard({ course }: { course: CourseMeta }) {
   return (
-    <Link href={`/courses/${course.slug}`} className="group block">
+    <Link href={`/courses/${course.slug}/`} className="group block">
       <Card hoverable className="flex h-full flex-col p-6">
         <div className="flex items-center justify-between">
           <span

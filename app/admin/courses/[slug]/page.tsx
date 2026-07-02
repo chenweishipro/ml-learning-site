@@ -181,7 +181,7 @@ export default function CourseEditPage({ params }: { params: { slug: string } })
   return (
     <div className="container py-10 sm:py-12">
       <div className="mb-6 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-        <Link href="/admin" className="hover:text-primary-700 dark:hover:text-primary-300">
+        <Link href="/admin/" className="hover:text-primary-700 dark:hover:text-primary-300">
           管理后台
         </Link>
         <span aria-hidden>/</span>

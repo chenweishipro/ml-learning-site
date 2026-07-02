@@ -89,7 +89,7 @@ export function PracticeClient() {
         </div>
       ) : (
         <div className="mb-6 rounded-xl border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900">
-          <Link href="/login" className="text-primary-700 hover:underline">登录</Link> 后查看你的练习统计
+          <Link href="/login/" className="text-primary-700 hover:underline">登录</Link> 后查看你的练习统计
         </div>
       )}
 

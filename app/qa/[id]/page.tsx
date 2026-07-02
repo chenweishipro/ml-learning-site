@@ -311,7 +311,7 @@ export default function QuestionDetailPage({ params }: { params: { id: string } 
         </form>
       ) : (
         <div className="rounded-md border border-dashed border-neutral-300 p-4 text-center text-sm text-neutral-500 dark:border-neutral-700">
-          <Link href="/login" className="text-primary-700 hover:underline">登录</Link> 后回答
+          <Link href="/login/" className="text-primary-700 hover:underline">登录</Link> 后回答
         </div>
       )}
     </div>

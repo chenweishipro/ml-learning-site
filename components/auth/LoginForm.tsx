@@ -59,7 +59,7 @@ export function LoginForm() {
       </label>
       {error && <div className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">{error}</div>}
       <div className="flex items-center justify-between text-xs">
-        <Link href="/reset-password" className="text-neutral-500 hover:underline">忘记密码</Link>
+        <Link href="/reset-password/" className="text-neutral-500 hover:underline">忘记密码</Link>
       </div>
       <button type="submit" disabled={loading} className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary-600 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogIn className="h-3.5 w-3.5" />}

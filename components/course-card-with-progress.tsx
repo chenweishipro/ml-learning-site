@@ -16,7 +16,7 @@ export function CourseCardWithProgress({ course }: { course: CourseMeta }) {
   const isComplete = percent === 100;
 
   return (
-    <Link href={`/courses/${course.slug}`} className="group block">
+    <Link href={`/courses/${course.slug}/`} className="group block">
       <Card hoverable className="flex h-full flex-col p-6">
         <div className="flex items-center justify-between">
           <span

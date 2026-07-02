@@ -14,11 +14,11 @@ function useNavItems(): NavItem[] {
   const { t } = useI18n();
   return [
     { label: t("nav.home"), href: "/" },
-    { label: t("nav.courses"), href: "/courses" },
-    { label: t("nav.qa"), href: "/qa" },
-    { label: t("nav.ai"), href: "/chat" },
-    { label: t("nav.about"), href: "/about" },
-    { label: "🧠 知识图谱", href: "/knowledge-graph" },
+    { label: t("nav.courses"), href: "/courses/" },
+    { label: t("nav.qa"), href: "/qa/" },
+    { label: t("nav.ai"), href: "/chat/" },
+    { label: t("nav.about"), href: "/about/" },
+    { label: "🧠 知识图谱", href: "/knowledge-graph/" },
   ];
 }
 

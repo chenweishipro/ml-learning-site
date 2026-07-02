@@ -290,7 +290,7 @@ export function CommentSection({ scope, courseSlug, chapterSlug, title = "讨论
         </form>
       ) : ready ? (
         <div className="mb-5 rounded-md border border-dashed border-neutral-300 p-3 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
-          <Link href="/login" className="text-primary-700 hover:underline">
+          <Link href="/login/" className="text-primary-700 hover:underline">
             登录
           </Link>{" "}
           后参与讨论

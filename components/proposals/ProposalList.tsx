@@ -174,7 +174,7 @@ export function ProposalList({ mode }: ProposalListProps) {
         {mode === "admin" ? (
           <>
             <Link
-              href="/admin"
+              href="/admin/"
               className="inline-flex items-center gap-1 hover:text-primary-700 dark:hover:text-primary-300"
             >
               <ArrowLeft className="h-3.5 w-3.5" />

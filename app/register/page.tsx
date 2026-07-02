@@ -19,7 +19,7 @@ export default function RegisterPage() {
       </Suspense>
       <p className="mt-6 text-center text-sm text-neutral-600 dark:text-neutral-400">
         已有账号?{" "}
-        <Link href="/login" className="text-primary-700 hover:underline dark:text-primary-300">
+        <Link href="/login/" className="text-primary-700 hover:underline dark:text-primary-300">
           登录
         </Link>
       </p>

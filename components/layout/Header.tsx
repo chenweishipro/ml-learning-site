@@ -35,13 +35,13 @@ export function Header() {
 
         <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/search"
+            href="/search/"
             className="rounded-md border border-neutral-200 bg-white dark:bg-neutral-900/60 px-3 py-1.5 text-sm text-neutral-600 transition hover:border-primary-300 hover:text-primary-600 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400 dark:hover:border-primary-700 dark:hover:text-primary-300"
           >
             🔍 搜索
           </Link>
           <Link
-            href="/chat"
+            href="/chat/"
             className="rounded-md border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm text-purple-700 transition hover:border-purple-300 hover:bg-purple-100 dark:border-purple-800/50 dark:bg-purple-950/30 dark:text-purple-300 dark:hover:bg-purple-950/50"
           >
             🤖 问 AI
@@ -51,7 +51,7 @@ export function Header() {
           <NotificationCenter mode="bell" />
           {isAdmin && (
             <Link
-              href="/admin"
+              href="/admin/"
               className="rounded-md border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
             >
               🛠 管理
@@ -68,7 +68,7 @@ export function Header() {
                 登录
               </button>
               <Link
-                href="/courses"
+                href="/courses/"
                 className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
               >
                 开始学习
@@ -100,7 +100,7 @@ export function Header() {
             <Nav vertical onNavigate={() => setOpen(false)} />
             <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
               <Link
-                href="/search"
+                href="/search/"
                 onClick={() => setOpen(false)}
                 className="block w-full rounded-md border border-neutral-200 bg-white px-4 py-2.5 text-center text-sm font-medium text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
               >
@@ -131,7 +131,7 @@ export function Header() {
                 </div>
               )}
               <Link
-                href="/courses"
+                href="/courses/"
                 onClick={() => setOpen(false)}
                 className="block w-full rounded-md bg-primary-600 px-4 py-2.5 text-center text-sm font-medium text-white hover:bg-primary-700"
               >
@@ -154,7 +154,7 @@ function MobileUserBlock({ onClose }: { onClose: () => void }) {
         已登录为 <strong>{user.displayName ?? user.email}</strong>
         {isAdmin && (
           <Link
-            href="/admin"
+            href="/admin/"
             onClick={onClose}
             className="mt-2 block w-full rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-center text-xs font-medium text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
           >

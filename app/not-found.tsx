@@ -28,7 +28,7 @@ export default async function NotFound() {
             回到首页
           </Link>
           <Link
-            href="/search"
+            href="/search/"
             className="inline-flex h-11 items-center gap-2 rounded-md bg-white px-5 text-sm font-medium text-neutral-800 ring-1 ring-neutral-200 transition hover:bg-neutral-50 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-800"
           >
             <Search className="h-4 w-4" />

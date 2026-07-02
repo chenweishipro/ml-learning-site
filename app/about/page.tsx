@@ -91,7 +91,7 @@ export default function AboutPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <Link
-                href="/courses"
+                href="/courses/"
                 className="group inline-flex h-11 items-center gap-2 rounded-md bg-primary-600 px-5 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
               >
                 浏览课程

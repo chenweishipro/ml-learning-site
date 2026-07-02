@@ -25,14 +25,14 @@ export function CTA() {
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/courses"
+              href="/courses/"
               className="group inline-flex h-12 items-center gap-2 rounded-md bg-primary-600 px-6 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
             >
               {t("home.ctaPrimary")}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
             <Link
-              href="/about"
+              href="/about/"
               className="inline-flex h-12 items-center gap-2 rounded-md bg-white dark:bg-neutral-900/80 px-6 text-sm font-medium text-neutral-800 ring-1 ring-neutral-200 backdrop-blur transition hover:bg-white dark:bg-neutral-900 dark:bg-neutral-900"
             >
               {t("home.ctaSecondary")}

@@ -17,7 +17,7 @@ export function NextStepsCard({ recs }: { recs: Recommendation[] }) {
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">下一步学什么</h2>
         </div>
         <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-400">
-          还没有推荐 — 浏览 <Link href="/courses" className="text-primary-700 hover:underline">课程目录</Link> 选一门课开始。
+          还没有推荐 — 浏览 <Link href="/courses/" className="text-primary-700 hover:underline">课程目录</Link> 选一门课开始。
         </p>
       </div>
     );

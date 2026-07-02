@@ -17,7 +17,7 @@ export default async function AdminAnalyticsPage() {
     return (
       <div className="container py-12 text-center">
         <p className="text-neutral-600 dark:text-neutral-400">需要管理员权限。</p>
-        <Link href="/admin" className="mt-4 inline-block text-primary-700 hover:underline">返回</Link>
+        <Link href="/admin/" className="mt-4 inline-block text-primary-700 hover:underline">返回</Link>
       </div>
     );
   }

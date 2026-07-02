@@ -131,12 +131,12 @@ export default async function ChapterPage({ params }: Params) {
       />
       {/* 面包屑 */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-        <Link href="/courses" className="hover:text-primary-700 dark:text-primary-300">
+        <Link href="/courses/" className="hover:text-primary-700 dark:text-primary-300">
           课程
         </Link>
         <span aria-hidden>/</span>
         <Link
-          href={`/courses/${course.slug}`}
+          href={`/courses/${course.slug}/`}
           className="hover:text-primary-700 dark:text-primary-300 line-clamp-1"
         >
           {course.title}
@@ -248,7 +248,7 @@ export default async function ChapterPage({ params }: Params) {
           <nav className="mt-12 grid gap-3 border-t border-neutral-200 pt-8 sm:grid-cols-2 dark:border-neutral-800">
             {prev ? (
               <Link
-                href={`/courses/${course.slug}/${prev.slug}`}
+                href={`/courses/${course.slug}/${prev.slug}/`}
                 className="group flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-primary-700"
               >
                 <ArrowLeft className="mt-0.5 h-4 w-4 flex-shrink-0 text-neutral-400 transition group-hover:-translate-x-0.5 group-hover:text-primary-600" />
@@ -266,7 +266,7 @@ export default async function ChapterPage({ params }: Params) {
             )}
             {next ? (
               <Link
-                href={`/courses/${course.slug}/${next.slug}`}
+                href={`/courses/${course.slug}/${next.slug}/`}
                 className="group flex items-start gap-3 rounded-lg border border-neutral-200 bg-white p-4 text-right transition hover:border-primary-300 hover:shadow-soft dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-primary-700"
               >
                 <div className="min-w-0 flex-1">
@@ -281,7 +281,7 @@ export default async function ChapterPage({ params }: Params) {
               </Link>
             ) : (
               <Link
-                href={`/courses/${course.slug}`}
+                href={`/courses/${course.slug}/`}
                 className="group flex items-start gap-3 rounded-lg border border-primary-200 bg-primary-50/60 p-4 text-right transition hover:border-primary-300 hover:bg-primary-50 dark:border-primary-800/50 dark:bg-primary-950/30 dark:hover:border-primary-700 dark:hover:bg-primary-950/50"
               >
                 <div className="min-w-0 flex-1">

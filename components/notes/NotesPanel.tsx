@@ -259,7 +259,7 @@ export function NotesPanel({
           我的笔记
         </h3>
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          <a href="/login" className="text-primary-700 hover:underline">登录</a> 后可在本章添加笔记。
+          <a href="/login/" className="text-primary-700 hover:underline">登录</a> 后可在本章添加笔记。
         </p>
       </div>
     );

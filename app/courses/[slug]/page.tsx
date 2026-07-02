@@ -66,7 +66,7 @@ export default async function CourseDetailPage({ params }: Params) {
 
         <div className="container py-14 sm:py-20">
           <div className="mb-6 flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-            <Link href="/courses" className="hover:text-primary-700 dark:text-primary-300">
+            <Link href="/courses/" className="hover:text-primary-700 dark:text-primary-300">
               课程目录
             </Link>
             <span aria-hidden>/</span>
@@ -122,7 +122,7 @@ export default async function CourseDetailPage({ params }: Params) {
               {firstChapter && (
                 <div className="mt-8 flex flex-wrap items-center gap-3">
                   <Link
-                    href={`/courses/${course.slug}/${firstChapter.slug}`}
+                    href={`/courses/${course.slug}/${firstChapter.slug}/`}
                     className="group inline-flex h-11 items-center gap-2 rounded-md bg-primary-600 px-5 text-sm font-medium text-white shadow-soft transition hover:bg-primary-700"
                   >
                     开始学习 · {firstChapter.title}
@@ -175,7 +175,7 @@ export default async function CourseDetailPage({ params }: Params) {
             {course.chapters.map((chapter, idx) => (
               <li key={chapter.slug}>
                 <Link
-                  href={`/courses/${course.slug}/${chapter.slug}`}
+                  href={`/courses/${course.slug}/${chapter.slug}/`}
                   className="group block"
                 >
                   <Card hoverable className="flex items-start gap-4 p-5 sm:p-6">

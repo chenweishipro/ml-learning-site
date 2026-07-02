@@ -73,7 +73,7 @@ export default function AdminHome() {
         </div>
         {isSuperAdmin && (
           <Link
-            href="/admin/users"
+            href="/admin/users/"
             className="inline-flex items-center gap-1.5 rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 dark:border-rose-800/50 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-950/50"
           >
             <Users className="h-4 w-4" />
@@ -84,13 +84,13 @@ export default function AdminHome() {
           </Link>
         )}
         <Link
-          href="/admin/analytics" className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-800/50 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
+          href="/admin/analytics/" className="inline-flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-700 transition hover:border-cyan-300 hover:bg-cyan-100 dark:border-cyan-800/50 dark:bg-cyan-950/30 dark:text-cyan-300 dark:hover:bg-cyan-950/50"
         >
           <BarChart3 className="h-4 w-4" />
           学习看板
         </Link>
         <Link
-          href="/admin/quality"
+          href="/admin/quality/"
           className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50"
         >
           <Award className="h-4 w-4" />

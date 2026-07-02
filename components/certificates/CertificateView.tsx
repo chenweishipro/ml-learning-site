@@ -222,7 +222,7 @@ export function CertificateView({ serialNo }: { serialNo: string }) {
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-300">
           {error ?? "证书不存在"}
         </div>
-        <Link href="/me" className="mt-4 inline-block text-sm text-primary-700 hover:underline">
+        <Link href="/me/" className="mt-4 inline-block text-sm text-primary-700 hover:underline">
           ← 返回个人中心
         </Link>
       </div>
@@ -240,7 +240,7 @@ export function CertificateView({ serialNo }: { serialNo: string }) {
     <div className="container py-10">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link
-          href="/me"
+          href="/me/"
           className="inline-flex items-center gap-1 text-sm text-neutral-600 hover:text-primary-700 dark:text-neutral-400 dark:hover:text-primary-300"
         >
           <ArrowLeft className="h-3.5 w-3.5" />

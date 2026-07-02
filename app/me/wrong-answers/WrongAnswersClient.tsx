@@ -110,7 +110,7 @@ export function WrongAnswersClient({ items: initial }: { items: WrongItem[] }) {
         <BookOpen className="mx-auto h-12 w-12 text-neutral-300 dark:text-neutral-700" />
         <h3 className="mt-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">错题本是空的</h3>
         <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-          去做 <Link href="/courses" className="text-primary-700 hover:underline">章节测验</Link>, 答错的题会自动收集在这里。
+          去做 <Link href="/courses/" className="text-primary-700 hover:underline">章节测验</Link>, 答错的题会自动收集在这里。
         </p>
       </div>
     );
