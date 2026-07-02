@@ -65,7 +65,7 @@ export function ChapterAskBox({ courseSlug, chapterSlug, chapterTitle }: Props) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           query: q,
-          topK: 3,
+          topK: 5,
           chapterHint: { courseSlug, chapterSlug, chapterTitle },
         }),
         signal: ctrl.signal,

@@ -149,7 +149,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, query: q, topK: 3, stream: true }),
+        body: JSON.stringify({ sessionId, query: q, topK: 5, stream: true }),
       });
       if (!res.ok || !res.body) {
         throw new Error(`HTTP ${res.status}`);

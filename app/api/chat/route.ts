@@ -40,10 +40,11 @@ export async function POST(req: Request) {
     return fail("query is required", 400);
   }
 
-  // 未登录: 强制 mock 模式 (不持久化 session)
-  // 避免滥用真实 LLM 配额
+  // 未登录: 也走真实 LLM (用户自家 DeepSeek API key, 不要强制 mock)
+  // 但不持久化 session (匿名场景下 session 本身没有 owner)
+  // v19.8.3: 原逻辑是 "避免滥用真实 LLM 配额", 现 DeepSeek key 是用户购买, 默认让匿名访问也能用真 LLM
   if (!user) {
-    return await ragAnonymousStream(body.query, body.topK ?? 3, body.chapterHint);
+    return await ragAnonymousStream(body.query, body.topK ?? 5, body.chapterHint);
   }
 
   // 拿/建 session
@@ -153,15 +154,10 @@ export async function GET() {
   });
 }
 
-/** 未登录流式答疑: 强制 mock provider + 不持久化 */
+/** 未登录流式答疑 (v19.8.3: 走真实 LLM, 不再强制 mock) */
 async function ragAnonymousStream(query: string, topK: number, chapterHint?: { courseSlug: string; chapterSlug: string; chapterTitle: string }) {
-  // 临时覆盖 LLM_PROVIDER
-  const originalProvider = process.env.LLM_PROVIDER;
-  process.env.LLM_PROVIDER = "mock";
-  // 重置 LLM provider cache, 让 mock 生效
-  const { resetLLMProvider } = await import("@/lib/llm");
-  resetLLMProvider();
-
+  // 不再覆盖 LLM_PROVIDER: systemd env 已经配置为 openai (DeepSeek)
+  // 匿名场景只是不持久化 session, LLM 逻辑跟登录用户一致
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -175,10 +171,6 @@ async function ragAnonymousStream(query: string, topK: number, chapterHint?: { c
       } catch (e) {
         send({ type: "error", data: e instanceof Error ? e.message : "答疑失败", sessionId: null, anonymous: true });
       } finally {
-        // 恢复
-        if (originalProvider) process.env.LLM_PROVIDER = originalProvider;
-        else delete process.env.LLM_PROVIDER;
-        resetLLMProvider();
         controller.close();
       }
     },
